@@ -3,268 +3,163 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#14532d">
-<title>Mi Cartera PRO V7</title>
+<meta name="theme-color" content="#87cefa">
+<title>Mi Cartera PRO</title>
 <link rel="manifest" href="manifest.json">
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f5f7f6;color:#24302a;padding-bottom:82px}
-header{background:#14532d;color:#fff;padding:18px 16px 16px;position:sticky;top:0;z-index:10}
-header h1{margin:0;font-size:28px}header p{margin:6px 0 0;font-size:15px;opacity:.9}
-main{max-width:760px;margin:auto;padding:14px}
-.page{display:none}.page.active{display:block}
-h2{margin:4px 0 12px}.card{background:#fff;border-radius:14px;padding:15px;margin:10px 0;box-shadow:0 2px 8px #00000012}
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.metric{padding:14px;border-radius:12px;background:#fff;box-shadow:0 2px 8px #00000010}.metric b{display:block;font-size:20px;margin-top:5px}
-label{display:block;font-size:14px;font-weight:700;margin:11px 0 5px}input,select,textarea{width:100%;padding:13px;border:1px solid #ccd4cf;border-radius:10px;font-size:16px;background:#fff}textarea{min-height:70px}
-.btn{border:0;border-radius:10px;padding:13px 16px;font-size:16px;font-weight:700;cursor:pointer}.primary{background:#14532d;color:#fff}.secondary{background:#e8efeb;color:#14532d}.danger{background:#b42318;color:#fff}.wide{width:100%;margin-top:12px}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-.item{border:1px solid #e0e5e2;border-radius:12px;padding:13px;margin:9px 0;background:#fff}.item strong{font-size:17px}.muted{color:#68756e;font-size:14px}.money{font-weight:800}
-.empty{text-align:center;padding:45px 15px;color:#68756e;font-size:18px}
-.bottom{position:fixed;left:0;right:0;bottom:0;height:74px;background:#fff;border-top:1px solid #ddd;display:grid;grid-template-columns:repeat(8,1fr);z-index:20}
-.bottom button{border:0;background:#fff;font-size:11px;color:#52605a;padding:5px 1px}.bottom button.active{color:#14532d;font-weight:800}.bottom span{display:block;font-size:22px;margin-bottom:2px}
-.modal{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;z-index:50}.modal.show{display:flex}.sheet{background:#fff;width:100%;max-width:760px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px}.sheet h3{margin:0 0 8px;font-size:22px}
-.notice{padding:12px;border-radius:10px;background:#eef7f0;margin:10px 0;font-size:14px}.error{background:#fff0ef;color:#9d1c14}.success{background:#eefaf1;color:#14652d}
-@media(min-width:700px){.modal{align-items:center}.sheet{border-radius:18px}.bottom{max-width:760px;left:50%;transform:translateX(-50%);border-radius:14px 14px 0 0}}
+*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;color:#292929}
+body{padding-bottom:70px}.top{height:86px;background:#87cefa;border-bottom:1px solid #aaa;display:flex;align-items:center;gap:10px;padding:8px 10px;position:sticky;top:0;z-index:20}
+.top h1{flex:1;text-align:center;margin:0;font-size:28px;color:#fff}.btn{border:1px solid #aaa;border-radius:7px;padding:12px 15px;font-weight:700;font-size:17px;background:#e8e8e8;color:#666;box-shadow:0 2px 5px #0002}.btn.blue{background:#87cefa;color:#fff}.btn.green{background:#08b908;color:#fff;border-color:#078f07}.btn.red{background:#ed1c24;color:#fff;border-color:#c00}.btn.orange{background:#ffd36b;color:#444;border-color:#d8a72b}
+main{max-width:760px;margin:auto;padding:12px 18px}.page{display:none}.page.active{display:block}
+.drawer{position:fixed;inset:0;background:#0007;z-index:50;display:none}.drawer.show{display:block}.menu{width:78%;max-width:520px;height:100%;background:#d7d7d7;overflow:auto;box-shadow:4px 0 10px #0005}
+.profile{padding:24px 22px;background:#eee;border-bottom:1px solid #bbb}.profile .logo{width:95px;height:95px;border-radius:22px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:54px;float:left;margin-right:28px}.profile h2{margin:8px 0 4px;font-size:23px}.profile a{color:#3185bd;font-size:21px;font-weight:700}.code{clear:both;background:#eee;padding:14px 20px;font-size:22px;font-weight:700;border-top:1px solid #aaa;border-bottom:1px solid #aaa}
+.menuTitle{padding:18px 22px;font-size:25px;font-weight:700;background:#eee}.mi{display:block;width:100%;padding:17px 22px;border:0;border-bottom:1px solid #bbb;background:#aeb8bd;color:#fff;text-align:left;font-size:22px;font-weight:700}
+.dashboardDate{background:#eee;border:1px solid #ddd;text-align:center;font-size:29px;font-weight:700;padding:22px;margin-top:18px}.metrics{display:grid;grid-template-columns:1fr 1fr;border:1px solid #ddd}.metric{background:#eee;text-align:center;border-right:1px solid #ddd}.metric:last-child{border:0}.metric .head{background:#bfc7cc;color:#fff;text-shadow:1px 1px #777;padding:8px;font-size:20px;font-weight:700}.metric .val{padding:10px;font-size:29px;font-weight:700}
+.sectionTitle{font-size:29px;font-weight:700;margin:30px 0 10px}.search{width:100%;padding:14px 16px;border:1px solid #bfc7cc;border-radius:15px;background:#eef2f3;font-size:21px;box-shadow:inset 0 1px 3px #0002}
+.routeCard{background:#ed1c24;color:#fff;border-radius:14px;margin:12px 0;overflow:hidden;box-shadow:0 2px 6px #0003}.routeRow{padding:20px 18px;border-bottom:1px solid #c4141b;display:flex;align-items:center;gap:10px}.routeRow:last-child{border:0}.routeName{flex:1;font-size:23px;font-weight:700}.routeSub{font-size:17px;margin-top:8px}.amount{background:#fff;color:#333;border-radius:6px;padding:10px 13px;font-size:20px;font-weight:700;white-space:nowrap}.alert{font-size:23px}
+.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin:14px 0;box-shadow:0 2px 5px #0001}.field{margin:15px 0}.field label{display:block;font-size:20px;margin-bottom:8px}.input,.select{width:100%;padding:14px;border:1px solid #bfc7cc;border-radius:14px;background:#eef2f3;font-size:20px}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:10px}.info{padding:13px;background:#eee;border:1px solid #ddd;font-size:19px}.infoHead{background:#bfc7cc;color:#fff;padding:9px;font-weight:700;text-shadow:1px 1px #777}.bigTotal{font-size:42px;font-weight:800;background:#eef2f3;border:1px solid #bfc7cc;border-radius:12px;padding:22px}
+.actionbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.wide{width:100%}.small{font-size:15px}.muted{color:#777}.success{color:#078f07;font-weight:700}.warning{color:#e87900;font-weight:700}.dangerTxt{color:#ed1c24;font-weight:700}
+.clientBox{background:#eef2f3;border:1px solid #bfc7cc;border-radius:14px;padding:18px;font-size:18px}.clientBox h3{margin:0 0 8px;font-size:24px}
+.ticket{background:#eee;border:1px solid #ccc;padding:20px;text-align:center;font-size:18px;line-height:1.55}.ticket h2{font-size:30px}.ticket .line{border-top:2px solid #333;margin:14px 0}
+.bottom{position:fixed;bottom:0;left:0;right:0;height:68px;background:#101116;color:#fff;z-index:30;display:flex;align-items:center;justify-content:space-around;font-size:13px}.bottom button{background:none;border:0;color:#fff;font-size:12px}.bottom span{display:block;font-size:25px}
+.toast{position:fixed;left:50%;bottom:82px;transform:translateX(-50%);background:#222;color:#fff;padding:13px 18px;border-radius:8px;display:none;z-index:80}.toast.show{display:block}
+hr{border:0;border-top:2px solid #aaa;margin:24px 0}
+@media(max-width:520px){.top h1{font-size:24px}.twocol{grid-template-columns:1fr}.routeName{font-size:21px}.sectionTitle{font-size:27px}.dashboardDate{font-size:25px}}
 </style>
 </head>
 <body>
-<header><h1>💰 Mi Cartera PRO V7</h1><p>Clientes · Préstamos · Pagos · Cobranzas · Reportes</p></header>
+<header class="top"><button class="btn" onclick="openMenu()">☰ Opciones</button><h1 id="title">Mi Cartera</h1><button class="btn orange" onclick="newCredit()">＋ Nuevo</button></header>
+
+<div id="drawer" class="drawer" onclick="closeMenu(event)">
+ <div class="menu" onclick="event.stopPropagation()">
+  <div class="profile"><div class="logo">💼</div><h2 id="bizName">MI CARTERA</h2><div>WhatsApp +51</div><a href="#" onclick="showPage('profile');closeMenu()">Ver perfil</a></div>
+  <div class="code">⚡ <span id="bizCode">MC-0001</span></div>
+  <div class="menuTitle">Secciones</div>
+  <button class="mi" onclick="showPage('clients');closeMenu()">👥 Clientes</button>
+  <button class="mi" onclick="showPage('credits');closeMenu()">💳 Créditos</button>
+  <button class="mi" onclick="showPage('routes');closeMenu()">📍 Ruta</button>
+  <button class="mi" onclick="showPage('lists');closeMenu()">🗒️ Listados</button>
+  <button class="mi" onclick="showPage('balance');closeMenu()">📅 Balance</button>
+  <button class="mi" onclick="showPage('routes');closeMenu()">📥 Agregar a lista</button>
+  <button class="mi" onclick="backup();closeMenu()">📗 Salvar datos</button>
+  <button class="mi" onclick="bluetoothInfo();closeMenu()">🔌 Opciones Bluetooth</button>
+  <button class="mi" onclick="tutorial();closeMenu()">🎓 Tutoriales</button>
+  <button class="mi" onclick="showPage('actions');closeMenu()">🔧 Acciones</button>
+ </div>
+</div>
+
 <main>
 <section id="home" class="page active">
-<h2>Resumen</h2>
-<div class="grid">
-<div class="metric">Capital colocado<b id="mCapital">S/ 0.00</b></div>
-<div class="metric">Saldo por cobrar<b id="mSaldo">S/ 0.00</b></div>
-<div class="metric">Cobrado<b id="mCobrado">S/ 0.00</b></div>
-<div class="metric">Vencido<b id="mVencido">S/ 0.00</b></div>
-</div>
-<div class="card"><h3>Acciones rápidas</h3>
-<div class="actions">
-<button class="btn primary" onclick="openClient()">＋ Agregar cliente</button>
-<button class="btn secondary" onclick="openLoan()">＋ Nuevo préstamo</button>
-<button class="btn secondary" onclick="show('payments')">💳 Registrar pago</button>
-</div></div>
-<div class="card"><h3>Próximas cobranzas</h3><div id="homeDue"></div></div>
+ <div class="dashboardDate" id="today"></div>
+ <div class="metrics">
+  <div class="metric"><div class="head">Recaudado hoy</div><div class="val" id="colToday">S/ 0</div></div>
+  <div class="metric"><div class="head">Créditos hoy</div><div class="val" id="creditToday">S/ 0</div></div>
+ </div>
+ <div class="sectionTitle">Recaudo esperado del día</div>
+ <div class="metrics">
+  <div class="metric"><div class="head">Debido mínimo</div><div class="val" id="dueMin">S/ 0</div></div>
+  <div class="metric"><div class="head">Debido total</div><div class="val" id="dueTotal">S/ 0</div></div>
+ </div>
+ <div class="sectionTitle">Pagos: <span id="paymentsCount">0</span> 🚩</div>
+ <div class="sectionTitle">Ruta<br><span id="routeName">Principal</span></div>
+ <input class="search" id="routeSearch" placeholder="🔍 Buscar" oninput="renderRoute()">
+ <div id="routeList" class="routeCard"></div>
 </section>
 
-<section id="clients" class="page">
-<h2>Clientes</h2>
-<button class="btn primary wide" onclick="openClient()">＋ AGREGAR CLIENTE</button>
-<input id="clientSearch" style="margin-top:10px" placeholder="Buscar por nombre, DNI o teléfono" oninput="renderClients()">
-<div id="clientList"></div>
-</section>
+<section id="clients" class="page"><div class="sectionTitle">Clientes</div><button class="btn blue wide" onclick="newClient()">＋ Crear cliente</button><div class="card"><input class="search" id="clientSearch" placeholder="🔍 Buscar nombre, teléfono o referencia" oninput="renderClients()"></div><div id="clientsList"></div></section>
 
-<section id="loans" class="page">
-<h2>Préstamos</h2>
-<button class="btn primary wide" onclick="openLoan()">＋ NUEVO PRÉSTAMO</button>
-<div id="loanList"></div>
-</section>
+<section id="clientForm" class="page"><div class="sectionTitle">Crear cliente</div><div class="card">
+ <div class="field"><label>Nombre</label><input class="input" id="fName" maxlength="50"></div>
+ <div class="field"><label>Teléfono</label><input class="input" id="fPhone" maxlength="30"></div>
+ <div class="field"><label>Dirección</label><input class="input" id="fAddress" maxlength="150"></div>
+ <div class="field"><label>Nombre fiador</label><input class="input" id="fGuarantor" maxlength="150" placeholder="-"></div>
+ <div class="field"><label>Referencia cliente</label><input class="input" id="fReference" maxlength="150" placeholder="-"></div>
+ <div class="field"><label>Ubicación del cliente</label><input class="input" id="fLocation" placeholder="[0,0]"><button class="btn blue wide" onclick="getLocation()">📍 Seleccionar ubicación</button></div>
+ <div class="actionbar"><button class="btn blue" onclick="saveClient()">➡ Guardar y continuar</button><button class="btn" onclick="showPage('clients')">Cancelar</button></div>
+ </div></section>
 
-<section id="payments" class="page">
-<h2>Pagos</h2>
-<button class="btn primary wide" onclick="openPayment()">＋ REGISTRAR PAGO</button>
-<div id="paymentList"></div>
-</section>
+<section id="credits" class="page"><div class="sectionTitle">Créditos</div><button class="btn blue wide" onclick="newCredit()">＋ Nuevo crédito</button><div id="creditsList"></div></section>
 
-<section id="collections" class="page">
-<h2>Cobranzas</h2>
-<div class="grid">
-<div class="metric">Vencido<b id="cOverdue">S/ 0.00</b></div>
-<div class="metric">Próximos 7 días<b id="cNext">S/ 0.00</b></div>
-</div>
-<div class="card"><h3>Cuotas pendientes</h3><div id="collectionList"></div></div>
-</section>
+<section id="creditForm" class="page"><div class="sectionTitle">Crédito</div><div id="creditClientBox" class="clientBox"></div>
+ <div class="field"><label>Fecha</label><input class="input" type="date" id="cDate"></div>
+ <div class="field"><label>Valor del crédito</label><input class="input" type="number" id="cCapital" oninput="calcCredit()"></div>
+ <div class="field"><label>Interés (%)</label><input class="input" type="number" id="cRate" value="20" oninput="calcCredit()"></div>
+ <div class="field"><label>Plazo</label><select class="select" id="cTerm" onchange="calcCredit()"><option value="6">6 cuotas</option><option value="10">10 cuotas</option><option value="12">12 cuotas</option><option value="15">15 cuotas</option><option value="20">20 cuotas</option><option value="24" selected>24 cuotas</option><option value="30">30 cuotas</option><option value="40">40 cuotas</option><option value="50">50 cuotas</option></select></div>
+ <div class="field"><label>Frecuencia</label><select class="select" id="cFreq" onchange="calcCredit()"><option value="daily" selected>Diario</option><option value="weekly">Semanal</option><option value="biweekly">Quincenal</option><option value="monthly">Mensual</option></select></div>
+ <div class="field"><label>Valor cuota</label><div class="bigTotal" id="cInstallment">S/ 0.00</div></div>
+ <div class="field"><label>Fecha primer pago (opcional)</label><input class="input" type="date" id="cFirst"></div>
+ <div class="field"><label>Total a pagar</label><div class="bigTotal" id="cTotal">S/ 0.00</div></div>
+ <div class="card"><b>Fórmula operativa visible:</b><br>Interés = Capital × % / 100<br>Total a pagar = Capital + Interés<br>Valor cuota = Total a pagar ÷ Nº de cuotas</div>
+ <div class="actionbar"><button class="btn blue" onclick="saveCredit()">➡ Crear crédito y Enrutar</button><button class="btn" onclick="showPage('credits')">Cancelar</button></div>
+ </section>
 
-<section id="routes" class="page"><h2>🛵 Rutas de cobranza</h2>
-<div class="card"><label>Zona / ruta</label><input id="routeZone" placeholder="Ej. Centro" oninput="renderRoutes()">
-<label>Fecha</label><input id="routeDate" type="date" onchange="renderRoutes()"></div><div id="routeList"></div></section>
-<section id="cash" class="page"><h2>💵 Liquidación / Caja</h2>
-<div class="card"><button class="btn primary wide" onclick="openCash()">＋ NUEVA LIQUIDACIÓN</button></div><div id="cashList"></div></section>
-<section id="reports" class="page">
-<h2>Reportes</h2>
-<div class="card" id="reportBox"></div>
-<div class="card"><h3>Respaldo</h3>
-<p class="muted">Exporta tus datos antes de cambiar de teléfono o navegador.</p>
-<button class="btn primary wide" onclick="exportData()">⬇ Exportar datos</button>
-<label class="btn secondary wide" style="text-align:center;display:block">⬆ Importar datos<input id="importFile" type="file" accept=".json" style="display:none" onchange="importData(event)"></label>
-</div>
-</section>
+<section id="creditDetail" class="page"><div id="creditDetailBody"></div></section>
+
+<section id="collect" class="page"><div id="collectBody"></div></section>
+
+<section id="routes" class="page"><div class="sectionTitle">Ruta</div><div class="card"><label>Ruta</label><select class="select" id="routeSelect" onchange="renderRoutePage()"><option>Principal</option><option>Norte</option><option>Sur</option><option>Centro</option></select><label style="display:block;margin-top:12px">Fecha</label><input class="input" type="date" id="routeDate" onchange="renderRoutePage()"></div><div id="routePageList"></div></section>
+
+<section id="lists" class="page"><div class="sectionTitle">Listados</div><div class="card"><button class="btn wide" onclick="listReport('clientes')">👥 Listado de clientes</button><button class="btn wide" onclick="listReport('creditos')">💳 Créditos activos</button><button class="btn wide" onclick="listReport('mora')">⚠️ Créditos en mora</button><button class="btn wide" onclick="listReport('pagos')">💵 Pagos registrados</button></div><div id="reportBox"></div></section>
+
+<section id="balance" class="page"><div class="sectionTitle">Balance</div><div class="metrics"><div class="metric"><div class="head">Capital colocado</div><div class="val" id="bCapital">S/ 0</div></div><div class="metric"><div class="head">Saldo actual</div><div class="val" id="bSaldo">S/ 0</div></div></div><div class="metrics"><div class="metric"><div class="head">Cobrado</div><div class="val" id="bCobrado">S/ 0</div></div><div class="metric"><div class="head">En mora</div><div class="val" id="bMora">S/ 0</div></div></div><div id="balanceReport"></div></section>
+
+<section id="actions" class="page"><div class="sectionTitle">Acciones</div><div class="card"><button class="btn wide" onclick="backup()">💾 Exportar respaldo</button><button class="btn wide" onclick="document.getElementById('restoreFile').click()">📥 Restaurar respaldo</button><input id="restoreFile" type="file" accept=".json" hidden onchange="restore(event)"><button class="btn wide" onclick="seedDemo()">🧪 Cargar datos de prueba</button><button class="btn red wide" onclick="resetAll()">🗑️ Borrar todos los datos</button></div></section>
+
+<section id="profile" class="page"><div class="sectionTitle">Perfil</div><div class="card"><div class="field"><label>Nombre de empresa</label><input class="input" id="pName"></div><div class="field"><label>WhatsApp</label><input class="input" id="pPhone"></div><button class="btn green" onclick="saveProfile()">Guardar perfil</button></div></section>
 </main>
 
-<nav class="bottom">
-<button class="active" onclick="show('home',this)"><span>🏠</span>Inicio</button>
-<button onclick="show('clients',this)"><span>👥</span>Clientes</button>
-<button onclick="show('loans',this)"><span>💰</span>Préstamos</button>
-<button onclick="show('payments',this)"><span>💳</span>Pagos</button>
-<button onclick="show('routes',this)"><span>🛵</span>Rutas</button>
-<button onclick="show('cash',this)"><span>💵</span>Caja</button>
-<button onclick="show('collections',this)"><span>📅</span>Cobros</button>
-<button onclick="show('reports',this)"><span>📊</span>Reportes</button>
-</nav>
-
-<div id="modal" class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="sheet"></div></div>
+<div class="bottom"><button onclick="showPage('home')"><span>🏠</span>Inicio</button><button onclick="showPage('clients')"><span>👥</span>Clientes</button><button onclick="showPage('credits')"><span>💳</span>Créditos</button><button onclick="showPage('routes')"><span>📍</span>Ruta</button><button onclick="showPage('balance')"><span>📅</span>Balance</button></div>
+<div id="toast" class="toast"></div>
 
 <script>
-const KEY='mi_cartera_v7';
-let db=JSON.parse(localStorage.getItem(KEY)||'null')||{clients:[],loans:[],payments:[]};
-const $=id=>document.getElementById(id);
-const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
-function save(){localStorage.setItem(KEY,JSON.stringify(db));renderAll()}
-function show(id,btn){
- document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
- $(id).classList.add('active');
- document.querySelectorAll('.bottom button').forEach(b=>b.classList.remove('active'));
- if(btn)btn.classList.add('active'); else [...document.querySelectorAll('.bottom button')].find(b=>b.textContent.toLowerCase().includes(id==='collections'?'cobros':id==='reports'?'reportes':id==='loans'?'préstamos':id==='payments'?'pagos':id==='clients'?'clientes':'inicio'))?.classList.add('active');
- if($('routeDate'))$('routeDate').value=new Date().toISOString().slice(0,10);renderAll(); window.scrollTo(0,0);
-}
-function openModal(content){$('sheet').innerHTML=content;$('modal').classList.add('show')}
-function closeModal(){$('modal').classList.remove('show')}
-function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-
-function openClient(){
- openModal(`<h3>Agregar cliente</h3>
- <label>Nombre completo *</label><input id="fName" autofocus>
- <label>DNI</label><input id="fDni" inputmode="numeric">
- <label>Teléfono</label><input id="fPhone" inputmode="tel">
- <label>Dirección</label><input id="fAddress">
- <label>Referencia</label><textarea id="fRef"></textarea>
- <button class="btn primary wide" onclick="saveClient()">GUARDAR CLIENTE</button>
- <button class="btn secondary wide" onclick="closeModal()">Cancelar</button>`)
-}
-function saveClient(){
- const name=$('fName').value.trim();
- if(!name){alert('Ingresa el nombre del cliente.');$('fName').focus();return}
- db.clients.push({id:Date.now().toString(),name,dni:$('fDni').value.trim(),phone:$('fPhone').value.trim(),address:$('fAddress').value.trim(),zone:$('fZone').value.trim(),ref:$('fRef').value.trim(),created:new Date().toISOString()});
- save();closeModal();show('clients');
- alert('Cliente guardado correctamente.');
-}
-function openLoan(){
- if(!db.clients.length){alert('Primero registra un cliente.');show('clients');return}
- const opts=db.clients.map(c=>`<option value="${c.id}">${esc(c.name)}${c.dni?' — '+esc(c.dni):''}</option>`).join('');
- openModal(`<h3>Nuevo préstamo</h3>
- <label>Cliente *</label><select id="lClient">${opts}</select>
- <label>Capital prestado (S/) *</label><input id="lCapital" type="number" min="0" step="0.01" inputmode="decimal">
- <label>Interés total (%) *</label><input id="lRate" type="number" min="0" step="0.01" value="20" inputmode="decimal">
- <label>Número de cuotas *</label><input id="lCount" type="number" min="1" step="1" value="10" inputmode="numeric">
- <label>Frecuencia</label><select id="lFreq"><option value="daily">Diaria</option><option value="weekly" selected>Semanal</option><option value="biweekly">Quincenal</option><option value="monthly">Mensual</option></select>
- <label>Primera cuota</label><input id="lDate" type="date" value="${new Date().toISOString().slice(0,10)}">
- <div class="notice" id="loanPreview">Completa los datos para ver el cálculo.</div>
- <button class="btn primary wide" onclick="saveLoan()">GUARDAR PRÉSTAMO Y GENERAR CUOTAS</button>
- <button class="btn secondary wide" onclick="closeModal()">Cancelar</button>`)
- ;['lCapital','lRate','lCount'].forEach(id=>$(id).addEventListener('input',previewLoan));previewLoan();
-}
-function previewLoan(){
- const cap=+($('lCapital')?.value||0), rate=+($('lRate')?.value||0), count=+($('lCount')?.value||0);
- const interest=cap*rate/100,total=cap+interest,inst=count?total/count:0;
- if($('loanPreview'))$('loanPreview').innerHTML=`Interés: <b>${money(interest)}</b><br>Total a cobrar: <b>${money(total)}</b><br>Cuota: <b>${money(inst)}</b>`;
-}
-function addDays(date,n){let d=new Date(date+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
-function addMonths(date,n){let d=new Date(date+'T12:00:00');d.setMonth(d.getMonth()+n);return d.toISOString().slice(0,10)}
-function saveLoan(){
- const clientId=$('lClient').value,cap=+$('lCapital').value,rate=+$('lRate').value,count=+$('lCount').value,freq=$('lFreq').value,date=$('lDate').value;
- if(!cap||cap<0||!count||count<1||!date){alert('Completa capital, cuotas y fecha.');return}
- const interest=cap*rate/100,total=cap+interest,inst=total/count;
- const interval={daily:1,weekly:7,biweekly:14,monthly:0}[freq];
- const schedule=Array.from({length:count},(_,i)=>({n:i+1,date:freq==='monthly'?addMonths(date,i):addDays(date,i*interval),amount:inst,paid:0}));
- db.loans.push({id:Date.now().toString(),clientId,capital:cap,rate,totalInterest:interest,total,installment:inst,count,freq,firstDate:date,schedule,created:new Date().toISOString()});
- save();closeModal();show('loans');alert('Préstamo guardado y cronograma generado.');
-}
-function openPayment(){
- const pending=[];
- db.loans.forEach(l=>l.schedule.forEach(q=>{let due=q.amount-q.paid;if(due>0)pending.push({l,q,due})}));
- if(!pending.length){alert('No hay cuotas pendientes.');return}
- const opts=pending.map((x,i)=>`<option value="${x.l.id}|${x.q.n}">${esc(clientName(x.l.clientId))} — Cuota ${x.q.n} — ${money(x.due)} — vence ${x.q.date}</option>`).join('');
- openModal(`<h3>Registrar pago</h3><label>Cuota *</label><select id="pSel">${opts}</select>
- <label>Monto pagado (S/) *</label><input id="pAmount" type="number" min="0.01" step="0.01" inputmode="decimal">
- <label>Descuento</label><input id="pDisc" type="number" step=".01" value="0" inputmode="decimal"><label>Recargo / mora</label><input id="pLate" type="number" step=".01" value="0" inputmode="decimal"><label>Fecha de pago</label><input id="pDate" type="date value="${new Date().toISOString().slice(0,10)}">
- <button class="btn primary wide" onclick="savePayment()">GUARDAR PAGO</button>
- <button class="btn secondary wide" onclick="closeModal()">Cancelar</button>`)
-}
-function savePayment(){
- const [lid,qn]=$('pSel').value.split('|'),amt=+$('pAmount').value,date=$('pDate').value;
- const l=db.loans.find(x=>x.id===lid),q=l?.schedule.find(x=>x.n===+qn);
- if(!l||!q||!amt||amt<=0){alert('Ingresa un monto válido.');return}
- const due=q.amount-q.paid,applied=Math.min(amt,due);
- q.paid+=applied;db.payments.push({id:Date.now().toString(),loanId:lid,installment:+qn,amount:applied,date});
- save();closeModal();show('payments');alert('Pago registrado: '+money(applied));
-}
-function clientName(id){return db.clients.find(c=>c.id===id)?.name||'Cliente eliminado'}
-function loanPaid(l){return l.schedule.reduce((s,q)=>s+q.paid,0)}
-function loanBalance(l){return l.total-loanPaid(l)}
-function renderClients(){
- const q=($('clientSearch')?.value||'').toLowerCase();
- const arr=db.clients.filter(c=>(c.name+' '+c.dni+' '+c.phone).toLowerCase().includes(q));
- $('clientList').innerHTML=arr.length?arr.map(c=>`<div class="item"><strong>${esc(c.name)}</strong><div class="muted">DNI: ${esc(c.dni||'—')} · Tel: ${esc(c.phone||'—')} · Ruta: ${esc(c.zone||'—')}</div><div class="actions"><button class="btn primary" onclick="loanFor('${c.id}')">＋ Préstamo</button><button class="btn secondary" onclick="clientInfo('${c.id}')">Ver ficha</button></div></div>`).join(''):'<div class="empty">No hay clientes.</div>';
-}
-function loanFor(id){openLoan();setTimeout(()=>{if($('lClient'))$('lClient').value=id},0)}
-function clientInfo(id){
- const c=db.clients.find(x=>x.id===id);if(!c)return;
- const loans=db.loans.filter(l=>l.clientId===id);
- openModal(`<h3>${esc(c.name)}</h3><p>DNI: ${esc(c.dni||'—')}<br>Teléfono: ${esc(c.phone||'—')}<br>Dirección: ${esc(c.address||'—')}<br>Referencia: ${esc(c.ref||'—')}</p><h4>Préstamos</h4>${loans.length?loans.map(l=>`<div class="item">${money(l.capital)} → saldo ${money(loanBalance(l))}</div>`).join(''):'<p class="muted">Sin préstamos.</p>'}<button class="btn secondary wide" onclick="closeModal()">Cerrar</button>`);
-}
-function renderLoans(){
- $('loanList').innerHTML=db.loans.length?db.loans.slice().reverse().map(l=>`<div class="item"><strong>${esc(clientName(l.clientId))}</strong><div class="muted">Capital ${money(l.capital)} · Interés ${l.rate}% · ${l.count} cuotas</div><div>Total: <span class="money">${money(l.total)}</span> · Saldo: <span class="money">${money(loanBalance(l))}</span></div><div class="actions"><button class="btn secondary" onclick="loanInfo('${l.id}')">Ver cronograma</button><button class="btn primary" onclick="payLoan('${l.id}')">Registrar pago</button></div></div>`).join(''):'<div class="empty">No hay préstamos.</div>';
-}
-function loanInfo(id){
- const l=db.loans.find(x=>x.id===id);if(!l)return;
- openModal(`<h3>${esc(clientName(l.clientId))}</h3><p>Capital: <b>${money(l.capital)}</b><br>Total: <b>${money(l.total)}</b><br>Saldo: <b>${money(loanBalance(l))}</b></p>${l.schedule.map(q=>`<div class="item"><b>Cuota ${q.n}</b> · ${q.date}<br>${money(q.amount)} · Pagado ${money(q.paid)} · Pendiente ${money(q.amount-q.paid)}</div>`).join('')}<button class="btn secondary wide" onclick="closeModal()">Cerrar</button>`);
-}
-function payLoan(id){show('payments');setTimeout(()=>openPaymentForLoan(id),50)}
-function openPaymentForLoan(id){
- const l=db.loans.find(x=>x.id===id),q=l?.schedule.find(q=>q.amount>q.paid);if(!q)return;
- openModal(`<h3>Pago — ${esc(clientName(l.clientId))}</h3><p>Cuota ${q.n}: ${money(q.amount-q.paid)} pendiente.</p><label>Monto pagado</label><input id="pAmount" type="number" min="0.01" step="0.01" value="${(q.amount-q.paid).toFixed(2)}" inputmode="decimal"><label>Fecha</label><input id="pDate" type="date" value="${new Date().toISOString().slice(0,10)}"><button class="btn primary wide" onclick="savePaymentDirect('${id}',${q.n})">GUARDAR PAGO</button><button class="btn secondary wide" onclick="closeModal()">Cancelar</button>`);
-}
-function savePaymentDirect(lid,qn){
- const l=db.loans.find(x=>x.id===lid),q=l.schedule.find(x=>x.n===qn),amt=+$('pAmount').value;
- if(!amt||amt<=0)return alert('Ingresa un monto válido.');
- const applied=Math.min(amt,q.amount-q.paid);q.paid+=applied;db.payments.push({id:Date.now().toString(),loanId:lid,installment:qn,amount:applied,date:$('pDate').value});save();closeModal();renderAll();alert('Pago registrado: '+money(applied));
-}
-function renderPayments(){
- $('paymentList').innerHTML=db.payments.length?db.payments.slice().reverse().map(p=>{let l=db.loans.find(x=>x.id===p.loanId);return `<div class="item"><strong>${esc(clientName(l?.clientId))}</strong><div>Cuota ${p.installment} · ${p.date}</div><div class="money">${money(p.amount)}</div></div>`}).join(''):'<div class="empty">No hay pagos registrados.</div>';
-}
-function allPending(){return db.loans.flatMap(l=>l.schedule.filter(q=>q.amount>q.paid).map(q=>({l,q,due:q.amount-q.paid})))}
-function renderCollections(){
- const today=new Date().toISOString().slice(0,10),end=addDays(today,7),p=allPending();
- const overdue=p.filter(x=>x.q.date<today).reduce((s,x)=>s+x.due,0),next=p.filter(x=>x.q.date>=today&&x.q.date<=end).reduce((s,x)=>s+x.due,0);
- $('cOverdue').textContent=money(overdue);$('cNext').textContent=money(next);
- $('collectionList').innerHTML=p.sort((a,b)=>a.q.date.localeCompare(b.q.date)).map(x=>`<div class="item"><strong>${esc(clientName(x.l.clientId))}</strong><div>Cuota ${x.q.n} · vence ${x.q.date}</div><div class="money">${money(x.due)}</div></div>`).join('')||'<div class="empty">No hay cuotas pendientes.</div>';
- $('homeDue').innerHTML=p.sort((a,b)=>a.q.date.localeCompare(b.q.date)).slice(0,5).map(x=>`<div class="item"><strong>${esc(clientName(x.l.clientId))}</strong> · ${x.q.date}<br>${money(x.due)}</div>`).join('')||'<div class="muted">No hay cuotas pendientes.</div>';
-}
-function renderHome(){
- const capital=db.loans.reduce((s,l)=>s+l.capital,0),total=db.loans.reduce((s,l)=>s+l.total,0),col=db.payments.reduce((s,p)=>s+p.amount,0),saldo=total-col;
- const today=new Date().toISOString().slice(0,10),v=allPending().filter(x=>x.q.date<today).reduce((s,x)=>s+x.due,0);
- $('mCapital').textContent=money(capital);$('mSaldo').textContent=money(saldo);$('mCobrado').textContent=money(col);$('mVencido').textContent=money(v);
-}
-function renderReports(){
- const capital=db.loans.reduce((s,l)=>s+l.capital,0),interest=db.loans.reduce((s,l)=>s+l.totalInterest,0),col=db.payments.reduce((s,p)=>s+p.amount,0),bal=db.loans.reduce((s,l)=>s+loanBalance(l),0),pending=allPending().length;
- $('reportBox').innerHTML=`<p>Clientes: <b>${db.clients.length}</b></p><p>Préstamos: <b>${db.loans.length}</b></p><p>Capital colocado: <b>${money(capital)}</b></p><p>Interés generado: <b>${money(interest)}</b></p><p>Total cobrado: <b>${money(col)}</b></p><p>Saldo por cobrar: <b>${money(bal)}</b></p><p>Cuotas pendientes: <b>${pending}</b></p>`;
-}
-
-function renderRoutes(){
- const d=$('routeDate')?.value||new Date().toISOString().slice(0,10), z=($('routeZone')?.value||'').toLowerCase();
- const a=allPending().filter(x=>x.q.date===d && (!z || String(db.clients.find(c=>c.id===x.l.clientId)?.zone||'').toLowerCase().includes(z)));
- $('routeList').innerHTML=a.length?a.map((x,i)=>{const c=db.clients.find(c=>c.id===x.l.clientId)||{};return `<div class="item"><strong>${i+1}. ${esc(c.name)}</strong><div class="muted">Ruta: ${esc(c.zone||'—')} · ${esc(c.address||'')}</div><div>Cuota ${x.q.n} · <b>${money(x.due)}</b></div><button class="btn primary wide" onclick="quickPay('${x.l.id}')">REGISTRAR COBRO</button></div>`}).join(''):'<div class="empty">No hay cobranzas para esta fecha/ruta.</div>';
-}
-function openCash(){
- const d=new Date().toISOString().slice(0,10);
- openModal(`<h3>Nueva liquidación</h3><label>Fecha</label><input id="cashDate" type="date" value="${d}">
- <label>Caja inicial</label><input id="cashInitial" type="number" step=".01" value="0">
- <label>Otros ingresos</label><input id="cashIn" type="number" step=".01" value="0">
- <label>Gastos / egresos</label><input id="cashOut" type="number" step=".01" value="0">
- <label>Observación</label><textarea id="cashObs"></textarea>
- <button class="btn primary wide" onclick="saveCash()">GUARDAR LIQUIDACIÓN</button><button class="btn secondary wide" onclick="closeModal()">Cancelar</button>`);
-}
-function saveCash(){
- const d=$('cashDate').value, rec=db.payments.filter(p=>p.date===d).reduce((s,p)=>s+p.amount,0), ini=+$('cashInitial').value||0, inn=+$('cashIn').value||0, out=+$('cashOut').value||0;
- db.cash=db.cash||[];db.cash.push({id:Date.now()+'',date:d,initial:ini,collections:rec,otherIn:inn,expenses:out,total:ini+rec+inn-out,obs:$('cashObs').value.trim()});
- save();closeModal();show('cash');alert('Liquidación guardada. Cobranza del día: '+money(rec));
-}
-function renderCash(){
- const a=db.cash||[];$('cashList').innerHTML=a.length?a.slice().reverse().map(c=>`<div class="item"><strong>Liquidación ${c.date}</strong><div>Cobrado ${money(c.collections)} · Otros ingresos ${money(c.otherIn)} · Gastos ${money(c.expenses)}</div><b>Total esperado en caja: ${money(c.total)}</b></div>`).join(''):'<div class="empty">No hay liquidaciones.</div>';
-}
-function renderAll(){db.cash=db.cash||[];renderHome();renderClients();renderLoans();renderPayments();renderCollections();renderRoutes();renderCash();renderReports()}
-function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi_cartera_respaldo.json';a.click();URL.revokeObjectURL(a.href)}
-function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.clients||!x.loans||!x.payments)throw 0;db=x;save();alert('Datos importados correctamente.')}catch{alert('El archivo no es un respaldo válido.')}};r.readAsText(f)}
-renderAll();
+const KEY='mi_cartera_pro_v8';
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro']};
+let selectedClient=null, selectedCredit=null;
+const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:2});
+const isoToday=()=>new Date().toISOString().slice(0,10);
+const fmtDate=s=>s?new Date(s+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'long',year:'numeric'}):'';
+const save=()=>{localStorage.setItem(KEY,JSON.stringify(db));refresh()};
+function toast(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2200)}
+function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.getElementById('title').textContent={home:'Mi Cartera',clients:'Clientes',clientForm:'Crear cliente',credits:'Créditos',creditForm:'Crédito',creditDetail:'Crédito',collect:'Recaudar',routes:'Ruta',lists:'Listados',balance:'Balance',actions:'Acciones',profile:'Perfil'}[id]||'Mi Cartera';refresh()}
+function openMenu(){document.getElementById('drawer').classList.add('show')}function closeMenu(e){if(!e||e.target.id==='drawer')document.getElementById('drawer').classList.remove('show')}
+function newClient(){['fName','fPhone','fAddress','fGuarantor','fReference','fLocation'].forEach(x=>document.getElementById(x).value='');showPage('clientForm')}
+function saveClient(){const name=fName.value.trim();if(!name)return toast('Ingrese el nombre del cliente');const c={id:Date.now(),name,phone:fPhone.value.trim(),address:fAddress.value.trim(),guarantor:fGuarantor.value.trim()||'-',reference:fReference.value.trim()||'-',location:fLocation.value.trim()||'[0,0]',route:'Principal'};db.clients.push(c);save();selectedClient=c.id;toast('Cliente creado');showPage('credits');}
+function getLocation(){if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{fLocation.value=`[${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}]`},()=>toast('No se pudo obtener ubicación'));else toast('GPS no disponible')}
+function newCredit(clientId){selectedClient=clientId||selectedClient||db.clients[0]?.id;if(!selectedClient){toast('Primero cree un cliente');showPage('clients');return}const c=db.clients.find(x=>x.id===selectedClient);creditClientBox.innerHTML=`<h3>${c.name}</h3>Teléfono: ${c.phone||'-'}<br>Dirección: ${c.address||'-'}<br>Referencia: ${c.reference||'-'}`;cDate.value=isoToday();cCapital.value='';cRate.value=20;cTerm.value='24';cFreq.value='daily';cFirst.value='';calcCredit();showPage('creditForm')}
+function calcCredit(){const cap=+cCapital.value||0,rate=+cRate.value||0,n=+cTerm.value||1,total=cap+(cap*rate/100);cTotal.textContent=money(total);cInstallment.textContent=money(total/n)}
+function addDays(date,n){const d=new Date(date+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
+function interval(freq){return freq==='daily'?1:freq==='weekly'?7:freq==='biweekly'?14:30}
+function saveCredit(){const cap=+cCapital.value||0,n=+cTerm.value||0;if(cap<=0||n<=0)return toast('Ingrese capital y plazo');const rate=+cRate.value||0,total=cap+cap*rate/100,inst=total/n,start=cFirst.value||cDate.value||isoToday();const client=db.clients.find(x=>x.id===selectedClient);const cr={id:Date.now(),clientId:selectedClient,date:cDate.value||isoToday(),capital:cap,rate,term:n,freq:cFreq.value,installment:inst,total,start,paid:0,route:client.route||'Principal',status:'Activo',schedule:[]};for(let i=1;i<=n;i++)cr.schedule.push({n:i,date:addDays(start,interval(cr.freq)*(i-1)),amount:inst,paid:0,postponed:false});db.credits.push(cr);save();selectedCredit=cr.id;showCredit(cr.id);toast('Crédito creado y enroutado')}
+function paidTotal(cr){return db.payments.filter(p=>p.creditId===cr.id).reduce((a,p)=>a+p.amount,0)}
+function calcStatus(cr){const paid=paidTotal(cr);let remain=Math.max(0,cr.total-paid);let overdue=0;let overdueCount=0;const today=isoToday();cr.schedule.forEach(q=>{const p=q.paid||0;if(p<q.amount && q.date<today && !q.postponed){overdue+=q.amount-p;overdueCount++}});return {paid,remain,overdue,overdueCount}}
+function showCredit(id){selectedCredit=id;const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);let state=s.overdueCount?'Crédito En mora':'al día';creditDetailBody.innerHTML=`<button class="btn" onclick="showPage('credits')">← Atrás</button><div class="sectionTitle">${c.name}</div><div class="clientBox">Teléfono. ${c.phone||'-'}<br>Dirección. ${c.address||'-'}<br>Referencia. ${c.reference||'-'}<br>📍 ${c.location||'[0,0]'}<br><hr><b>IDE. ${cr.id}</b></div><div class="actionbar"><button class="btn green" onclick="callClient('${c.phone||''}')">☎ Llamar</button><button class="btn blue" onclick="mapClient('${c.location||''}')">➤ Ver en Mapa</button></div><div class="sectionTitle">Estado</div><div class="info ${s.overdueCount?'dangerTxt':'success'}">${state}</div><div class="sectionTitle">Fecha crédito</div><div class="info">${fmtDate(cr.date)}</div><div class="sectionTitle">Vencimiento</div><div class="info">${fmtDate(cr.schedule[cr.schedule.length-1].date)}</div><div class="sectionTitle">Plazo</div><div class="info">🔵 ${labelFreq(cr.freq)}, ${cr.term} cuotas<br>Val.Cuota: ${money(cr.installment)}</div><div class="sectionTitle">Total crédito / Saldo actual</div><div class="metrics"><div class="metric"><div class="head">Total crédito</div><div class="val">${money(cr.total)}</div></div><div class="metric"><div class="head">Saldo actual</div><div class="val">${money(s.remain)}</div></div></div><button class="btn wide" onclick="showAbonos(${cr.id})">◉ Ver abonos &gt;&gt;</button><div class="sectionTitle">Cant.Cuotas</div><div class="metrics"><div class="metric"><div class="head">#Pagadas</div><div class="val">${Math.floor(s.paid/cr.installment)}</div></div><div class="metric"><div class="head">#Pendientes</div><div class="val">${Math.max(0,cr.term-Math.floor(s.paid/cr.installment))}</div></div></div><div class="sectionTitle">Para estar al día</div><div class="metrics"><div class="metric"><div class="head">#Cuotas mora</div><div class="val">${s.overdueCount}</div></div><div class="metric"><div class="head">Val.Mora</div><div class="val">${money(s.overdue)}</div></div></div><button class="btn green wide" onclick="openCollect(${cr.id})">💵 Recaudar</button>`;showPage('creditDetail')}
+function labelFreq(f){return f==='daily'?'Diario':f==='weekly'?'Semanal':f==='biweekly'?'Quincenal':'Mensual'}
+function openCollect(id){selectedCredit=id;const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);collectBody.innerHTML=`<div class="top" style="margin:-12px -18px 15px"><button class="btn" onclick="showCredit(${id})">← Atrás</button><h1>Recaudar</h1><button class="btn" onclick="postponeNext(${id})">Aplazar 📅</button></div><button class="btn wide" onclick="showAbonos(${id})">◉ Ver abonos &gt;&gt;</button><div class="sectionTitle">Cant.Cuotas</div><div class="metrics"><div class="metric"><div class="head">#Pagadas</div><div class="val">${Math.floor(s.paid/cr.installment)}</div></div><div class="metric"><div class="head">#Pendientes</div><div class="val">${Math.max(0,cr.term-Math.floor(s.paid/cr.installment))}</div></div></div><div class="sectionTitle">Para estar al día</div><div class="metrics"><div class="metric"><div class="head">#Cuotas mora</div><div class="val">${s.overdueCount}</div></div><div class="metric"><div class="head">Val.Mora</div><div class="val">${money(s.overdue)}</div></div></div></div><hr><div class="sectionTitle">Registrar recaudo</div><div class="twocol"><div class="field"><label>Val.Cuota S/</label><input class="input" id="payAmount" type="number" value="${cr.installment.toFixed(2)}"></div><div class="field"><label># Cuotas</label><input class="input" id="payCount" type="number" min="1" value="1"></div></div><div class="field"><label>Descuento</label><input class="input" id="payDiscount" type="number" value="0"></div><div class="field"><label>Recargo / mora</label><input class="input" id="paySurcharge" type="number" value="0"></div><button class="btn blue wide" onclick="registerPayment(${id})">☐ Imprimir comprobante?</button><div class="actionbar"><button class="btn green" onclick="registerPayment(${id})">✔ Abonar</button><button class="btn" onclick="showCredit(${id})">Salir</button></div>`;showPage('collect')}
+function registerPayment(id){const cr=db.credits.find(x=>x.id===id),amt=(+payAmount.value||0)*(+payCount.value||1),disc=+payDiscount.value||0,sur=+paySurcharge.value||0,final=Math.max(0,amt-disc+sur);if(final<=0)return toast('Ingrese un importe');db.payments.push({id:Date.now(),creditId:id,date:isoToday(),amount:final,base:amt,discount:disc,surcharge:sur});let remaining=final;for(const q of cr.schedule){if(remaining<=0)break;const room=q.amount-(q.paid||0);if(room>0){const x=Math.min(room,remaining);q.paid=(q.paid||0)+x;remaining-=x}}save();showTicket(id,final)}
+function showAbonos(id){const cr=db.credits.find(x=>x.id===id),ps=db.payments.filter(p=>p.creditId===id);creditDetailBody.innerHTML=`<button class="btn" onclick="showCredit(${id})">← Atrás</button><div class="sectionTitle">Abonos</div>${ps.length?ps.map(p=>`<div class="card"><b>${fmtDate(p.date)}</b><br>Abono: ${money(p.amount)}<br><span class="muted">Base ${money(p.base)} · Descuento ${money(p.discount)} · Recargo ${money(p.surcharge)}</span></div>`).join(''):'<div class="card">No hay abonos registrados.</div>'}`;showPage('creditDetail')}
+function postponeNext(id){const cr=db.credits.find(x=>x.id===id),q=cr.schedule.find(x=>x.paid<x.amount&&!x.postponed);if(q){q.date=addDays(q.date,1);q.postponed=true;save();toast('Cuota aplazada 1 día')} }
+function showTicket(id,amount){const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);collectBody.innerHTML=`<div class="top" style="margin:-12px -18px 15px"><button class="btn red" onclick="showPage('home')">✖ Salir</button><h1>Ticket de venta</h1><span></span></div><div class="ticket"><h2>🧾 Ticket de Venta</h2><b>${db.profile.name}</b><br>WhatsApp ${db.profile.phone}<div class="line"></div>Cliente: ${c.name}<br>Tel. ${c.phone||'-'}<br>${c.address||''}<br>Código: ${cr.id}<div class="line"></div>Tipo: ${labelFreq(cr.freq).toLowerCase()}<br>Fecha pago: ${fmtDate(isoToday())}<br>Abono: ${money(amount)}<br>Valor cuota: ${money(cr.installment)}<br>Plazo: 🔵 ${labelFreq(cr.freq)}, ${cr.term} cuotas<div class="line"></div>Saldo actual: ${money(s.remain)}<br>Vence: ${fmtDate(cr.schedule[cr.schedule.length-1].date)}<br>Estado: ${s.overdueCount?'en mora':'al día'}<div class="line"></div>** Gracias por preferirnos **<br>Hoy es: ${fmtDate(isoToday())}</div><button class="btn wide" onclick="shareTicket('${c.name}',${amount},${s.remain})">🚀 Compartir Ticket</button>`;showPage('collect')}
+function shareTicket(name,amount,balance){const txt=`Mi Cartera - Pago registrado\\nCliente: ${name}\\nAbono: ${money(amount)}\\nSaldo: ${money(balance)}`;if(navigator.share)navigator.share({text:txt});else navigator.clipboard?.writeText(txt).then(()=>toast('Ticket copiado'))}
+function callClient(p){if(p)location.href='tel:'+p}
+function mapClient(loc){if(loc&&loc!=='[0,0]')location.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(loc);else toast('Cliente sin ubicación')}
+function renderRoute(){const q=(routeSearch.value||'').toLowerCase();const today=isoToday();const rows=[];db.credits.forEach(cr=>{const c=db.clients.find(x=>x.id===cr.clientId);if(!c||cr.status!=='Activo'||(q&&!c.name.toLowerCase().includes(q)))return;const s=calcStatus(cr);const due=cr.schedule.filter(x=>x.date<=today&&x.paid<x.amount).reduce((a,x)=>a+x.amount-x.paid,0);if(due>0||cr.schedule.some(x=>x.date===today&&x.paid<x.amount))rows.push({c,cr,s,due})});routeList.innerHTML=rows.length?rows.map(r=>`<div class="routeRow" onclick="showCredit(${r.cr.id})"><div class="routeName">${r.c.name}<div class="routeSub">🔵 ${labelFreq(r.cr.freq)} | ID.${r.cr.id}</div></div><div class="amount">${money(r.due||r.cr.installment)}</div><div class="alert">${r.s.overdueCount?'⚠️':''}</div></div>`).join(''):'<div style="padding:25px;color:#fff">No hay cobranzas para hoy.</div>'}
+function renderClients(){const q=(clientSearch.value||'').toLowerCase();clientsList.innerHTML=db.clients.filter(c=>(c.name+c.phone+c.reference).toLowerCase().includes(q)).map(c=>`<div class="card"><h3>${c.name}</h3>Tel. ${c.phone||'-'}<br>${c.address||'-'}<br>Ref. ${c.reference||'-'}<div class="actionbar"><button class="btn blue" onclick="newCredit(${c.id})">＋ Crédito</button><button class="btn" onclick="selectedClient=${c.id};showClientCredits(${c.id})">Ver créditos</button></div></div>`).join('')||'<div class="card">No hay clientes.</div>'}
+function showClientCredits(cid){selectedClient=cid;showPage('credits');renderCredits()}
+function renderCredits(){creditsList.innerHTML=db.credits.slice().reverse().map(cr=>{const c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);return `<div class="card" onclick="showCredit(${cr.id})"><h3>${c?.name||'Cliente'}</h3>Capital: ${money(cr.capital)} · Interés: ${cr.rate}%<br>Total: ${money(cr.total)} · Cuota: ${money(cr.installment)}<br>Plazo: ${labelFreq(cr.freq)}, ${cr.term} cuotas<br>Saldo: <b>${money(s.remain)}</b> · ${s.overdueCount?'⚠️ Mora':'✓ Al día'}</div>`}).join('')||'<div class="card">No hay créditos.</div>'}
+function renderRoutePage(){const date=routeDate.value||isoToday(),route=routeSelect.value;routePageList.innerHTML=db.credits.filter(cr=>cr.route===route&&cr.status==='Activo').map(cr=>{const c=db.clients.find(x=>x.id===cr.clientId),due=cr.schedule.filter(q=>q.date===date&&q.paid<q.amount).reduce((a,q)=>a+q.amount-q.paid,0);return `<div class="card"><h3>${c.name}</h3>${labelFreq(cr.freq)} · Cuota ${money(cr.installment)}<br>Debido ${money(due)}<div class="actionbar"><button class="btn green" onclick="openCollect(${cr.id})">Recaudar</button><button class="btn blue" onclick="showCredit(${cr.id})">Ver</button></div></div>`}).join('')||'<div class="card">No hay créditos en esta ruta.</div>'}
+function listReport(type){let out='';if(type==='clientes')out=db.clients.map(c=>`<div class="card"><b>${c.name}</b><br>${c.phone||'-'}<br>${c.address||'-'}</div>`).join('');if(type==='creditos')out=db.credits.filter(c=>c.status==='Activo').map(cr=>{const c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);return `<div class="card"><b>${c.name}</b><br>${money(cr.total)} · Saldo ${money(s.remain)}<br>${labelFreq(cr.freq)} ${cr.term} cuotas</div>`}).join('');if(type==='mora')out=db.credits.map(cr=>{const s=calcStatus(cr),c=db.clients.find(x=>x.id===cr.clientId);return s.overdueCount?`<div class="card dangerTxt"><b>${c.name}</b><br>${s.overdueCount} cuotas mora · ${money(s.overdue)}</div>`:''}).join('');if(type==='pagos')out=db.payments.slice().reverse().map(p=>{const cr=db.credits.find(x=>x.id===p.creditId),c=db.clients.find(x=>x.id===cr?.clientId);return `<div class="card">${fmtDate(p.date)} · ${c?.name||''}<br><b>${money(p.amount)}</b></div>`}).join('');reportBox.innerHTML=out||'<div class="card">Sin datos.</div>'}
+function renderBalance(){let capital=db.credits.reduce((a,c)=>a+c.capital,0),sal=0,cob=0,mora=0;db.credits.forEach(cr=>{const s=calcStatus(cr);sal+=s.remain;cob+=s.paid;mora+=s.overdue});bCapital.textContent=money(capital);bSaldo.textContent=money(sal);bCobrado.textContent=money(cob);bMora.textContent=money(mora);balanceReport.innerHTML=`<div class="card"><b>Resumen operativo</b><br>Créditos: ${db.credits.length}<br>Clientes: ${db.clients.length}<br>Pagos registrados: ${db.payments.length}</div>`}
+function renderHome(){today.textContent=fmtDate(isoToday());const pt=db.payments.filter(p=>p.date===isoToday()).reduce((a,p)=>a+p.amount,0),ct=db.credits.filter(c=>c.date===isoToday()).reduce((a,c)=>a+c.total,0);let dueMin=0,dueTotal=0,count=0;db.credits.forEach(cr=>{const due=cr.schedule.filter(q=>q.date===isoToday()&&q.paid<q.amount).reduce((a,q)=>a+q.amount-q.paid,0);dueMin+=due;const all=cr.schedule.filter(q=>q.date<=isoToday()&&q.paid<q.amount&&!q.postponed).reduce((a,q)=>a+q.amount-q.paid,0);dueTotal+=all;if(due>0)count++});colToday.textContent=money(pt);creditToday.textContent=money(ct);dueMin.textContent=money(dueMin);dueTotal.textContent=money(dueTotal);paymentsCount.textContent=count;renderRoute()}
+function renderProfile(){bizName.textContent=db.profile.name;bizCode.textContent='MC-'+String(db.profile.name.length).padStart(4,'0');pName.value=db.profile.name;pPhone.value=db.profile.phone}
+function saveProfile(){db.profile.name=pName.value||'MI CARTERA';db.profile.phone=pPhone.value||'+51';save();toast('Perfil guardado')}
+function refresh(){renderHome();renderClients();renderCredits();renderRoutePage();renderBalance();renderProfile()}
+function backup(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi-cartera-respaldo.json';a.click();toast('Respaldo exportado')}
+function restore(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();toast('Respaldo restaurado')}catch{toast('Archivo no válido')}};r.readAsText(f)}
+function seedDemo(){const c={id:685,name:'Cliente Demo',phone:'999999999',address:'Lima',guarantor:'-',reference:'Demo',location:'[-12.0464,-77.0428]',route:'Principal'};db.clients=[c];const cap=1500,rate=20,n=24,total=1800,inst=75,start=isoToday();const cr={id:1047,clientId:c.id,date:start,capital:cap,rate,term:n,freq:'daily',installment:inst,total,start,paid:0,route:'Principal',status:'Activo',schedule:[]};for(let i=1;i<=n;i++)cr.schedule.push({n:i,date:addDays(start,i-1),amount:inst,paid:0,postponed:false});db.credits=[cr];db.payments=[];save();toast('Datos de prueba cargados')}
+function resetAll(){if(confirm('¿Borrar todos los datos?')){db={profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro']};save();}}
+function bluetoothInfo(){alert('Bluetooth queda reservado para impresora/comprobante. La app puede compartir el ticket por WhatsApp desde el teléfono.')}
+function tutorial(){alert('Flujo: 1) Crear cliente → 2) Crear crédito → 3) Enrutar → 4) Recaudar → 5) Ver balance/listados → 6) Respaldar datos.')}
+refresh();
 </script>
 </body>
 </html>
