@@ -95,6 +95,42 @@ hr{border:0;border-top:2px solid #aaa;margin:24px 0}
 
 <section id="creditDetail" class="page"><div id="creditDetailBody"></div></section>
 
+<section id="creditEdit" class="page">
+ <div class="sectionTitle">Modificar crédito</div>
+ <div id="editCreditClientBox" class="clientBox"></div>
+ <div class="card">
+  <div class="field"><label>Fecha del crédito</label><input class="input" type="date" id="eDate"></div>
+  <div class="field"><label>Valor del crédito</label><input class="input" type="number" id="eCapital" min="0" step="0.01" oninput="calcEditCredit()"></div>
+  <div class="field"><label>Interés (%)</label><input class="input" type="number" id="eRate" min="0" step="0.01" oninput="calcEditCredit()"></div>
+  <div class="field"><label>Plazo / cantidad de cuotas</label><input class="input" type="number" id="eTerm" min="1" step="1" oninput="calcEditCredit()"></div>
+  <div class="field"><label>Frecuencia</label>
+   <select class="select" id="eFreq" onchange="calcEditCredit()">
+    <option value="daily">Diario</option><option value="weekly">Semanal</option><option value="biweekly">Quincenal</option><option value="monthly">Mensual</option>
+   </select>
+  </div>
+  <div class="field"><label>Fecha primer pago</label><input class="input" type="date" id="eFirst" onchange="calcEditCredit()"></div>
+  <div class="field"><label>Valor cuota calculado</label><div class="bigTotal" id="eInstallment">S/ 0.00</div></div>
+  <div class="field"><label>Total a pagar</label><div class="bigTotal" id="eTotal">S/ 0.00</div></div>
+  <div class="card">
+   <b>Día de descanso de pago</b>
+   <div class="small muted">El día seleccionado NO genera cuota. Por ejemplo, 24 cuotas diarias con domingo de descanso generan 24 cobros en 28 días calendario.</div>
+   <select class="select" id="eRestDay">
+    <option value="none">Sin día de descanso</option>
+    <option value="0">Domingo</option><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option>
+   </select>
+  </div>
+  <div class="card">
+   <b>Pagos ya realizados</b><br><span id="editPaidInfo">S/ 0.00</span>
+   <div class="small muted">Al modificar un crédito con pagos registrados, se conserva el historial de pagos y se reconstruye el calendario pendiente.</div>
+  </div>
+  <div class="actionbar">
+   <button class="btn green" onclick="saveCreditEdit()">✓ Guardar cambios</button>
+   <button class="btn" onclick="showCredit(selectedCredit)">Cancelar</button>
+  </div>
+ </div>
+</section>
+
+
 <section id="collect" class="page"><div id="collectBody"></div></section>
 
 <section id="routes" class="page"><div class="sectionTitle">Ruta</div><div class="card"><label>Ruta</label><select class="select" id="routeSelect" onchange="renderRoutePage()"><option>Principal</option><option>Norte</option><option>Sur</option><option>Centro</option></select><label style="display:block;margin-top:12px">Fecha</label><input class="input" type="date" id="routeDate" onchange="renderRoutePage()"></div><div id="routePageList"></div></section>
@@ -108,7 +144,7 @@ hr{border:0;border-top:2px solid #aaa;margin:24px 0}
  <div class="sectionTitle">Parámetros</div>
  <div class="card">
   <h3 style="margin-top:0">Días que NO se cobran</h3>
-  <div class="small muted">Por defecto, domingo queda desactivado. Puedes desactivar cualquier otro día.</div>
+  <div class="small muted">Días en los que la ruta general NO cobra. Además, cada crédito puede tener su propio "día de descanso" que no genera cuota.</div>
   <div class="twocol" style="margin-top:10px">
    <label><input type="checkbox" id="offMon"> Lunes</label>
    <label><input type="checkbox" id="offTue"> Martes</label>
@@ -118,6 +154,14 @@ hr{border:0;border-top:2px solid #aaa;margin:24px 0}
    <label><input type="checkbox" id="offSat"> Sábado</label>
    <label><input type="checkbox" id="offSun" checked> Domingo</label>
   </div>
+ </div>
+ <div class="card">
+  <h3 style="margin-top:0">Día de descanso por defecto</h3>
+  <div class="small muted">Para nuevos créditos diarios. Este día no genera cuota.</div>
+  <select class="select" id="defaultRestDay">
+   <option value="none">Sin día de descanso</option>
+   <option value="0">Domingo</option><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option>
+  </select>
  </div>
  <div class="card">
   <h3 style="margin-top:0">Vencimiento del crédito</h3>
@@ -142,17 +186,17 @@ hr{border:0;border-top:2px solid #aaa;margin:24px 0}
 
 <script>
 const KEY='mi_cartera_pro_v8';
-let db=JSON.parse(localStorage.getItem(KEY)||'null')||{profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro'],settings:{offDays:[0],maturityRule:'month'}};
-db.settings=db.settings||{offDays:[0],maturityRule:'month'};
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro'],settings:{offDays:[0],maturityRule:'month',defaultRestDay:0}};
+db.settings=db.settings||{offDays:[0],maturityRule:'month',defaultRestDay:0};
 if(!Array.isArray(db.settings.offDays)) db.settings.offDays=[0];
-if(!db.settings.maturityRule) db.settings.maturityRule='month';
+if(!db.settings.maturityRule) db.settings.maturityRule='month'; if(db.settings.defaultRestDay===undefined) db.settings.defaultRestDay=0;
 let selectedClient=null, selectedCredit=null;
 const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:2});
 const isoToday=()=>new Date().toISOString().slice(0,10);
 const fmtDate=s=>s?new Date(s+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'long',year:'numeric'}):'';
 const save=()=>{localStorage.setItem(KEY,JSON.stringify(db));refresh()};
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2200)}
-function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.getElementById('title').textContent={home:'Mi Cartera',clients:'Clientes',clientForm:'Crear cliente',credits:'Créditos',creditForm:'Crédito',creditDetail:'Crédito',collect:'Recaudar',routes:'Ruta',lists:'Listados',balance:'Balance',actions:'Acciones',settings:'Parámetros',profile:'Perfil'}[id]||'Mi Cartera';refresh()}
+function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.getElementById('title').textContent={home:'Mi Cartera',clients:'Clientes',clientForm:'Crear cliente',credits:'Créditos',creditForm:'Crédito',creditDetail:'Crédito',creditEdit:'Modificar crédito',collect:'Recaudar',routes:'Ruta',lists:'Listados',balance:'Balance',actions:'Acciones',settings:'Parámetros',profile:'Perfil'}[id]||'Mi Cartera';refresh()}
 function openMenu(){document.getElementById('drawer').classList.add('show')}function closeMenu(e){if(!e||e.target.id==='drawer')document.getElementById('drawer').classList.remove('show')}
 function newClient(){['fName','fPhone','fAddress','fGuarantor','fReference','fLocation'].forEach(x=>document.getElementById(x).value='');showPage('clientForm')}
 function saveClient(){const name=fName.value.trim();if(!name)return toast('Ingrese el nombre del cliente');const c={id:Date.now(),name,phone:fPhone.value.trim(),address:fAddress.value.trim(),guarantor:fGuarantor.value.trim()||'-',reference:fReference.value.trim()||'-',location:fLocation.value.trim()||'[0,0]',route:'Principal'};db.clients.push(c);save();selectedClient=c.id;toast('Cliente creado');showPage('credits');}
@@ -189,16 +233,30 @@ function nextPayableDate(date, includeSame=false){
  while(isOffDay(d))d=addDays(d,1);
  return d;
 }
-function scheduleDates(start,n,freq){
+function scheduleDates(start,n,freq,restDay){
  const arr=[];
  let d=start;
  if(freq==='daily'){
-   for(let i=0;i<n;i++){d=nextPayableDate(d,i===0);arr.push(d);}
+   for(let i=0;i<n;i++){
+     d=nextScheduleDate(d,restDay,i===0);
+     arr.push(d);
+     d=addDays(d,1);
+   }
  }else{
    const step=freq==='weekly'?7:freq==='biweekly'?14:30;
-   for(let i=0;i<n;i++){d=(i===0?start:addDays(start,step*i));while(isOffDay(d))d=addDays(d,1);arr.push(d);}
+   for(let i=0;i<n;i++){
+     d=(i===0?start:addDays(start,step*i));
+     while(isOffDay(d))d=addDays(d,1);
+     arr.push(d);
+   }
  }
  return arr;
+}
+function nextScheduleDate(date,restDay,includeSame){
+ let d=date;
+ if(!includeSame)d=addDays(d,1);
+ while(isOffDay(d) || (restDay!==undefined && restDay!==null && restDay!=='none' && new Date(d+'T12:00:00').getDay()===Number(restDay))) d=addDays(d,1);
+ return d;
 }
 function maturityDate(cr){
  if(db.settings.maturityRule==='month') return addMonths(cr.date,1);
@@ -231,8 +289,9 @@ function saveCredit(){
  const inst=total/n;
  const client=db.clients.find(x=>x.id===selectedClient);
  if(!client)return toast('Seleccione un cliente');
- const cr={id:Date.now(),clientId:selectedClient,date,capital:cap,rate,term:n,freq,installment:inst,total,start:first,paid:0,route:client.route||'Principal',status:'Activo',schedule:[]};
- const dates=scheduleDates(first,n,freq);
+ const restDay=(freq==='daily'?db.settings.defaultRestDay:'none');
+ const cr={id:Date.now(),clientId:selectedClient,date,capital:cap,rate,term:n,freq,installment:inst,total,start:first,paid:0,route:client.route||'Principal',status:'Activo',restDay,schedule:[]};
+ const dates=scheduleDates(first,n,freq,restDay);
  dates.forEach((d,i)=>cr.schedule.push({n:i+1,date:d,amount:inst,paid:0,postponed:false}));
  cr.maturity=maturityDate(cr);
  db.credits.push(cr);
@@ -273,16 +332,69 @@ function showCredit(id){
  <div class="sectionTitle">Estado</div><div class="info"><span class="statusBadge ${statusClass}">${state}</span></div>
  <div class="sectionTitle">Fecha crédito</div><div class="info">${fmtDate(cr.date)}</div>
  <div class="sectionTitle">Vencimiento</div><div class="info">${fmtDate(maturityDate(cr))}</div>
- <div class="sectionTitle">Plazo</div><div class="info">🔵 ${labelFreq(cr.freq)}, ${cr.term} cuotas<br>Val.Cuota: ${money(cr.installment)}</div>
+ <div class="sectionTitle">Plazo</div><div class="info">🔵 ${labelFreq(cr.freq)}, ${cr.term} cuotas<br>Val.Cuota: ${money(cr.installment)}<br>Día de descanso: ${restDayLabel(cr.restDay)}</div>
  <div class="sectionTitle">Total crédito / Saldo actual</div><div class="metrics"><div class="metric"><div class="head">Total crédito</div><div class="val">${money(cr.total)}</div></div><div class="metric"><div class="head">Saldo actual</div><div class="val">${money(s.remain)}</div></div></div>
  <button class="btn wide" onclick="showAbonos(${cr.id})">◉ Ver abonos &gt;&gt;</button>
  <div class="sectionTitle">Cant.Cuotas</div><div class="metrics"><div class="metric"><div class="head">#Pagadas</div><div class="val">${paidQ}</div></div><div class="metric"><div class="head">#Pendientes</div><div class="val">${pending}</div></div></div>
  <div class="sectionTitle">Para estar al día</div><div class="metrics"><div class="metric"><div class="head">#Cuotas mora</div><div class="val">${s.overdueCount}</div></div><div class="metric"><div class="head">Val.Mora</div><div class="val">${money(s.overdue)}</div></div></div>
  <div class="card"><b>Debido acumulado:</b> ${money(currentDue(cr))}<br><span class="muted">Si se paga menos de una cuota, la diferencia queda pendiente para la siguiente cobranza.</span></div>
- <button class="btn green wide" onclick="openCollect(${cr.id})">💵 Recaudar</button>`;
+ <div class="actionbar"><button class="btn green" onclick="openCollect(${cr.id})">💵 Recaudar</button><button class="btn blue" onclick="editCredit(${cr.id})">✏️ Modificar crédito</button></div>`;
  showPage('creditDetail');
 }
 function labelFreq(f){return f==='daily'?'Diario':f==='weekly'?'Semanal':f==='biweekly'?'Quincenal':'Mensual'}
+function restDayLabel(d){return d===undefined||d===null||d==='none'?'Ninguno':['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][Number(d)]||'Ninguno'}
+function editCredit(id){
+ selectedCredit=id;
+ const cr=db.credits.find(x=>x.id===id), c=db.clients.find(x=>x.id===cr.clientId);
+ if(!cr)return toast('Crédito no encontrado');
+ document.getElementById('editCreditClientBox').innerHTML=`<h3>${c.name}</h3>Teléfono: ${c.phone||'-'}<br>Dirección: ${c.address||'-'}<br>ID crédito: ${cr.id}`;
+ document.getElementById('eDate').value=cr.date;
+ document.getElementById('eCapital').value=cr.capital;
+ document.getElementById('eRate').value=cr.rate;
+ document.getElementById('eTerm').value=cr.term;
+ document.getElementById('eFreq').value=cr.freq;
+ document.getElementById('eFirst').value=cr.start||cr.date;
+ document.getElementById('eRestDay').value=(cr.restDay===undefined?'0':String(cr.restDay));
+ document.getElementById('editPaidInfo').textContent=money(calcStatus(cr).paid);
+ calcEditCredit();
+ showPage('creditEdit');
+}
+function calcEditCredit(){
+ const cap=+(document.getElementById('eCapital')?.value||0), rate=+(document.getElementById('eRate')?.value||0), n=+(document.getElementById('eTerm')?.value||1);
+ const total=cap+cap*rate/100, inst=total/n;
+ document.getElementById('eTotal').textContent=money(total);
+ document.getElementById('eInstallment').textContent=money(inst);
+}
+function saveCreditEdit(){
+ const cr=db.credits.find(x=>x.id===selectedCredit);
+ if(!cr)return toast('Crédito no encontrado');
+ const cap=+(document.getElementById('eCapital')?.value||0);
+ const rate=+(document.getElementById('eRate')?.value||0);
+ const n=Math.max(1,Math.floor(+(document.getElementById('eTerm')?.value||1)));
+ const freq=document.getElementById('eFreq')?.value||'daily';
+ const date=document.getElementById('eDate')?.value||isoToday();
+ const first=document.getElementById('eFirst')?.value||nextPayableDate(date,false);
+ const restDay=document.getElementById('eRestDay')?.value||'none';
+ if(cap<=0)return toast('Ingrese un valor de crédito mayor a 0');
+
+ const oldPaid=calcStatus(cr).paid;
+ const total=cap+cap*rate/100, inst=total/n;
+ cr.date=date; cr.capital=cap; cr.rate=rate; cr.term=n; cr.freq=freq; cr.installment=inst; cr.total=total; cr.start=first; cr.restDay=restDay;
+
+ // Reconstruye el calendario y conserva el importe pagado como abono.
+ const dates=scheduleDates(first,n,freq,restDay);
+ cr.schedule=dates.map((d,i)=>({n:i+1,date:d,amount:inst,paid:0,postponed:false}));
+ let remaining=Math.min(oldPaid,total);
+ for(const q of cr.schedule){
+   if(remaining<=0)break;
+   const x=Math.min(q.amount,remaining);
+   q.paid=x; remaining-=x;
+ }
+ cr.maturity=maturityDate(cr);
+ localStorage.setItem(KEY,JSON.stringify(db));
+ toast('Crédito modificado correctamente');
+ setTimeout(()=>showCredit(cr.id),150);
+}
 function openCollect(id){
  selectedCredit=id;
  const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);
@@ -417,12 +529,12 @@ function saveProfile(){db.profile.name=pName.value||'MI CARTERA';db.profile.phon
 function renderSettings(){
  const map={1:'offMon',2:'offTue',3:'offWed',4:'offThu',5:'offFri',6:'offSat',0:'offSun'};
  Object.keys(map).forEach(k=>{const el=document.getElementById(map[k]);if(el)el.checked=db.settings.offDays.includes(+k);});
- const mr=document.getElementById('maturityRule');if(mr)mr.value=db.settings.maturityRule;
+ const mr=document.getElementById('maturityRule');if(mr)mr.value=db.settings.maturityRule; const rd=document.getElementById('defaultRestDay');if(rd)rd.value=String(db.settings.defaultRestDay);
 }
 function saveSettings(){
  const ids={1:'offMon',2:'offTue',3:'offWed',4:'offThu',5:'offFri',6:'offSat',0:'offSun'};
  db.settings.offDays=Object.keys(ids).filter(k=>document.getElementById(ids[k])?.checked).map(Number);
- db.settings.maturityRule=document.getElementById('maturityRule')?.value||'month';
+ db.settings.maturityRule=document.getElementById('maturityRule')?.value||'month'; db.settings.defaultRestDay=document.getElementById('defaultRestDay')?.value==='none'?'none':Number(document.getElementById('defaultRestDay')?.value||0);
  localStorage.setItem(KEY,JSON.stringify(db));
  toast('Parámetros guardados');
  refresh();
@@ -434,12 +546,12 @@ function seedDemo(){
  const c={id:685,name:'Cliente Demo',phone:'999999999',address:'Lima',guarantor:'-',reference:'Demo',location:'[-12.0464,-77.0428]',route:'Principal'};
  db.clients=[c];
  const cap=1500,rate=20,n=24,total=1800,inst=75,start=isoToday();
- const cr={id:1047,clientId:c.id,date:start,capital:cap,rate,term:n,freq:'daily',installment:inst,total,start,paid:0,route:'Principal',status:'Activo',schedule:[]};
- scheduleDates(start,n,'daily').forEach((d,i)=>cr.schedule.push({n:i+1,date:d,amount:inst,paid:0,postponed:false}));
+ const cr={id:1047,clientId:c.id,date:start,capital:cap,rate,term:n,freq:'daily',installment:inst,total,start,paid:0,route:'Principal',status:'Activo',restDay:db.settings.defaultRestDay,schedule:[]};
+ scheduleDates(start,n,'daily',db.settings.defaultRestDay).forEach((d,i)=>cr.schedule.push({n:i+1,date:d,amount:inst,paid:0,postponed:false}));
  cr.maturity=maturityDate(cr);
  db.credits=[cr];db.payments=[];localStorage.setItem(KEY,JSON.stringify(db));toast('Datos de prueba cargados');
 }
-function resetAll(){if(confirm('¿Borrar todos los datos?')){db={profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro'],settings:{offDays:[0],maturityRule:'month'}};save();}}
+function resetAll(){if(confirm('¿Borrar todos los datos?')){db={profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro'],settings:{offDays:[0],maturityRule:'month',defaultRestDay:0}};save();}}
 function bluetoothInfo(){alert('Bluetooth queda reservado para impresora/comprobante. La app puede compartir el ticket por WhatsApp desde el teléfono.')}
 function tutorial(){alert('Flujo: 1) Crear cliente → 2) Crear crédito → 3) Enrutar → 4) Recaudar → 5) Ver balance/listados → 6) Respaldar datos.')}
 refresh();
