@@ -1,9 +1,1 @@
-{
-  "name": "Mi Cartera PRO",
-  "short_name": "Mi Cartera",
-  "start_url": ".",
-  "display": "standalone",
-  "background_color": "#f7f7f7",
-  "theme_color": "#87cefa",
-  "lang": "es"
-}
+{"name":"Mi Cartera - Préstamos","short_name":"Mi Cartera","start_url":"./index.html","display":"standalone","background_color":"#f4f7f5","theme_color":"#87cefa","lang":"es","icons":[]}

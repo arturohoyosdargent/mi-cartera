@@ -1,584 +1,100 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#87cefa">
-<title>Mi Cartera PRO</title>
-<link rel="manifest" href="manifest.json">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#87cefa"><title>Mi Cartera PRO</title><link rel="manifest" href="manifest.json">
 <style>
-*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;color:#292929}
-body{padding-bottom:70px}.top{height:86px;background:#87cefa;border-bottom:1px solid #aaa;display:flex;align-items:center;gap:10px;padding:8px 10px;position:sticky;top:0;z-index:20}
-.top h1{flex:1;text-align:center;margin:0;font-size:28px;color:#fff}.btn{border:1px solid #aaa;border-radius:7px;padding:9px 12px;font-weight:700;font-size:15px;background:#e8e8e8;color:#666;box-shadow:0 2px 5px #0002}.btn.blue{background:#87cefa;color:#fff}.btn.green{background:#08b908;color:#fff;border-color:#078f07}.btn.red{background:#ed1c24;color:#fff;border-color:#c00}.btn.orange{background:#ffd36b;color:#444;border-color:#d8a72b}
-main{max-width:680px;margin:auto;padding:10px 16px}.page{display:none}.page.active{display:block}
-.drawer{position:fixed;inset:0;background:#0007;z-index:50;display:none}.drawer.show{display:block}.menu{width:76%;max-width:500px;height:100%;background:#d7d7d7;overflow:auto;box-shadow:4px 0 10px #0005}
-.profile{padding:20px 18px;background:#eee;border-bottom:1px solid #bbb}.profile .logo{width:78px;height:78px;border-radius:18px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:42px;float:left;margin-right:20px}.profile h2{margin:6px 0 3px;font-size:20px}.profile a{color:#3185bd;font-size:18px;font-weight:700}.code{clear:both;background:#eee;padding:11px 18px;font-size:19px;font-weight:700;border-top:1px solid #aaa;border-bottom:1px solid #aaa}
-.menuTitle{padding:14px 18px;font-size:21px;font-weight:700;background:#eee}.mi{display:block;width:100%;padding:14px 18px;border:0;border-bottom:1px solid #bbb;background:#aeb8bd;color:#fff;text-align:left;font-size:19px;font-weight:700}
-.dashboardDate{background:#eee;border:1px solid #ddd;text-align:center;font-size:25px;font-weight:700;padding:18px;margin-top:15px}.metrics{display:grid;grid-template-columns:1fr 1fr;border:1px solid #ddd}.metric{background:#eee;text-align:center;border-right:1px solid #ddd}.metric:last-child{border:0}.metric .head{background:#bfc7cc;color:#fff;text-shadow:1px 1px #777;padding:7px;font-size:17px;font-weight:700}.metric .val{padding:8px;font-size:25px;font-weight:700}
-.sectionTitle{font-size:25px;font-weight:700;margin:23px 0 9px}.search{width:100%;padding:11px 14px;border:1px solid #bfc7cc;border-radius:13px;background:#eef2f3;font-size:18px;box-shadow:inset 0 1px 3px #0002}
-.routeCard{background:#ed1c24;color:#fff;border-radius:12px;margin:10px 0;overflow:hidden;box-shadow:0 2px 6px #0003}.routeRow{padding:16px 16px;border-bottom:1px solid #c4141b;display:flex;align-items:center;gap:8px}.routeRow:last-child{border:0}.routeName{flex:1;font-size:20px;font-weight:700}.routeSub{font-size:15px;margin-top:6px}.amount{background:#fff;color:#333;border-radius:6px;padding:8px 11px;font-size:18px;font-weight:700;white-space:nowrap}.alert{font-size:20px}
-.card{background:#fff;border:1px solid #ddd;border-radius:9px;padding:13px;margin:11px 0;box-shadow:0 2px 5px #0001}.field{margin:11px 0}.field label{display:block;font-size:18px;margin-bottom:6px}.input,.select{width:100%;padding:11px 13px;border:1px solid #bfc7cc;border-radius:12px;background:#eef2f3;font-size:18px;min-height:44px}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:8px}.info{padding:11px;background:#eee;border:1px solid #ddd;font-size:17px}.infoHead{background:#bfc7cc;color:#fff;padding:8px;font-weight:700;text-shadow:1px 1px #777}.bigTotal{font-size:34px;font-weight:800;background:#eef2f3;border:1px solid #bfc7cc;border-radius:11px;padding:16px}
-.actionbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.wide{width:100%}.small{font-size:14px}.muted{color:#777}.btn.orange{background:#f39c12}.btn.red{background:#ed1c24}.success{color:#078f07;font-weight:700}.warning{color:#e87900;font-weight:700}.dangerTxt{color:#ed1c24;font-weight:700}.routeCard.greenStatus{background:#4caf50}.routeCard.orangeStatus{background:#f39c12}.routeCard.redStatus{background:#ed1c24}.statusBadge{display:inline-block;padding:5px 9px;border-radius:6px;font-weight:700;color:#fff}.statusGreen{background:#4caf50}.statusOrange{background:#f39c12}.statusRed{background:#ed1c24}
-.clientBox{background:#eef2f3;border:1px solid #bfc7cc;border-radius:12px;padding:14px;font-size:17px}.clientBox h3{margin:0 0 7px;font-size:21px}
-.ticket{background:#eee;border:1px solid #ccc;padding:17px;text-align:center;font-size:16px;line-height:1.5}.ticket h2{font-size:26px}.ticket .line{border-top:2px solid #333;margin:11px 0}
-.bottom{position:fixed;bottom:0;left:0;right:0;height:60px;background:#101116;color:#fff;z-index:30;display:flex;align-items:center;justify-content:space-around;font-size:12px}.bottom button{background:none;border:0;color:#fff;font-size:11px}.bottom span{display:block;font-size:22px}
-.toast{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);background:#222;color:#fff;padding:11px 15px;border-radius:8px;display:none;z-index:80}.toast.show{display:block}
-hr{border:0;border-top:2px solid #aaa;margin:24px 0}
-@media(max-width:520px){.top h1{font-size:24px}.twocol{grid-template-columns:1fr}.routeName{font-size:21px}.sectionTitle{font-size:27px}.dashboardDate{font-size:25px}}
-</style>
-</head>
+*{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;color:#292929}body{padding-bottom:66px}.top{height:86px;background:#87cefa;border-bottom:1px solid #aaa;display:flex;align-items:center;gap:10px;padding:8px 10px;position:sticky;top:0;z-index:20}.top h1{flex:1;text-align:center;margin:0;font-size:27px;color:#fff}.btn{border:1px solid #aaa;border-radius:7px;padding:9px 12px;font-weight:700;font-size:15px;background:#e8e8e8;color:#555;box-shadow:0 2px 5px #0002}.btn.blue{background:#87cefa;color:#fff}.btn.green{background:#08b908;color:#fff;border-color:#078f07}.btn.red{background:#ed1c24;color:#fff;border-color:#c00}.btn.orange{background:#f39c12;color:#fff;border-color:#d88a00}.btn:active{transform:scale(.98)}main{max-width:700px;margin:auto;padding:10px 16px}.page{display:none}.page.active{display:block}.drawer{position:fixed;inset:0;background:#0007;z-index:50;display:none}.drawer.show{display:block}.menu{width:80%;max-width:500px;height:100%;background:#d7d7d7;overflow:auto;box-shadow:4px 0 10px #0005}.profile{padding:18px;background:#eee;border-bottom:1px solid #bbb;min-height:110px}.profile .logo{width:70px;height:70px;border-radius:16px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:38px;float:left;margin-right:15px}.profile h2{margin:5px 0;font-size:20px}.profile small{color:#3185bd;font-weight:700}.mi{display:block;width:100%;padding:13px 18px;border:0;border-bottom:1px solid #bbb;background:#aeb8bd;color:#fff;text-align:left;font-size:17px;font-weight:700}.menuTitle{padding:13px 18px;font-size:20px;font-weight:700;background:#eee}.sectionTitle{font-size:25px;font-weight:700;margin:22px 0 9px}.card{background:#fff;border:1px solid #ddd;border-radius:9px;padding:13px;margin:11px 0;box-shadow:0 2px 5px #0001}.field{margin:10px 0}.field label{display:block;font-size:17px;margin-bottom:6px}.input,.select,.search{width:100%;padding:11px 13px;border:1px solid #bfc7cc;border-radius:12px;background:#eef2f3;font-size:17px;min-height:44px}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:8px}.threecol{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.actionbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.wide{width:100%}.muted{color:#777}.small{font-size:13px}.info{padding:10px;background:#eee;border:1px solid #ddd;font-size:15px;margin-top:5px}.infoHead{background:#bfc7cc;color:#fff;padding:8px;font-weight:700}.bigTotal{font-size:31px;font-weight:800;background:#eef2f3;border:1px solid #bfc7cc;border-radius:11px;padding:15px}.metrics{display:grid;grid-template-columns:1fr 1fr;border:1px solid #ddd}.metric{background:#eee;text-align:center;border-right:1px solid #ddd}.metric:last-child{border:0}.metric .head{background:#bfc7cc;color:#fff;padding:7px;font-size:15px;font-weight:700}.metric .val{padding:8px;font-size:23px;font-weight:700}.routeCard{background:#ed1c24;color:#fff;border-radius:12px;margin:10px 0;overflow:hidden;box-shadow:0 2px 6px #0003}.routeCard.greenStatus{background:#4caf50}.routeCard.orangeStatus{background:#f39c12}.routeRow{padding:13px 14px;border-bottom:1px solid #ffffff44;display:flex;align-items:center;gap:8px}.routeRow:last-child{border:0}.routeName{flex:1;font-size:18px;font-weight:700}.amount{background:#fff;color:#333;border-radius:6px;padding:7px 10px;font-size:16px;font-weight:700;white-space:nowrap}.statusBadge{display:inline-block;padding:4px 8px;border-radius:6px;font-weight:700;color:#fff}.statusGreen{background:#4caf50}.statusOrange{background:#f39c12}.statusRed{background:#ed1c24}.clientBox{background:#eef2f3;border:1px solid #bfc7cc;border-radius:12px;padding:13px;font-size:16px}.clientBox h3{margin:0 0 7px;font-size:20px}.bottom{position:fixed;bottom:0;left:0;right:0;height:62px;background:#101116;color:#fff;z-index:30;display:flex;align-items:center;justify-content:space-around}.bottom button{background:none;border:0;color:#fff;font-size:11px}.bottom span{display:block;font-size:21px}.toast{position:fixed;left:50%;bottom:75px;transform:translateX(-50%);background:#222;color:#fff;padding:11px 15px;border-radius:8px;display:none;z-index:80;max-width:90%;text-align:center}.toast.show{display:block}.hide{display:none!important}.ticket{background:#eee;border:1px solid #ccc;padding:16px;text-align:center;line-height:1.5}.line{border-top:2px solid #333;margin:10px 0}.dangerTxt{color:#d00;font-weight:700}.success{color:#078f07;font-weight:700}.warning{color:#d87900;font-weight:700}@media(min-width:700px){.bottom{max-width:700px;left:50%;transform:translateX(-50%)} }
+</style></head>
 <body>
-<header class="top"><button class="btn" onclick="openMenu()">☰ Opciones</button><h1 id="title">Mi Cartera</h1><button class="btn orange" onclick="newCredit()">＋ Nuevo</button></header>
-
-<div id="drawer" class="drawer" onclick="closeMenu(event)">
- <div class="menu" onclick="event.stopPropagation()">
-  <div class="profile"><div class="logo">💼</div><h2 id="bizName">MI CARTERA</h2><div>WhatsApp +51</div><a href="#" onclick="showPage('profile');closeMenu()">Ver perfil</a></div>
-  <div class="code">⚡ <span id="bizCode">MC-0001</span></div>
-  <div class="menuTitle">Secciones</div>
-  <button class="mi" onclick="showPage('clients');closeMenu()">👥 Clientes</button>
-  <button class="mi" onclick="showPage('credits');closeMenu()">💳 Créditos</button>
-  <button class="mi" onclick="showPage('routes');closeMenu()">📍 Ruta</button>
-  <button class="mi" onclick="showPage('lists');closeMenu()">🗒️ Listados</button>
-  <button class="mi" onclick="showPage('balance');closeMenu()">📅 Balance</button>
-  <button class="mi" onclick="showPage('routes');closeMenu()">📥 Agregar a lista</button>
-  <button class="mi" onclick="backup();closeMenu()">📗 Salvar datos</button>
-  <button class="mi" onclick="bluetoothInfo();closeMenu()">🔌 Opciones Bluetooth</button>
-  <button class="mi" onclick="tutorial();closeMenu()">🎓 Tutoriales</button>
-  <button class="mi" onclick="showPage('settings');closeMenu()">⚙️ Parámetros</button><button class="mi" onclick="showPage('actions');closeMenu()">🔧 Acciones</button>
- </div>
-</div>
-
+<div class="top"><button class="btn" onclick="openMenu()">☰ Opciones</button><h1 id="title">Mi Cartera</h1><button class="btn orange" onclick="quickNew()">＋ Nuevo</button></div>
+<div id="drawer" class="drawer" onclick="if(event.target.id==='drawer')closeMenu()"><div class="menu"><div class="profile"><div class="logo">💰</div><h2 id="bizName">MI CARTERA</h2><small id="bizUser">Administrador</small><br><small id="bizCode"></small></div><div class="menuTitle">Operación</div><button class="mi" onclick="go('home')">🏠 Inicio</button><button class="mi" onclick="go('clients')">👥 Clientes</button><button class="mi" onclick="go('credits')">💳 Créditos</button><button class="mi" onclick="go('routes')">📍 Rutas / Cobradores</button><button class="mi" onclick="go('collections')">💵 Recaudo diario</button><button class="mi" onclick="go('balance')">📅 Balance / Caja</button><div class="menuTitle">Administración</div><button class="mi" onclick="go('users')">👤 Usuarios y permisos</button><button class="mi" onclick="go('investors')">💼 Capital / Inversionistas</button><button class="mi" onclick="go('reports')">📊 Reportes</button><button class="mi" onclick="go('settings')">⚙ Parámetros</button><button class="mi" onclick="go('backup')">☁ Respaldo / Restaurar</button><button class="mi" onclick="go('audit')">🧾 Auditoría</button><button class="mi" onclick="go('profile')">🏢 Empresa</button></div></div>
 <main>
-<section id="home" class="page active">
- <div class="dashboardDate" id="today"></div>
- <div class="metrics">
-  <div class="metric"><div class="head">Recaudado hoy</div><div class="val" id="colToday">S/ 0</div></div>
-  <div class="metric"><div class="head">Créditos hoy</div><div class="val" id="creditToday">S/ 0</div></div>
- </div>
- <div class="sectionTitle">Recaudo esperado del día</div>
- <div class="metrics">
-  <div class="metric"><div class="head">Debido mínimo</div><div class="val" id="dueMin">S/ 0</div></div>
-  <div class="metric"><div class="head">Debido total</div><div class="val" id="dueTotal">S/ 0</div></div>
- </div>
- <div class="sectionTitle">Pagos: <span id="paymentsCount">0</span> 🚩</div>
- <div class="sectionTitle">Ruta<br><span id="routeName">Principal</span></div>
- <input class="search" id="routeSearch" placeholder="🔍 Buscar" oninput="renderRoute()">
- <div id="routeList" class="routeCard"></div>
-</section>
-
+<section id="home" class="page active"><div class="sectionTitle">Resumen</div><div class="dashboardDate" id="todayLabel"></div><div class="metrics"><div class="metric"><div class="head">POR COBRAR HOY</div><div class="val" id="mDue">S/ 0</div></div><div class="metric"><div class="head">COBRADO HOY</div><div class="val" id="mCollected">S/ 0</div></div></div><div class="twocol"><div class="card"><b>Cartera activa</b><div class="bigTotal" id="mPortfolio">S/ 0</div></div><div class="card"><b>Mora pendiente</b><div class="bigTotal dangerTxt" id="mArrears">S/ 0</div></div></div><div class="card"><b>Control del negocio</b><div id="homeAlerts"></div></div><div class="card"><b>Accesos rápidos</b><div class="twocol"><button class="btn blue" onclick="newClient()">＋ Cliente</button><button class="btn green" onclick="newCredit()">＋ Crédito</button><button class="btn orange" onclick="go('collections')">💵 Cobrar</button><button class="btn" onclick="go('balance')">📅 Caja</button></div></div></section>
 <section id="clients" class="page"><div class="sectionTitle">Clientes</div><button class="btn blue wide" onclick="newClient()">＋ Crear cliente</button><div class="card"><input class="search" id="clientSearch" placeholder="🔍 Buscar nombre, teléfono o referencia" oninput="renderClients()"></div><div id="clientsList"></div></section>
-
-<section id="clientForm" class="page"><div class="sectionTitle">Crear cliente</div><div class="card">
- <div class="field"><label>Nombre</label><input class="input" id="fName" maxlength="50"></div>
- <div class="field"><label>Teléfono</label><input class="input" id="fPhone" maxlength="30"></div>
- <div class="field"><label>Dirección</label><input class="input" id="fAddress" maxlength="150"></div>
- <div class="field"><label>Nombre fiador</label><input class="input" id="fGuarantor" maxlength="150" placeholder="-"></div>
- <div class="field"><label>Referencia cliente</label><input class="input" id="fReference" maxlength="150" placeholder="-"></div>
- <div class="field"><label>Ubicación del cliente</label><input class="input" id="fLocation" placeholder="[0,0]"><button class="btn blue wide" onclick="getLocation()">📍 Seleccionar ubicación</button></div>
- <div class="actionbar"><button class="btn blue" onclick="saveClient()">➡ Guardar y continuar</button><button class="btn" onclick="showPage('clients')">Cancelar</button></div>
- </div></section>
-
-<section id="credits" class="page"><div class="sectionTitle">Créditos</div><button class="btn blue wide" onclick="newCredit()">＋ Nuevo crédito</button><div class="twocol" style="margin:10px 0"><button class="btn" onclick="setCreditFilter('all')">Todos</button><button class="btn green" onclick="setCreditFilter('active')">Activos</button><button class="btn orange" onclick="setCreditFilter('due')">Por vencer</button><button class="btn red" onclick="setCreditFilter('overdue')">Vencidos / Mora</button></div><div id="creditsSummary" class="card"></div><div id="creditsList"></div></section>
-
-<section id="creditForm" class="page"><div class="sectionTitle">Crédito</div><div id="creditClientBox" class="clientBox"></div>
- <div class="field"><label>Fecha</label><input class="input" type="date" id="cDate"></div>
- <div class="field"><label>Valor del crédito</label><input class="input" type="number" id="cCapital" oninput="calcCredit()"></div>
- <div class="field"><label>Interés (%)</label><input class="input" type="number" id="cRate" value="20" oninput="calcCredit()"></div>
- <div class="field"><label>Plazo</label><select class="select" id="cTerm" onchange="calcCredit()"><option value="6">6 cuotas</option><option value="10">10 cuotas</option><option value="12">12 cuotas</option><option value="15">15 cuotas</option><option value="20">20 cuotas</option><option value="24" selected>24 cuotas</option><option value="30">30 cuotas</option><option value="40">40 cuotas</option><option value="50">50 cuotas</option></select></div>
- <div class="field"><label>Frecuencia</label><select class="select" id="cFreq" onchange="calcCredit()"><option value="daily" selected>Diario</option><option value="weekly">Semanal</option><option value="biweekly">Quincenal</option><option value="monthly">Mensual</option></select></div>
- <div class="field"><label>Valor cuota</label><div class="bigTotal" id="cInstallment">S/ 0.00</div></div>
- <div class="field"><label>Fecha primer pago (opcional)</label><input class="input" type="date" id="cFirst"></div><div class="small muted">Los días configurados como NO cobrables (por defecto domingo) se saltan automáticamente.</div>
- <div class="field"><label>Total a pagar</label><div class="bigTotal" id="cTotal">S/ 0.00</div></div>
- <div class="card"><b>Fórmula operativa visible:</b><br>Interés = Capital × % / 100<br>Total a pagar = Capital + Interés<br>Valor cuota = Total a pagar ÷ Nº de cuotas</div>
- <div class="actionbar"><button class="btn blue" onclick="saveCredit()">➡ Crear crédito y Enrutar</button><button class="btn" onclick="showPage('credits')">Cancelar</button></div>
- </section>
-
-<section id="creditDetail" class="page"><div id="creditDetailBody"></div></section>
-
-<section id="creditEdit" class="page">
- <div class="sectionTitle">Modificar crédito</div>
- <div id="editCreditClientBox" class="clientBox"></div>
- <div class="card">
-  <div class="field"><label>Fecha del crédito</label><input class="input" type="date" id="eDate"></div>
-  <div class="field"><label>Valor del crédito</label><input class="input" type="number" id="eCapital" min="0" step="0.01" oninput="calcEditCredit()"></div>
-  <div class="field"><label>Interés (%)</label><input class="input" type="number" id="eRate" min="0" step="0.01" oninput="calcEditCredit()"></div>
-  <div class="field"><label>Plazo / cantidad de cuotas</label><input class="input" type="number" id="eTerm" min="1" step="1" oninput="calcEditCredit()"></div>
-  <div class="field"><label>Frecuencia</label>
-   <select class="select" id="eFreq" onchange="calcEditCredit()">
-    <option value="daily">Diario</option><option value="weekly">Semanal</option><option value="biweekly">Quincenal</option><option value="monthly">Mensual</option>
-   </select>
-  </div>
-  <div class="field"><label>Fecha primer pago</label><input class="input" type="date" id="eFirst" onchange="calcEditCredit()"></div>
-  <div class="field"><label>Valor cuota calculado</label><div class="bigTotal" id="eInstallment">S/ 0.00</div></div>
-  <div class="field"><label>Total a pagar</label><div class="bigTotal" id="eTotal">S/ 0.00</div></div>
-  <div class="card">
-   <b>Día de descanso de pago</b>
-   <div class="small muted">El día seleccionado NO genera cuota. Por ejemplo, 24 cuotas diarias con domingo de descanso generan 24 cobros en 28 días calendario.</div>
-   <select class="select" id="eRestDay">
-    <option value="none">Sin día de descanso</option>
-    <option value="0">Domingo</option><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option>
-   </select>
-  </div>
-  <div class="card">
-   <b>Pagos ya realizados</b><br><span id="editPaidInfo">S/ 0.00</span>
-   <div class="small muted">Al modificar un crédito con pagos registrados, se conserva el historial de pagos y se reconstruye el calendario pendiente.</div>
-  </div>
-  <div class="actionbar">
-   <button class="btn green" onclick="saveCreditEdit()">✓ Guardar cambios</button>
-   <button class="btn" onclick="showCredit(selectedCredit)">Cancelar</button>
-  </div>
- </div>
-</section>
-
-
-<section id="collect" class="page"><div id="collectBody"></div></section>
-
-<section id="routes" class="page"><div class="sectionTitle">Ruta</div><div class="card"><label>Ruta</label><select class="select" id="routeSelect" onchange="renderRoutePage()"><option>Principal</option><option>Norte</option><option>Sur</option><option>Centro</option></select><label style="display:block;margin-top:12px">Fecha</label><input class="input" type="date" id="routeDate" onchange="renderRoutePage()"></div><div id="routePageList"></div></section>
-
-<section id="lists" class="page"><div class="sectionTitle">Listados</div><div class="card"><button class="btn wide" onclick="listReport('clientes')">👥 Listado de clientes</button><button class="btn wide" onclick="listReport('creditos')">💳 Créditos activos</button><button class="btn wide" onclick="listReport('mora')">⚠️ Créditos en mora</button><button class="btn wide" onclick="listReport('pagos')">💵 Pagos registrados</button></div><div id="reportBox"></div></section>
-
-<section id="balance" class="page">
- <div class="sectionTitle">BALANCE</div>
- <div class="metrics"><div class="metric"><div class="head">Cobrado</div><div class="val" id="bCobrado">S/ 0</div></div><div class="metric"><div class="head">Créditos</div><div class="val" id="bCapital">S/ 0</div></div></div>
- <div class="card"><h3 style="margin-top:0">Rango del balance</h3><div class="twocol"><div class="field"><label>Desde</label><input class="input" type="date" id="bDesde"></div><div class="field"><label>Hasta cierre</label><input class="input" type="date" id="bHasta"></div></div><button class="btn blue wide" onclick="renderBalance()">↻ Actualizar balance</button></div>
- <div class="sectionTitle">Entradas / Inversión</div><div class="metrics"><div class="metric"><div class="head">Detalle</div><div class="val" style="font-size:17px">Entradas</div></div><div class="metric"><div class="head">Valor</div><div class="val" id="bEntradas">S/ 0</div></div></div><div id="entriesList"></div><div class="actionbar"><button class="btn green" onclick="addBalanceEntry('entry')">＋ Agregar</button><button class="btn" onclick="addBalanceEntry('investment')">＋ Inversión</button></div>
- <div class="sectionTitle">Gastos / Salidas</div><div class="metrics"><div class="metric"><div class="head">Detalle</div><div class="val" style="font-size:17px">Gastos</div></div><div class="metric"><div class="head">Valor</div><div class="val" id="bGastos">S/ 0</div></div></div><div id="expensesList"></div><button class="btn red wide" onclick="addBalanceEntry('expense')">＋ Agregar gasto</button>
- <div class="card"><div class="metrics"><div class="metric"><div class="head">Total ingresos</div><div class="val" id="bTotalIngr">S/ 0</div></div><div class="metric"><div class="head">Total egresos</div><div class="val" id="bTotalEgr">S/ 0</div></div></div><div class="sectionTitle">Total caja</div><div class="bigTotal" id="bCaja">S/ 0</div><div class="small muted">Caja base + cobros + entradas + inversiones − gastos.</div></div>
- <button class="btn wide" onclick="closeCash()">🗓️ Solicitar Cierre de Caja</button>
- <div class="sectionTitle">Estado balance</div><div class="info" id="bEstado">📂 SIN CERRAR</div><div class="sectionTitle">Último balance</div><div class="info" id="bUltimo">-</div><button class="btn orange wide" onclick="showCashHistory()">↗ Ver cartera / cierres</button>
- <div id="balanceReport"></div>
-</section>
-
-
-<section id="settings" class="page">
- <div class="sectionTitle">Parámetros</div>
- <div class="card">
-  <h3 style="margin-top:0">Días que NO se cobran</h3>
-  <div class="small muted">Días en los que la ruta general NO cobra. Además, cada crédito puede tener su propio "día de descanso" que no genera cuota.</div>
-  <div class="twocol" style="margin-top:10px">
-   <label><input type="checkbox" id="offMon"> Lunes</label>
-   <label><input type="checkbox" id="offTue"> Martes</label>
-   <label><input type="checkbox" id="offWed"> Miércoles</label>
-   <label><input type="checkbox" id="offThu"> Jueves</label>
-   <label><input type="checkbox" id="offFri"> Viernes</label>
-   <label><input type="checkbox" id="offSat"> Sábado</label>
-   <label><input type="checkbox" id="offSun" checked> Domingo</label>
-  </div>
- </div>
- <div class="card">
-  <h3 style="margin-top:0">Día de descanso por defecto</h3>
-  <div class="small muted">Para nuevos créditos diarios. Este día no genera cuota.</div>
-  <select class="select" id="defaultRestDay">
-   <option value="none">Sin día de descanso</option>
-   <option value="0">Domingo</option><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option>
-  </select>
- </div>
- <div class="card">
-  <h3 style="margin-top:0">Vencimiento del crédito</h3>
-  <div class="field"><label>Regla</label>
-   <select class="select" id="maturityRule">
-    <option value="month" selected>Un mes después de la fecha del crédito</option>
-    <option value="term">Según la última cuota</option>
-   </select>
-  </div>
-  <div class="small muted">La regla "un mes" permite que un crédito iniciado el 09/09/2026 tenga vencimiento el 09/10/2026, independientemente de los domingos no cobrables.</div>
- </div>
- <button class="btn green wide" onclick="saveSettings()">✓ Guardar parámetros</button>
-</section>
-
-<section id="actions" class="page"><div class="sectionTitle">Acciones</div><div class="card"><button class="btn wide" onclick="backup()">💾 Exportar respaldo</button><button class="btn wide" onclick="document.getElementById('restoreFile').click()">📥 Restaurar respaldo</button><input id="restoreFile" type="file" accept=".json" hidden onchange="restore(event)"><button class="btn wide" onclick="seedDemo()">🧪 Cargar datos de prueba</button><button class="btn red wide" onclick="resetAll()">🗑️ Borrar todos los datos</button></div></section>
-
-<section id="profile" class="page"><div class="sectionTitle">Perfil</div><div class="card"><div class="field"><label>Nombre de empresa</label><input class="input" id="pName"></div><div class="field"><label>WhatsApp</label><input class="input" id="pPhone"></div><button class="btn green" onclick="saveProfile()">Guardar perfil</button></div></section>
+<section id="clientForm" class="page"><div class="sectionTitle" id="clientFormTitle">Crear cliente</div><div class="card"><div class="field"><label>Nombre *</label><input class="input" id="fName" maxlength="80"></div><div class="twocol"><div class="field"><label>Teléfono *</label><input class="input" id="fPhone" inputmode="tel" maxlength="30"></div><div class="field"><label>DNI / documento</label><input class="input" id="fDni" maxlength="20"></div></div><div class="field"><label>Dirección</label><input class="input" id="fAddress" maxlength="180"></div><div class="twocol"><div class="field"><label>Nombre fiador</label><input class="input" id="fGuarantor" maxlength="120"></div><div class="field"><label>Tel. fiador</label><input class="input" id="fGuarantorPhone" maxlength="30"></div></div><div class="field"><label>Referencia cliente</label><input class="input" id="fReference" maxlength="150"></div><div class="field"><label>Ruta</label><select class="select" id="fRoute"></select></div><div class="field"><label>Ubicación del cliente</label><input class="input" id="fLocation" placeholder="[lat,lon]"><button type="button" class="btn blue wide" onclick="getLocation()">📍 Seleccionar ubicación</button></div><div class="actionbar"><button type="button" class="btn blue" onclick="saveClient()">➡ Guardar y continuar</button><button type="button" class="btn" onclick="go('clients')">Cancelar</button></div></div></section>
+<section id="credits" class="page"><div class="sectionTitle">Créditos</div><button class="btn blue wide" onclick="newCredit()">＋ Nuevo crédito</button><div class="twocol" style="margin:10px 0"><button class="btn" onclick="setCreditFilter('all')">Todos</button><button class="btn green" onclick="setCreditFilter('active')">Activos</button><button class="btn orange" onclick="setCreditFilter('due')">Por vencer</button><button class="btn red" onclick="setCreditFilter('overdue')">Mora</button></div><div id="creditsSummary" class="card"></div><div id="creditsList"></div></section>
+<section id="creditForm" class="page"><div class="sectionTitle">Crear crédito</div><div id="creditClientBox" class="clientBox"></div><div class="card"><div class="twocol"><div class="field"><label>Fecha</label><input class="input" id="cDate" type="date"></div><div class="field"><label>Primer pago</label><input class="input" id="cFirst" type="date"></div></div><div class="twocol"><div class="field"><label>Capital *</label><input class="input" id="cCapital" type="number" step="0.01" inputmode="decimal" oninput="calcCredit()"></div><div class="field"><label>Interés (%)</label><input class="input" id="cRate" type="number" step="0.01" oninput="calcCredit()"></div></div><div class="twocol"><div class="field"><label>Plazo (cuotas) *</label><input class="input" id="cTerm" type="number" min="1" oninput="calcCredit()"></div><div class="field"><label>Frecuencia</label><select class="select" id="cFreq" onchange="calcCredit()"><option value="daily">Diaria</option><option value="weekly">Semanal</option><option value="biweekly">Quincenal</option><option value="monthly">Mensual</option></select></div></div><div class="field"><label>Día de descanso para cobro</label><select class="select" id="cRestDay"><option value="none">Sin descanso</option><option value="0">Domingo</option><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option></select></div><div class="metrics"><div class="metric"><div class="head">TOTAL A PAGAR</div><div class="val" id="cTotal">S/ 0</div></div><div class="metric"><div class="head">VALOR CUOTA</div><div class="val" id="cInstallment">S/ 0</div></div></div><div class="actionbar"><button class="btn green" onclick="saveCredit()">✓ Crear crédito y enrutar</button><button class="btn" onclick="go('credits')">Cancelar</button></div></div></section>
+<section id="creditDetail" class="page"><div class="sectionTitle">Detalle del crédito</div><div id="creditDetailBody"></div></section>
+<section id="collect" class="page"><div class="sectionTitle">Recaudar</div><div id="collectBody"></div></section>
+<section id="collections" class="page"><div class="sectionTitle">Recaudo diario</div><div class="card"><div class="twocol"><div><label>Fecha</label><input class="input" id="collectionDate" type="date" onchange="renderCollections()"></div><div><label>Ruta</label><select class="select" id="collectionRoute" onchange="renderCollections()"></select></div></div></div><div id="collectionsList"></div></section>
+<section id="routes" class="page"><div class="sectionTitle">Rutas / Cobradores</div><button class="btn blue wide" onclick="addRoute()">＋ Nueva ruta</button><div id="routesList"></div></section>
+<section id="users" class="page"><div class="sectionTitle">Usuarios y permisos</div><button class="btn blue wide" onclick="addUser()">＋ Nuevo usuario</button><div id="usersList"></div></section>
+<section id="investors" class="page"><div class="sectionTitle">Capital / Inversionistas</div><div class="card"><div class="bigTotal" id="capitalAvailable">S/ 0</div><div class="small muted">Capital registrado disponible</div></div><button class="btn blue wide" onclick="addCapital()">＋ Registrar aporte de capital</button><div id="investorList"></div></section>
+<section id="balance" class="page"><div class="sectionTitle">Balance / Caja</div><div class="card"><div class="twocol"><div><label>Desde</label><input class="input" id="bDesde" type="date" onchange="renderBalance()"></div><div><label>Hasta cierre</label><input class="input" id="bHasta" type="date" onchange="renderBalance()"></div></div></div><div class="metrics"><div class="metric"><div class="head">COBRADO</div><div class="val" id="bCobrado">S/ 0</div></div><div class="metric"><div class="head">CRÉDITOS</div><div class="val" id="bCreditos">S/ 0</div></div></div><div class="card"><div class="infoHead">Entradas / Inversión</div><div id="entriesList"></div><div class="bigTotal" id="bIngresos">S/ 0</div><div class="actionbar"><button class="btn green" onclick="addCashItem('entry')">＋ Agregar</button><button class="btn" onclick="removeCashItem('entry')">− Quitar</button></div></div><div class="card"><div class="infoHead">Gastos / Salidas</div><div id="expensesList"></div><div class="bigTotal" id="bEgresos">S/ 0</div><div class="actionbar"><button class="btn red" onclick="addCashItem('expense')">＋ Agregar gasto</button><button class="btn" onclick="removeCashItem('expense')">− Quitar</button></div></div><div class="card"><b>Total caja</b><div class="bigTotal" id="bCaja">S/ 0</div><div id="bEstado" class="warning"></div></div><div class="twocol"><button class="btn blue" onclick="viewPortfolio()">📂 Ver cartera</button><button class="btn green" onclick="closeCash()">✓ Solicitar cierre de caja</button></div><div class="card"><b>Último balance</b><div id="lastBalance"></div><button class="btn wide" onclick="showCashHistory()">Ver historial de cierres</button></div></section>
+<section id="reports" class="page"><div class="sectionTitle">Reportes</div><div class="card"><button class="btn wide" onclick="report('portfolio')">📊 Cartera y saldos</button><button class="btn wide" onclick="report('collections')">💵 Recaudo por cobrador/ruta</button><button class="btn wide" onclick="report('arrears')">⚠️ Mora y antigüedad</button><button class="btn wide" onclick="report('loans')">💳 Créditos colocados</button><button class="btn wide" onclick="report('clients')">👥 Clientes</button><button class="btn wide" onclick="report('cash')">📅 Balance y caja</button><button class="btn wide" onclick="window.print()">🖨 Imprimir / PDF</button></div><div id="reportBox"></div></section>
+<section id="settings" class="page"><div class="sectionTitle">Parámetros</div><div class="card"><div class="field"><label>Días generales sin cobro</label><div class="twocol"><label><input type="checkbox" id="off0"> Domingo</label><label><input type="checkbox" id="off1"> Lunes</label><label><input type="checkbox" id="off2"> Martes</label><label><input type="checkbox" id="off3"> Miércoles</label><label><input type="checkbox" id="off4"> Jueves</label><label><input type="checkbox" id="off5"> Viernes</label><label><input type="checkbox" id="off6"> Sábado</label></div></div><div class="field"><label>Día de descanso predeterminado</label><select class="select" id="defaultRestDay"><option value="none">Sin descanso</option><option value="0">Domingo</option><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option></select></div><div class="field"><label>Vencimiento</label><select class="select" id="maturityRule"><option value="month">Un mes desde la fecha del crédito</option><option value="schedule">Última cuota</option></select></div><div class="field"><label>Caja base</label><input class="input" id="cashBase" type="number" step="0.01"></div><button class="btn green wide" onclick="saveSettings()">✓ Guardar parámetros</button></div></section>
+<section id="backup" class="page"><div class="sectionTitle">Respaldo / Restaurar</div><div class="card"><b>Respaldo completo</b><p class="muted">Incluye clientes, créditos, pagos, rutas, usuarios, capital, gastos, caja y auditoría.</p><button class="btn blue wide" onclick="backup()">☁ Exportar respaldo</button></div><div class="card"><b>Restaurar</b><input class="input" type="file" accept="application/json" onchange="restore(event)"></div></section>
+<section id="audit" class="page"><div class="sectionTitle">Auditoría</div><div id="auditList"></div></section>
+<section id="profile" class="page"><div class="sectionTitle">Empresa</div><div class="card"><div class="field"><label>Nombre de empresa</label><input class="input" id="pName"></div><div class="field"><label>WhatsApp</label><input class="input" id="pPhone"></div><button class="btn green" onclick="saveProfile()">Guardar empresa</button></div></section>
 </main>
-
-<div class="bottom"><button onclick="showPage('home')"><span>🏠</span>Inicio</button><button onclick="showPage('clients')"><span>👥</span>Clientes</button><button onclick="showPage('credits')"><span>💳</span>Créditos</button><button onclick="showPage('routes')"><span>📍</span>Ruta</button><button onclick="showPage('balance')"><span>📅</span>Balance</button></div>
-<div id="toast" class="toast"></div>
-
+<div class="bottom"><button onclick="go('home')"><span>🏠</span>Inicio</button><button onclick="go('clients')"><span>👥</span>Clientes</button><button onclick="go('credits')"><span>💳</span>Créditos</button><button onclick="go('routes')"><span>📍</span>Ruta</button><button onclick="go('balance')"><span>📅</span>Balance</button></div><div id="toast" class="toast"></div>
 <script>
-const KEY='mi_cartera_pro_v13';
-let db=JSON.parse(localStorage.getItem(KEY)||'null')||{profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro'],settings:{offDays:[0],maturityRule:'month',defaultRestDay:0}};
-db.settings=db.settings||{offDays:[0],maturityRule:'month',defaultRestDay:0};
-db.entries=Array.isArray(db.entries)?db.entries:[];
-db.expenses=Array.isArray(db.expenses)?db.expenses:[];
-db.investments=Array.isArray(db.investments)?db.investments:[];
-db.cashClosures=Array.isArray(db.cashClosures)?db.cashClosures:[];
-if(!Array.isArray(db.settings.offDays)) db.settings.offDays=[0];
-if(!db.settings.maturityRule) db.settings.maturityRule='month'; if(db.settings.defaultRestDay===undefined) db.settings.defaultRestDay=0;
-let selectedClient=null, selectedCredit=null;
-const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:2});
-const isoToday=()=>new Date().toISOString().slice(0,10);
-const fmtDate=s=>s?new Date(s+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'long',year:'numeric'}):'';
-const save=()=>{localStorage.setItem(KEY,JSON.stringify(db));refresh()};
-function toast(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2200)}
-function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.getElementById('title').textContent={home:'Mi Cartera',clients:'Clientes',clientForm:'Crear cliente',credits:'Créditos',creditForm:'Crédito',creditDetail:'Crédito',creditEdit:'Modificar crédito',collect:'Recaudar',routes:'Ruta',lists:'Listados',balance:'Balance',actions:'Acciones',settings:'Parámetros',profile:'Perfil'}[id]||'Mi Cartera';refresh()}
-function openMenu(){document.getElementById('drawer').classList.add('show')}function closeMenu(e){if(!e||e.target.id==='drawer')document.getElementById('drawer').classList.remove('show')}
-function newClient(){['fName','fPhone','fAddress','fGuarantor','fReference','fLocation'].forEach(x=>document.getElementById(x).value='');showPage('clientForm')}
-function saveClient(){const name=fName.value.trim();if(!name)return toast('Ingrese el nombre del cliente');const c={id:Date.now(),name,phone:fPhone.value.trim(),address:fAddress.value.trim(),guarantor:fGuarantor.value.trim()||'-',reference:fReference.value.trim()||'-',location:fLocation.value.trim()||'[0,0]',route:'Principal'};db.clients.push(c);save();selectedClient=c.id;toast('Cliente creado');showPage('credits');}
-function getLocation(){if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{fLocation.value=`[${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}]`},()=>toast('No se pudo obtener ubicación'));else toast('GPS no disponible')}
-function newCredit(clientId){
- selectedClient=clientId||selectedClient||db.clients[0]?.id;
- if(!selectedClient){toast('Primero cree un cliente');showPage('clients');return}
- const c=db.clients.find(x=>x.id===selectedClient);
- document.getElementById('creditClientBox').innerHTML=`<h3>${c.name}</h3>Teléfono: ${c.phone||'-'}<br>Dirección: ${c.address||'-'}<br>Referencia: ${c.reference||'-'}`;
- document.getElementById('cDate').value=isoToday();
- document.getElementById('cCapital').value='';
- document.getElementById('cRate').value=20;
- document.getElementById('cTerm').value='24';
- document.getElementById('cFreq').value='daily';
- document.getElementById('cFirst').value='';
- calcCredit();
- showPage('creditForm');
-}
-function calcCredit(){
- const cap=+(document.getElementById('cCapital')?.value||0);
- const rate=+(document.getElementById('cRate')?.value||0);
- const n=+(document.getElementById('cTerm')?.value||1);
- const total=cap+(cap*rate/100);
- const totalEl=document.getElementById('cTotal'), instEl=document.getElementById('cInstallment');
- if(totalEl) totalEl.textContent=money(total);
- if(instEl) instEl.textContent=money(total/n);
-}
-function addDays(date,n){const d=new Date(date+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
-function addMonths(date,n){const d=new Date(date+'T12:00:00');const day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last));return d.toISOString().slice(0,10)}
-function isOffDay(date){const d=new Date(date+'T12:00:00');return db.settings.offDays.includes(d.getDay())}
-function nextPayableDate(date, includeSame=false){
- let d=date;
- if(!includeSame)d=addDays(d,1);
- while(isOffDay(d))d=addDays(d,1);
- return d;
-}
-function scheduleDates(start,n,freq,restDay){
- const arr=[];
- let d=start;
- if(freq==='daily'){
-   for(let i=0;i<n;i++){
-     d=nextScheduleDate(d,restDay,i===0);
-     arr.push(d);
-     d=addDays(d,1);
-   }
- }else{
-   const step=freq==='weekly'?7:freq==='biweekly'?14:30;
-   for(let i=0;i<n;i++){
-     d=(i===0?start:addDays(start,step*i));
-     while(isOffDay(d))d=addDays(d,1);
-     arr.push(d);
-   }
- }
- return arr;
-}
-function nextScheduleDate(date,restDay,includeSame){
- let d=date;
- if(!includeSame)d=addDays(d,1);
- while(isOffDay(d) || (restDay!==undefined && restDay!==null && restDay!=='none' && new Date(d+'T12:00:00').getDay()===Number(restDay))) d=addDays(d,1);
- return d;
-}
-function maturityDate(cr){
- if(db.settings.maturityRule==='month') return addMonths(cr.date,1);
- return cr.schedule?.length?cr.schedule[cr.schedule.length-1].date:cr.date;
-}
-function dayDiff(a,b){const A=new Date(a+'T12:00:00'),B=new Date(b+'T12:00:00');return Math.round((B-A)/86400000)}
-function creditColor(cr){
- const today=isoToday(),m=maturityDate(cr),diff=dayDiff(today,m),s=calcStatus(cr);
- if(s.overdueCount>0 || diff<=0) return 'red';
- if(diff===1) return 'orange';
- return 'green';
-}
-function creditStateText(cr){
- const diff=dayDiff(isoToday(),maturityDate(cr)),s=calcStatus(cr);
- if(s.overdueCount>0)return 'En mora';
- if(diff<0)return 'Vencido';
- if(diff===0)return 'Vence hoy';
- if(diff===1)return 'Vence mañana';
- return 'Al día';
-}
-function saveCredit(){
- const cap=+(document.getElementById('cCapital')?.value||0);
- const n=+(document.getElementById('cTerm')?.value||0);
- if(cap<=0||n<=0)return toast('Ingrese capital y plazo');
- const rate=+(document.getElementById('cRate')?.value||0);
- const freq=document.getElementById('cFreq')?.value||'daily';
- const date=document.getElementById('cDate')?.value||isoToday();
- const first=document.getElementById('cFirst')?.value||nextPayableDate(date,false);
- const total=cap+cap*rate/100;
- const inst=total/n;
- const client=db.clients.find(x=>x.id===selectedClient);
- if(!client)return toast('Seleccione un cliente');
- const restDay=(freq==='daily'?db.settings.defaultRestDay:'none');
- const cr={id:Date.now(),clientId:selectedClient,date,capital:cap,rate,term:n,freq,installment:inst,total,start:first,paid:0,route:client.route||'Principal',status:'Activo',restDay,schedule:[]};
- const dates=scheduleDates(first,n,freq,restDay);
- dates.forEach((d,i)=>cr.schedule.push({n:i+1,date:d,amount:inst,paid:0,postponed:false}));
- cr.maturity=maturityDate(cr);
- db.credits.push(cr);
- localStorage.setItem(KEY,JSON.stringify(db));
- selectedCredit=cr.id;
- toast('Crédito creado correctamente');
- showCredit(cr.id);
-}
-function paidTotal(cr){return db.payments.filter(p=>p.creditId===cr.id).reduce((a,p)=>a+p.amount,0)}
-function calcStatus(cr){
- const paid=paidTotal(cr);
- let remain=Math.max(0,cr.total-paid), overdue=0, overdueCount=0;
- const today=isoToday();
- cr.schedule.forEach(q=>{
-   const p=q.paid||0, room=Math.max(0,q.amount-p);
-   if(room>0 && q.date<today && !q.postponed){overdue+=room;overdueCount++;}
- });
- return {paid,remain,overdue,overdueCount};
-}
-function paidInstallments(cr){
- return cr.schedule.filter(q=>(q.paid||0)>=q.amount-0.005).length;
-}
-function currentDue(cr){
- const today=isoToday();
- return cr.schedule.filter(q=>q.date<=today && (q.paid||0)<q.amount && !q.postponed)
-   .reduce((a,q)=>a+Math.max(0,q.amount-(q.paid||0)),0);
-}
-function showCredit(id){
- selectedCredit=id;
- const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);
- const paidQ=paidInstallments(cr),pending=Math.max(0,cr.term-paidQ);
- const color=creditColor(cr),state=creditStateText(cr);
- const statusClass=color==='red'?'statusRed':color==='orange'?'statusOrange':'statusGreen';
- creditDetailBody.innerHTML=`<button class="btn" onclick="showPage('credits')">← Atrás</button>
- <div class="sectionTitle">${c.name}</div>
- <div class="clientBox">Teléfono. ${c.phone||'-'}<br>Dirección. ${c.address||'-'}<br>Referencia. ${c.reference||'-'}<br>📍 ${c.location||'[0,0]'}<br><hr><b>IDE. ${cr.id}</b></div>
- <div class="actionbar"><button class="btn green" onclick="callClient('${c.phone||''}')">☎ Llamar</button><button class="btn blue" onclick="mapClient('${c.location||''}')">➤ Ver en Mapa</button></div>
- <div class="sectionTitle">Estado</div><div class="info"><span class="statusBadge ${statusClass}">${state}</span></div>
- <div class="sectionTitle">Fecha crédito</div><div class="info">${fmtDate(cr.date)}</div>
- <div class="sectionTitle">Vencimiento</div><div class="info">${fmtDate(maturityDate(cr))}</div>
- <div class="sectionTitle">Plazo</div><div class="info">🔵 ${labelFreq(cr.freq)}, ${cr.term} cuotas<br>Val.Cuota: ${money(cr.installment)}<br>Día de descanso: ${restDayLabel(cr.restDay)}</div>
- <div class="sectionTitle">Total crédito / Saldo actual</div><div class="metrics"><div class="metric"><div class="head">Total crédito</div><div class="val">${money(cr.total)}</div></div><div class="metric"><div class="head">Saldo actual</div><div class="val">${money(s.remain)}</div></div></div>
- <button class="btn wide" onclick="showAbonos(${cr.id})">◉ Ver abonos &gt;&gt;</button>
- <div class="sectionTitle">Cant.Cuotas</div><div class="metrics"><div class="metric"><div class="head">#Pagadas</div><div class="val">${paidQ}</div></div><div class="metric"><div class="head">#Pendientes</div><div class="val">${pending}</div></div></div>
- <div class="sectionTitle">Para estar al día</div><div class="metrics"><div class="metric"><div class="head">#Cuotas mora</div><div class="val">${s.overdueCount}</div></div><div class="metric"><div class="head">Val.Mora</div><div class="val">${money(s.overdue)}</div></div></div>
- <div class="card"><b>Debido acumulado:</b> ${money(currentDue(cr))}<br><span class="muted">Si se paga menos de una cuota, la diferencia queda pendiente para la siguiente cobranza.</span></div>
- <div class="actionbar"><button class="btn green" onclick="openCollect(${cr.id})">💵 Recaudar</button><button class="btn blue" onclick="editCredit(${cr.id})">✏️ Modificar crédito</button></div>`;
- showPage('creditDetail');
-}
-function labelFreq(f){return f==='daily'?'Diario':f==='weekly'?'Semanal':f==='biweekly'?'Quincenal':'Mensual'}
-function restDayLabel(d){return d===undefined||d===null||d==='none'?'Ninguno':['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][Number(d)]||'Ninguno'}
-function editCredit(id){
- selectedCredit=id;
- const cr=db.credits.find(x=>x.id===id), c=db.clients.find(x=>x.id===cr.clientId);
- if(!cr)return toast('Crédito no encontrado');
- document.getElementById('editCreditClientBox').innerHTML=`<h3>${c.name}</h3>Teléfono: ${c.phone||'-'}<br>Dirección: ${c.address||'-'}<br>ID crédito: ${cr.id}`;
- document.getElementById('eDate').value=cr.date;
- document.getElementById('eCapital').value=cr.capital;
- document.getElementById('eRate').value=cr.rate;
- document.getElementById('eTerm').value=cr.term;
- document.getElementById('eFreq').value=cr.freq;
- document.getElementById('eFirst').value=cr.start||cr.date;
- document.getElementById('eRestDay').value=(cr.restDay===undefined?'0':String(cr.restDay));
- document.getElementById('editPaidInfo').textContent=money(calcStatus(cr).paid);
- calcEditCredit();
- showPage('creditEdit');
-}
-function calcEditCredit(){
- const cap=+(document.getElementById('eCapital')?.value||0), rate=+(document.getElementById('eRate')?.value||0), n=+(document.getElementById('eTerm')?.value||1);
- const total=cap+cap*rate/100, inst=total/n;
- document.getElementById('eTotal').textContent=money(total);
- document.getElementById('eInstallment').textContent=money(inst);
-}
-function saveCreditEdit(){
- const cr=db.credits.find(x=>x.id===selectedCredit);
- if(!cr)return toast('Crédito no encontrado');
- const cap=+(document.getElementById('eCapital')?.value||0);
- const rate=+(document.getElementById('eRate')?.value||0);
- const n=Math.max(1,Math.floor(+(document.getElementById('eTerm')?.value||1)));
- const freq=document.getElementById('eFreq')?.value||'daily';
- const date=document.getElementById('eDate')?.value||isoToday();
- const first=document.getElementById('eFirst')?.value||nextPayableDate(date,false);
- const restDay=document.getElementById('eRestDay')?.value||'none';
- if(cap<=0)return toast('Ingrese un valor de crédito mayor a 0');
-
- const oldPaid=calcStatus(cr).paid;
- const total=cap+cap*rate/100, inst=total/n;
- cr.date=date; cr.capital=cap; cr.rate=rate; cr.term=n; cr.freq=freq; cr.installment=inst; cr.total=total; cr.start=first; cr.restDay=restDay;
-
- // Reconstruye el calendario y conserva el importe pagado como abono.
- const dates=scheduleDates(first,n,freq,restDay);
- cr.schedule=dates.map((d,i)=>({n:i+1,date:d,amount:inst,paid:0,postponed:false}));
- let remaining=Math.min(oldPaid,total);
- for(const q of cr.schedule){
-   if(remaining<=0)break;
-   const x=Math.min(q.amount,remaining);
-   q.paid=x; remaining-=x;
- }
- cr.maturity=maturityDate(cr);
- localStorage.setItem(KEY,JSON.stringify(db));
- toast('Crédito modificado correctamente');
- setTimeout(()=>showCredit(cr.id),150);
-}
-function openCollect(id){
- selectedCredit=id;
- const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);
- const due=currentDue(cr), defaultAmount=due>0?Math.min(cr.installment,due):cr.installment;
- const paidQ=paidInstallments(cr);
- collectBody.innerHTML=`<div class="top" style="margin:-10px -16px 12px"><button class="btn" onclick="showCredit(${id})">← Atrás</button><h1>Recaudar</h1><button class="btn" onclick="postponeNext(${id})">Aplazar 📅</button></div>
- <button class="btn wide" onclick="showAbonos(${id})">◉ Ver abonos &gt;&gt;</button>
- <div class="sectionTitle">Cant.Cuotas</div><div class="metrics"><div class="metric"><div class="head">#Pagadas</div><div class="val">${paidQ}</div></div><div class="metric"><div class="head">#Pendientes</div><div class="val">${Math.max(0,cr.term-paidQ)}</div></div></div>
- <div class="sectionTitle">Para estar al día</div><div class="metrics"><div class="metric"><div class="head">#Cuotas mora</div><div class="val">${s.overdueCount}</div></div><div class="metric"><div class="head">Val.Mora</div><div class="val">${money(s.overdue)}</div></div></div>
- <hr><div class="sectionTitle">Registrar recaudo</div>
- <div class="twocol"><div class="field"><label>Val.Cuota S/</label><input class="input" id="payAmount" type="number" min="0" step="0.01" value="${defaultAmount.toFixed(2)}"></div><div class="field"><label># Cuotas</label><input class="input" id="payCount" type="number" min="1" step="1" value="1"></div></div>
- <div class="small muted">Puedes cambiar el valor de cuota por el monto que el cliente pueda pagar. Si paga menos, la diferencia queda pendiente y se suma a la siguiente cobranza.</div>
- <div class="field"><label>Descuento</label><input class="input" id="payDiscount" type="number" min="0" step="0.01" value="0"></div>
- <div class="field"><label>Recargo / mora</label><input class="input" id="paySurcharge" type="number" min="0" step="0.01" value="0"></div>
- <div class="card"><b>Total a registrar:</b> <span id="payPreview">S/ 0.00</span></div>
- <div class="actionbar"><button class="btn green" onclick="registerPayment(${id})">✔ Abonar</button><button class="btn" onclick="showCredit(${id})">Salir</button></div>`;
- showPage('collect'); updatePayPreview();
-}
-function updatePayPreview(){
- const q=+(document.getElementById('payAmount')?.value||0);
- const n=Math.max(1,+(document.getElementById('payCount')?.value||1));
- const d=Math.max(0,+(document.getElementById('payDiscount')?.value||0));
- const s=Math.max(0,+(document.getElementById('paySurcharge')?.value||0));
- const el=document.getElementById('payPreview');
- if(el) el.textContent=money(Math.max(0,q*n-d+s));
-}
-document.addEventListener('input',e=>{
- if(['payAmount','payCount','payDiscount','paySurcharge'].includes(e.target.id)) updatePayPreview();
-});
-function registerPayment(id){
- const cr=db.credits.find(x=>x.id===id);
- if(!cr)return toast('Crédito no encontrado');
- const cuota=+(document.getElementById('payAmount')?.value||0);
- const cantidad=Math.max(1,Math.floor(+(document.getElementById('payCount')?.value||1)));
- const descuento=Math.max(0,+(document.getElementById('payDiscount')?.value||0));
- const recargo=Math.max(0,+(document.getElementById('paySurcharge')?.value||0));
- if(cuota<=0)return toast('Ingrese un valor de pago mayor a 0');
-
- // El monto escrito es el valor por cuota. Para 2 cuotas se multiplica por 2.
- const base=cuota*cantidad;
- const saldoAntes=calcStatus(cr).remain;
- const aplicable=Math.min(base, saldoAntes);
- const final=Math.max(0, aplicable-descuento+recargo);
- if(final<=0)return toast('El importe a registrar debe ser mayor a 0');
-
- // Primero se aplica descuento proporcionalmente a lo que se está pagando.
- let toApply=Math.max(0,aplicable-descuento);
- for(const q of cr.schedule){
-   if(toApply<=0)break;
-   const room=Math.max(0,q.amount-(q.paid||0));
-   if(room>0){
-     const x=Math.min(room,toApply);
-     q.paid=(q.paid||0)+x;
-     toApply-=x;
-   }
- }
- db.payments.push({id:Date.now(),creditId:id,date:isoToday(),amount:final,base,discount:descuento,surcharge:recargo});
- localStorage.setItem(KEY,JSON.stringify(db));
- toast('Pago registrado correctamente');
- setTimeout(()=>showTicket(id,final),150);
-}
-function showAbonos(id){const cr=db.credits.find(x=>x.id===id),ps=db.payments.filter(p=>p.creditId===id);creditDetailBody.innerHTML=`<button class="btn" onclick="showCredit(${id})">← Atrás</button><div class="sectionTitle">Abonos</div>${ps.length?ps.map(p=>`<div class="card"><b>${fmtDate(p.date)}</b><br>Abono: ${money(p.amount)}<br><span class="muted">Base ${money(p.base)} · Descuento ${money(p.discount)} · Recargo ${money(p.surcharge)}</span></div>`).join(''):'<div class="card">No hay abonos registrados.</div>'}`;showPage('creditDetail')}
-function postponeNext(id){
- const cr=db.credits.find(x=>x.id===id);
- if(!cr)return;
- const q=cr.schedule.find(x=>(x.paid||0)<x.amount);
- if(q){
-   q.date=nextPayableDate(q.date,false);
-   q.postponed=true;
-   localStorage.setItem(KEY,JSON.stringify(db));
-   toast('Cuota aplazada al siguiente día de cobro');
-   setTimeout(()=>openCollect(id),250);
- }
-}
-function showTicket(id,amount){const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);collectBody.innerHTML=`<div class="top" style="margin:-12px -18px 15px"><button class="btn red" onclick="showPage('home')">✖ Salir</button><h1>Ticket de venta</h1><span></span></div><div class="ticket"><h2>🧾 Ticket de Venta</h2><b>${db.profile.name}</b><br>WhatsApp ${db.profile.phone}<div class="line"></div>Cliente: ${c.name}<br>Tel. ${c.phone||'-'}<br>${c.address||''}<br>Código: ${cr.id}<div class="line"></div>Tipo: ${labelFreq(cr.freq).toLowerCase()}<br>Fecha pago: ${fmtDate(isoToday())}<br>Abono: ${money(amount)}<br>Valor cuota: ${money(cr.installment)}<br>Plazo: 🔵 ${labelFreq(cr.freq)}, ${cr.term} cuotas<div class="line"></div>Saldo actual: ${money(s.remain)}<br>Vence: ${fmtDate(cr.schedule[cr.schedule.length-1].date)}<br>Estado: ${s.overdueCount?'en mora':'al día'}<div class="line"></div>** Gracias por preferirnos **<br>Hoy es: ${fmtDate(isoToday())}</div><button class="btn wide" onclick="shareTicket('${c.name}',${amount},${s.remain})">🚀 Compartir Ticket</button>`;showPage('collect')}
-function shareTicket(name,amount,balance){const txt=`Mi Cartera - Pago registrado\\nCliente: ${name}\\nAbono: ${money(amount)}\\nSaldo: ${money(balance)}`;if(navigator.share)navigator.share({text:txt});else navigator.clipboard?.writeText(txt).then(()=>toast('Ticket copiado'))}
-function callClient(p){if(p)location.href='tel:'+p}
-function mapClient(loc){if(loc&&loc!=='[0,0]')location.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(loc);else toast('Cliente sin ubicación')}
-function renderRoute(){
- const q=(document.getElementById('routeSearch')?.value||'').toLowerCase();
- const today=isoToday(); const rows=[];
- db.credits.forEach(cr=>{
-  const c=db.clients.find(x=>x.id===cr.clientId);
-  if(!c||cr.status!=='Activo'||(q&&!c.name.toLowerCase().includes(q)))return;
-  const s=calcStatus(cr), due=currentDue(cr);
-  if(due>0||cr.schedule.some(x=>x.date===today&&x.paid<x.amount))rows.push({c,cr,s,due});
- });
- const statuses=rows.map(r=>creditColor(r.cr));
- let routeStatus='greenStatus';
- if(statuses.includes('red'))routeStatus='redStatus';else if(statuses.includes('orange'))routeStatus='orangeStatus';
- const el=document.getElementById('routeList');
- el.className='routeCard '+routeStatus;
- el.innerHTML=rows.length?rows.map(r=>{
-  const col=creditColor(r.cr), badge=col==='red'?'🔴':col==='orange'?'🟠':'🟢';
-  return `<div class="routeRow" onclick="showCredit(${r.cr.id})"><div class="routeName">${r.c.name}<div class="routeSub">${badge} ${labelFreq(r.cr.freq)} | ID.${r.cr.id} · ${creditStateText(r.cr)}</div></div><div class="amount">${money(r.due||r.cr.installment)}</div><div class="alert">${r.s.overdueCount?'⚠️':''}</div></div>`;
- }).join(''):'<div style="padding:22px">No hay cobranzas para hoy.</div>';
-}
-function renderClients(){const q=(clientSearch.value||'').toLowerCase();clientsList.innerHTML=db.clients.filter(c=>(c.name+c.phone+c.reference).toLowerCase().includes(q)).map(c=>`<div class="card"><h3>${c.name}</h3>Tel. ${c.phone||'-'}<br>${c.address||'-'}<br>Ref. ${c.reference||'-'}<div class="actionbar"><button class="btn blue" onclick="newCredit(${c.id})">＋ Crédito</button><button class="btn" onclick="selectedClient=${c.id};showClientCredits(${c.id})">Ver créditos</button></div></div>`).join('')||'<div class="card">No hay clientes.</div>'}
-function showClientCredits(cid){selectedClient=cid;showPage('credits');renderCredits()}
-let creditFilter='all';
+const KEY='mi_cartera_pro_v14';
+const $=id=>document.getElementById(id);const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const today=()=>new Date().toISOString().slice(0,10);const fmt=d=>d?new Date(d+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit',year:'numeric'}):'';
+const addDays=(d,n)=>{let x=new Date(d+'T12:00:00');x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};const addMonths=(d,n)=>{let x=new Date(d+'T12:00:00');x.setMonth(x.getMonth()+n);return x.toISOString().slice(0,10)};
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:[{id:'r1',name:'Principal',collectorId:null},{id:'r2',name:'Norte',collectorId:null},{id:'r3',name:'Sur',collectorId:null},{id:'r4',name:'Centro',collectorId:null}],users:[{id:'u1',name:'Administrador',role:'admin',active:true}],capital:[],entries:[],expenses:[],cashClosures:[],audit:[],settings:{offDays:[0],defaultRestDay:0,maturityRule:'month',cashBase:0}};
+function normalize(){db.clients ||= [];db.credits ||= [];db.payments ||= [];db.capital ||= [];db.entries ||= [];db.expenses ||= [];db.cashClosures ||= [];db.audit ||= [];db.users ||= [];db.routes ||= [];db.settings ||= {};if(!db.routes.length)db.routes=[{id:'r1',name:'Principal',collectorId:null}];if(!db.settings.offDays)db.settings.offDays=[0];if(db.settings.defaultRestDay===undefined)db.settings.defaultRestDay=0;if(!db.settings.maturityRule)db.settings.maturityRule='month';if(db.settings.cashBase===undefined)db.settings.cashBase=0;db.users.forEach(u=>{u.active=u.active!==false});}
+normalize();
+function persist(){localStorage.setItem(KEY,JSON.stringify(db));renderAll()}function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2200)}
+function audit(action,detail){db.audit.unshift({id:Date.now(),date:new Date().toISOString(),user:'Administrador',action,detail});db.audit=db.audit.slice(0,1000)}
+function go(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));$(id).classList.add('active');$('title').textContent={home:'Mi Cartera',clients:'Clientes',clientForm:'Crear cliente',credits:'Créditos',creditForm:'Crédito',creditDetail:'Crédito',collect:'Recaudar',collections:'Recaudo diario',routes:'Rutas',users:'Usuarios',investors:'Capital',balance:'Balance',reports:'Reportes',settings:'Parámetros',backup:'Respaldo',audit:'Auditoría',profile:'Empresa'}[id]||'Mi Cartera';closeMenu();renderAll()}
+function openMenu(){$('drawer').classList.add('show')}function closeMenu(){$('drawer').classList.remove('show')}
+function quickNew(){if(db.clients.length) newCredit(); else newClient()}
+function routeName(id){return db.routes.find(r=>r.id===id)?.name||id||'Principal'}
+function routeIdByName(name){return db.routes.find(r=>r.name===name)?.id||db.routes[0]?.id}
+function renderRouteOptions(sel,val){$(sel).innerHTML=db.routes.map(r=>`<option value="${r.id}">${r.name}</option>`).join('');if(val)$(sel).value=val}
+function newClient(){['fName','fPhone','fDni','fAddress','fGuarantor','fGuarantorPhone','fReference','fLocation'].forEach(id=>$(id).value='');$('clientFormTitle').textContent='Crear cliente';renderRouteOptions('fRoute');go('clientForm')}
+function saveClient(){const name=$('fName').value.trim(),phone=$('fPhone').value.trim();if(!name)return toast('Ingrese el nombre del cliente');if(!phone)return toast('Ingrese el teléfono del cliente');const c={id:Date.now(),name,phone,dni:$('fDni').value.trim(),address:$('fAddress').value.trim(),guarantor:$('fGuarantor').value.trim()||'-',guarantorPhone:$('fGuarantorPhone').value.trim()||'-',reference:$('fReference').value.trim()||'-',location:$('fLocation').value.trim()||'[0,0]',routeId:$('fRoute').value||db.routes[0].id,createdAt:new Date().toISOString(),status:'Activo'};db.clients.push(c);audit('CLIENTE_CREADO',c.name);persist();toast('Cliente guardado correctamente');selectedClient=c.id;go('credits')}
+function getLocation(){if(!navigator.geolocation)return toast('GPS no disponible');navigator.geolocation.getCurrentPosition(p=>{$('fLocation').value=`[${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}]`;toast('Ubicación capturada')},()=>toast('No se pudo obtener ubicación'))}
+let selectedClient=null,selectedCredit=null,creditFilter='all';
+function newCredit(clientId){selectedClient=clientId||selectedClient||db.clients[0]?.id;if(!selectedClient)return toast('Primero cree un cliente');const c=db.clients.find(x=>x.id===selectedClient);$('creditClientBox').innerHTML=`<h3>${c.name}</h3>Tel: ${c.phone||'-'} · ${c.address||'-'}<br>Ruta: ${routeName(c.routeId)}`;$('cDate').value=today();$('cFirst').value='';$('cCapital').value='';$('cRate').value=20;$('cTerm').value=24;$('cFreq').value='daily';$('cRestDay').value=String(db.settings.defaultRestDay??'none');calcCredit();go('creditForm')}
+function isOff(d,rest){const wd=new Date(d+'T12:00:00').getDay();return db.settings.offDays.includes(wd)||(rest!=='none'&&rest!==undefined&&Number(rest)===wd)}
+function schedule(start,n,freq,rest){let a=[],d=start,step=freq==='weekly'?7:freq==='biweekly'?14:freq==='monthly'?30:1;for(let i=0;i<n;i++){if(freq==='daily'){while(isOff(d,rest))d=addDays(d,1);a.push(d);d=addDays(d,1)}else{if(i>0)d=addDays(start,step*i);while(isOff(d,'none'))d=addDays(d,1);a.push(d)}}return a}
+function calcCredit(){const cap=+($('cCapital')?.value||0),rate=+($('cRate')?.value||0),n=+($('cTerm')?.value||0),total=cap+cap*rate/100,inst=n?total/n:0;$('cTotal').textContent=money(total);$('cInstallment').textContent=money(inst)}
+function saveCredit(){const cap=+($('cCapital').value||0),n=+($('cTerm').value||0);if(cap<=0||n<=0)return toast('Ingrese capital y plazo');const rate=+($('cRate').value||0),freq=$('cFreq').value,date=$('cDate').value||today(),first=$('cFirst').value||date,rest=$('cRestDay').value,total=cap+cap*rate/100,inst=total/n,c=db.clients.find(x=>x.id===selectedClient);if(!c)return toast('Seleccione cliente');const cr={id:Date.now(),clientId:c.id,date,first,capital:cap,rate,term:n,freq,restDay:rest,total,installment:inst,paid:0,routeId:c.routeId,status:'Activo',maturity:addMonths(date,1),schedule:[]};schedule(first,n,freq,rest).forEach((d,i)=>cr.schedule.push({n:i+1,date:d,amount:inst,paid:0,postponed:false}));db.credits.push(cr);audit('CREDITO_CREADO',`${c.name} ${money(cap)}`);persist();selectedCredit=cr.id;toast('Crédito creado correctamente');showCredit(cr.id)}
+function paidTotal(cr){return db.payments.filter(p=>p.creditId===cr.id).reduce((s,p)=>s+Number(p.amount||0),0)}
+function status(cr){const paid=paidTotal(cr),remain=Math.max(0,cr.total-paid);let overdue=0,count=0;cr.schedule.forEach(q=>{const room=Math.max(0,q.amount-(q.paid||0));if(room>0&&q.date<today()&&!q.postponed){overdue+=room;count++}});return{paid,remain,overdue,count}}
+function maturity(cr){return db.settings.maturityRule==='month'?addMonths(cr.date,1):(cr.schedule.at(-1)?.date||cr.date)}
+function color(cr){const diff=Math.round((new Date(maturity(cr))-new Date(today()))/86400000),s=status(cr);return s.count||diff<=0?'red':diff===1?'orange':'green'}
+function state(cr){const diff=Math.round((new Date(maturity(cr))-new Date(today()))/86400000),s=status(cr);return s.count?'En mora':diff<0?'Vencido':diff===0?'Vence hoy':diff===1?'Vence mañana':'Al día'}
 function setCreditFilter(f){creditFilter=f;renderCredits()}
-function renderCredits(){
- let arr=db.credits.slice().reverse();
- if(creditFilter==='active')arr=arr.filter(cr=>calcStatus(cr).remain>0 && calcStatus(cr).overdueCount===0);
- if(creditFilter==='due')arr=arr.filter(cr=>{const d=dayDiff(isoToday(),maturityDate(cr));return d===0||d===1});
- if(creditFilter==='overdue')arr=arr.filter(cr=>calcStatus(cr).overdueCount>0||dayDiff(isoToday(),maturityDate(cr))<0);
- const all=db.credits.length, due=db.credits.filter(cr=>dayDiff(isoToday(),maturityDate(cr))<=1 && calcStatus(cr).remain>0).length, overdue=db.credits.filter(cr=>calcStatus(cr).overdueCount>0||dayDiff(isoToday(),maturityDate(cr))<0).length;
- creditsSummary.innerHTML=`<b>Total créditos:</b> ${all} &nbsp; | &nbsp; <b>Por vencer:</b> ${due} &nbsp; | &nbsp; <b>Vencidos/Mora:</b> ${overdue}`;
- creditsList.innerHTML=arr.map(cr=>{const c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr),col=creditColor(cr),sc=col==='red'?'statusRed':col==='orange'?'statusOrange':'statusGreen';return `<div class="card" onclick="showCredit(${cr.id})"><h3>${c?.name||'Cliente'}</h3>Capital: ${money(cr.capital)} · Interés: ${cr.rate}%<br>Total: ${money(cr.total)} · Cuota: ${money(cr.installment)}<br>Plazo: ${labelFreq(cr.freq)}, ${cr.term} cuotas<br>Vencimiento: ${fmtDate(maturityDate(cr))}<br>Saldo: <b>${money(s.remain)}</b> · <span class="statusBadge ${sc}">${creditStateText(cr)}</span><div class="actionbar"><button class="btn blue" onclick="event.stopPropagation();editCredit(${cr.id})">✏️ Modificar</button><button class="btn green" onclick="event.stopPropagation();openCollect(${cr.id})">💵 Recaudar</button></div></div>`}).join('')||'<div class="card">No hay créditos en este listado.</div>';
-}
-function inRange(date,from,to){return date>=from&&date<=to}
-function renderBalance(){
- const today=isoToday();
- if(!bDesde.value)bDesde.value=today.slice(0,8)+'01'; if(!bHasta.value)bHasta.value=today;
- const from=bDesde.value,to=bHasta.value;
- let cob=0,cred=0,entries=0,invest=0,gastos=0;
- db.payments.forEach(x=>{if(inRange(x.date,from,to))cob+=x.amount||0});
- db.credits.forEach(x=>{if(inRange(x.date,from,to))cred+=x.capital||0});
- db.entries.forEach(x=>{if(inRange(x.date,from,to))entries+=x.amount||0});
- db.investments.forEach(x=>{if(inRange(x.date,from,to))invest+=x.amount||0});
- db.expenses.forEach(x=>{if(inRange(x.date,from,to))gastos+=x.amount||0});
- const base=Number(db.settings.cashBase||0), caja=base+cob+entries+invest-gastos;
- bCapital.textContent=money(cred);bCobrado.textContent=money(cob);bEntradas.textContent=money(entries+invest);bGastos.textContent=money(gastos);bTotalIngr.textContent=money(cob+entries+invest);bTotalEgr.textContent=money(gastos);bCaja.textContent=money(caja);
- bEstado.textContent=db.cashClosures.length?'📂 ÚLTIMO CIERRE: '+fmtDate(db.cashClosures[db.cashClosures.length-1].date):'📂 SIN CERRAR';
- bUltimo.textContent=db.cashClosures.length?fmtDate(db.cashClosures[db.cashClosures.length-1].date):'Sin balance cerrado';
- entriesList.innerHTML=db.entries.concat(db.investments.map(x=>({...x,type:'investment'})).filter(x=>inRange(x.date,from,to)).map(x=>x)).filter(x=>inRange(x.date,from,to)).map(x=>`<div class="info">${x.date} / ${x.detail||'Entrada'} <b>+ ${money(x.amount)}</b></div>`).join('')||'<div class="info">-</div>';
- expensesList.innerHTML=db.expenses.filter(x=>inRange(x.date,from,to)).map(x=>`<div class="info">${x.date} / ${x.detail||'Gasto'} <b>− ${money(x.amount)}</b></div>`).join('')||'<div class="info">-</div>';
- balanceReport.innerHTML=`<div class="card"><b>Resumen:</b><br>Desde ${fmtDate(from)} hasta ${fmtDate(to)}<br>Recaudo: ${money(cob)}<br>Créditos colocados: ${money(cred)}<br>Entradas/Inversiones: ${money(entries+invest)}<br>Gastos/Salidas: ${money(gastos)}<br><b>Saldo de caja calculado: ${money(caja)}</b></div>`;
-}
-function addBalanceEntry(type){
- const detail=prompt(type==='expense'?'Detalle del gasto':type==='investment'?'Detalle de la inversión':'Detalle de la entrada',''); if(detail===null)return;
- const amount=Number(prompt('Valor','0')); if(!amount||amount<=0)return toast('Valor inválido');
- const rec={id:Date.now(),date:isoToday(),detail,amount}; if(type==='expense')db.expenses.push(rec);else if(type==='investment')db.investments.push(rec);else db.entries.push(rec);save();showPage('balance');
-}
-function closeCash(){
- const amount=Number((document.getElementById('bCaja')?.textContent||'').replace(/[^0-9.-]/g,''));
- const rec={id:Date.now(),date:isoToday(),amount,from:bDesde.value,to:bHasta.value,status:'closed'};db.cashClosures.push(rec);db.settings.cashBase=amount;save();toast('Cierre de caja registrado');
-}
-function showCashHistory(){showPage('balance');setTimeout(()=>{balanceReport.innerHTML+=`<div class="card"><b>Historial de cierres</b>${db.cashClosures.map(x=>`<div class="info">${x.date} · ${money(x.amount)} · ${x.status}</div>`).join('')||'<br>Sin cierres registrados.'}</div>`},20)}
-function renderProfile(){bizName.textContent=db.profile.name;bizCode.textContent='MC-'+String(db.profile.name.length).padStart(4,'0');pName.value=db.profile.name;pPhone.value=db.profile.phone}
-function saveProfile(){db.profile.name=pName.value||'MI CARTERA';db.profile.phone=pPhone.value||'+51';save();toast('Perfil guardado')}
-function renderSettings(){
- const map={1:'offMon',2:'offTue',3:'offWed',4:'offThu',5:'offFri',6:'offSat',0:'offSun'};
- Object.keys(map).forEach(k=>{const el=document.getElementById(map[k]);if(el)el.checked=db.settings.offDays.includes(+k);});
- const mr=document.getElementById('maturityRule');if(mr)mr.value=db.settings.maturityRule; const rd=document.getElementById('defaultRestDay');if(rd)rd.value=String(db.settings.defaultRestDay);
-}
-function saveSettings(){
- const ids={1:'offMon',2:'offTue',3:'offWed',4:'offThu',5:'offFri',6:'offSat',0:'offSun'};
- db.settings.offDays=Object.keys(ids).filter(k=>document.getElementById(ids[k])?.checked).map(Number);
- db.settings.maturityRule=document.getElementById('maturityRule')?.value||'month'; db.settings.defaultRestDay=document.getElementById('defaultRestDay')?.value==='none'?'none':Number(document.getElementById('defaultRestDay')?.value||0);
- localStorage.setItem(KEY,JSON.stringify(db));
- toast('Parámetros guardados');
- refresh();
-}
-function refresh(){renderHome();renderClients();renderCredits();renderRoutePage();renderBalance();renderProfile();renderSettings()}
-function backup(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi-cartera-respaldo-completo.json';a.click();toast('Respaldo exportado')}
-function restore(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();toast('Respaldo restaurado')}catch{toast('Archivo no válido')}};r.readAsText(f)}
-function seedDemo(){
- const c={id:685,name:'Cliente Demo',phone:'999999999',address:'Lima',guarantor:'-',reference:'Demo',location:'[-12.0464,-77.0428]',route:'Principal'};
- db.clients=[c];
- const cap=1500,rate=20,n=24,total=1800,inst=75,start=isoToday();
- const cr={id:1047,clientId:c.id,date:start,capital:cap,rate,term:n,freq:'daily',installment:inst,total,start,paid:0,route:'Principal',status:'Activo',restDay:db.settings.defaultRestDay,schedule:[]};
- scheduleDates(start,n,'daily',db.settings.defaultRestDay).forEach((d,i)=>cr.schedule.push({n:i+1,date:d,amount:inst,paid:0,postponed:false}));
- cr.maturity=maturityDate(cr);
- db.credits=[cr];db.payments=[];localStorage.setItem(KEY,JSON.stringify(db));toast('Datos de prueba cargados');
-}
-function resetAll(){if(confirm('¿Borrar todos los datos?')){db={profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],entries:[],expenses:[],investments:[],cashClosures:[],routes:['Principal','Norte','Sur','Centro'],settings:{offDays:[0],maturityRule:'month',defaultRestDay:0,cashBase:0}};save();}}
-function bluetoothInfo(){alert('Bluetooth queda reservado para impresora/comprobante. La app puede compartir el ticket por WhatsApp desde el teléfono.')}
-function tutorial(){alert('Flujo: 1) Crear cliente → 2) Crear crédito → 3) Enrutar → 4) Recaudar → 5) Ver balance/listados → 6) Respaldar datos.')}
-refresh();
-</script>
-</body>
-</html>
+function renderClients(){const q=($('clientSearch')?.value||'').toLowerCase();$('clientsList').innerHTML=db.clients.filter(c=>(c.name+' '+c.phone+' '+c.reference+' '+c.dni).toLowerCase().includes(q)).map(c=>`<div class="card"><h3>${c.name}</h3>Tel: ${c.phone||'-'} · DNI: ${c.dni||'-'}<br>${c.address||'-'}<br>Ruta: ${routeName(c.routeId)} · Ref: ${c.reference||'-'}<div class="actionbar"><button class="btn blue" onclick="newCredit(${c.id})">＋ Crédito</button><button class="btn" onclick="clientHistory(${c.id})">Historial</button></div></div>`).join('')||'<div class="card">No hay clientes.</div>'}
+function renderCredits(){let arr=db.credits.slice().reverse();if(creditFilter==='active')arr=arr.filter(c=>state(c)==='Al día'||state(c)==='Vence mañana'||state(c)==='Vence hoy');if(creditFilter==='due')arr=arr.filter(c=>['Vence mañana','Vence hoy'].includes(state(c)));if(creditFilter==='overdue')arr=arr.filter(c=>status(c).overdue>0||state(c)==='Vencido');let port=arr.reduce((s,c)=>s+status(c).remain,0),mora=arr.reduce((s,c)=>s+status(c).overdue,0);$('creditsSummary').innerHTML=`<b>${arr.length} créditos</b> · Saldo ${money(port)} · Mora ${money(mora)}`;$('creditsList').innerHTML=arr.map(cr=>{const c=db.clients.find(x=>x.id===cr.clientId),s=status(cr),cl=color(cr),sc=cl==='red'?'statusRed':cl==='orange'?'statusOrange':'statusGreen';return `<div class="card" onclick="showCredit(${cr.id})"><h3>${c?.name||'Cliente'}</h3>Capital ${money(cr.capital)} · Interés ${cr.rate}%<br>Total ${money(cr.total)} · Cuota ${money(cr.installment)}<br>${cr.term} cuotas ${cr.freq} · Vence ${fmt(maturity(cr))}<br>Saldo <b>${money(s.remain)}</b> · <span class="statusBadge ${sc}">${state(cr)}</span><div class="actionbar"><button class="btn green" onclick="event.stopPropagation();openCollect(${cr.id})">💵 Recaudar</button><button class="btn" onclick="event.stopPropagation();editCredit(${cr.id})">✏️ Modificar</button></div></div>`}).join('')||'<div class="card">No hay créditos.</div>'}
+function showCredit(id){selectedCredit=id;const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=status(cr);$('creditDetailBody').innerHTML=`<div class="card"><h3>${c.name}</h3>Tel: ${c.phone}<br>Ruta: ${routeName(cr.routeId)}<hr>ID: ${cr.id}<br>Fecha: ${fmt(cr.date)}<br>Vencimiento: ${fmt(maturity(cr))}<br>Frecuencia: ${cr.freq} · ${cr.term} cuotas<br>Capital: ${money(cr.capital)} · Interés: ${cr.rate}%<br>Total: ${money(cr.total)}<br>Pagado: ${money(s.paid)}<br>Saldo: <b>${money(s.remain)}</b><br>Mora: <span class="dangerTxt">${money(s.overdue)}</span></div><div class="card"><div class="infoHead">Cronograma</div>${cr.schedule.map(q=>`<div class="info">#${q.n} · ${fmt(q.date)} · ${money(q.amount)} · Pagado ${money(q.paid||0)} ${q.postponed?'· APLAZADA':''}</div>`).join('')}</div><div class="actionbar"><button class="btn green" onclick="openCollect(${id})">💵 Recaudar</button><button class="btn blue" onclick="editCredit(${id})">✏️ Modificar</button><button class="btn orange" onclick="refinance(${id})">🔄 Refinanciar</button></div>`;go('creditDetail')}
+function openCollect(id){selectedCredit=id;const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=status(cr),due=currentDue(cr);$('collectBody').innerHTML=`<div class="card"><h3>${c.name}</h3>Tel: ${c.phone}<br>Ruta: ${routeName(cr.routeId)}<br>Cuota ${money(cr.installment)} · Pendiente vencido ${money(s.overdue)}</div><div class="card"><div class="field"><label>Valor cuota a registrar (editable)</label><input class="input" id="payAmount" type="number" step="0.01" value="${Math.min(cr.installment,Math.max(cr.installment,due||cr.installment)).toFixed(2)}"></div><div class="field"><label>N° cuotas</label><input class="input" id="payCount" type="number" min="1" value="1" oninput="syncPayAmount()"></div><div class="field"><label>Tipo</label><select class="select" id="payType"><option value="normal">Recaudo</option><option value="partial">Abono parcial</option><option value="penalty">Multa</option><option value="discount">Descuento</option></select></div><div class="field"><label>Observación</label><input class="input" id="payNote"></div><label><input type="checkbox" id="printReceipt"> Imprimir comprobante</label><div class="actionbar"><button class="btn green" onclick="registerPayment(${id})">💵 Abonar</button><button class="btn" onclick="showCredit(${id})">Salir</button></div></div>`;go('collect')}
+function currentDue(cr){return cr.schedule.filter(q=>q.date<=today()&&!q.postponed).reduce((s,q)=>s+Math.max(0,q.amount-(q.paid||0)),0)}function syncPayAmount(){const cr=db.credits.find(x=>x.id===selectedCredit);$('payAmount').value=(cr.installment*(+$('payCount').value||1)).toFixed(2)}
+function registerPayment(id){const cr=db.credits.find(x=>x.id===id),amount=+($('payAmount').value||0);if(amount<=0)return toast('Ingrese un monto válido');let rem=amount;for(const q of cr.schedule){if(rem<=0)break;const room=Math.max(0,q.amount-(q.paid||0));if(room>0&&!q.postponed){const x=Math.min(room,rem);q.paid=(q.paid||0)+x;rem-=x}}db.payments.push({id:Date.now(),creditId:id,date:today(),amount,type:$('payType').value,note:$('payNote').value||'',collectorId:'u1',routeId:cr.routeId});audit('RECAUDO',`${money(amount)} crédito ${id}`);persist();toast(rem>0?`Registrado. Excedente ${money(rem)} no aplicado.`:'Recaudo registrado');if($('printReceipt').checked)printTicket(id,amount);else showCredit(id)}
+function printTicket(id,amount){const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=status(cr),w=window.open('','_blank');if(!w)return showCredit(id);w.document.write(`<html><body style="font-family:Arial;text-align:center"><h2>${db.profile.name}</h2><hr>Cliente: ${c.name}<br>Fecha: ${fmt(today())}<br>Abono: <b>${money(amount)}</b><br>Saldo: ${money(s.remain)}<hr>Gracias</body></html>`);w.print()}
+function editCredit(id){const cr=db.credits.find(x=>x.id===id);const c=db.clients.find(x=>x.id===cr.clientId);const cap=prompt('Capital',cr.capital);if(cap===null)return;const rate=prompt('Interés %',cr.rate);if(rate===null)return;const term=prompt('Número de cuotas',cr.term);if(term===null)return;cr.capital=+cap;cr.rate=+rate;cr.term=+term;cr.total=cr.capital+cr.capital*cr.rate/100;cr.installment=cr.total/cr.term;cr.schedule=schedule(cr.first,cr.term,cr.freq,cr.restDay).map((d,i)=>({n:i+1,date:d,amount:cr.installment,paid:0,postponed:false}));let paid=paidTotal(cr),rem=paid;cr.schedule.forEach(q=>{if(rem>0){let x=Math.min(q.amount,rem);q.paid=x;rem-=x}});audit('CREDITO_MODIFICADO',`${c.name} ${id}`);persist();showCredit(id)}
+function refinance(id){const cr=db.credits.find(x=>x.id===id);const s=status(cr);const cap=prompt('Nuevo capital / saldo a refinanciar',s.remain.toFixed(2));if(cap===null)return;const term=prompt('Nuevas cuotas',cr.term);if(term===null)return;cr.capital=+cap;cr.term=+term;cr.paid=0;cr.total=cr.capital+cr.capital*cr.rate/100;cr.installment=cr.total/cr.term;cr.date=today();cr.first=today();cr.schedule=schedule(today(),cr.term,cr.freq,cr.restDay).map((d,i)=>({n:i+1,date:d,amount:cr.installment,paid:0,postponed:false}));audit('REFINANCIADO',String(id));persist();showCredit(id)}
+function clientHistory(id){const c=db.clients.find(x=>x.id===id),cs=db.credits.filter(x=>x.clientId===id);$('reportBox').innerHTML=`<div class="card"><h3>${c.name}</h3>${cs.map(cr=>`<div class="info">Crédito ${cr.id} · ${fmt(cr.date)} · Saldo ${money(status(cr).remain)} · ${state(cr)}</div>`).join('')||'Sin créditos'}</div>`;go('reports')}
+function renderCollections(){const d=$('collectionDate')?.value||today(),rid=$('collectionRoute')?.value||'all';let rows=[];db.credits.forEach(cr=>{if(rid!=='all'&&cr.routeId!==rid)return;const c=db.clients.find(x=>x.id===cr.clientId);cr.schedule.filter(q=>q.date<=d&&q.date>=d&&!q.postponed&&(q.paid||0)<q.amount).forEach(q=>rows.push({cr,c,q}))});$('collectionsList').innerHTML=rows.map(x=>`<div class="routeCard ${color(x.cr)}"><div class="routeRow"><div class="routeName">${x.c.name}<div style="font-size:13px">Cuota #${x.q.n} · ${routeName(x.cr.routeId)}</div></div><div class="amount">${money(x.q.amount-(x.q.paid||0))}</div></div><div class="routeRow"><button class="btn" onclick="openCollect(${x.cr.id})">Recaudar</button></div></div>`).join('')||'<div class="card">No hay cuotas pendientes para esta fecha.</div>'}
+function renderRoutes(){$('routesList').innerHTML=db.routes.map(r=>{const u=db.users.find(x=>x.id===r.collectorId);const cs=db.credits.filter(c=>c.routeId===r.id);const due=cs.reduce((s,c)=>s+currentDue(c),0);return `<div class="card"><h3>📍 ${r.name}</h3>Cobrador: ${u?.name||'Sin asignar'}<br>Créditos: ${cs.length} · Pendiente: ${money(due)}<div class="actionbar"><button class="btn blue" onclick="assignCollector('${r.id}')">Asignar cobrador</button><button class="btn" onclick="routeReport('${r.id}')">Ver ruta</button></div></div>`}).join('')}
+function addRoute(){const name=prompt('Nombre de la ruta','Nueva ruta');if(!name)return;db.routes.push({id:'r'+Date.now(),name,collectorId:null});audit('RUTA_CREADA',name);persist()}
+function assignCollector(rid){const active=db.users.filter(u=>u.active&&u.role!=='admin');if(!active.length)return toast('Primero cree un cobrador');const text=active.map((u,i)=>`${i+1}. ${u.name}`).join('\n');const n=prompt(text+'\n\nSeleccione número');const u=active[(+n||0)-1];if(!u)return;db.routes.find(r=>r.id===rid).collectorId=u.id;audit('COBRADOR_ASIGNADO',routeName(rid)+' → '+u.name);persist()}
+function routeReport(rid){const cs=db.credits.filter(c=>c.routeId===rid);$('reportBox').innerHTML=`<div class="card"><h3>Ruta ${routeName(rid)}</h3>${cs.map(c=>{const cl=db.clients.find(x=>x.id===c.clientId);return `<div class="info">${cl.name} · Saldo ${money(status(c).remain)} · Mora ${money(status(c).overdue)}</div>`}).join('')}</div>`;go('reports')}
+function addUser(){const name=prompt('Nombre');if(!name)return;const role=prompt('Rol: admin, supervisor o cobrador','cobrador')||'cobrador';db.users.push({id:'u'+Date.now(),name,role,active:true});audit('USUARIO_CREADO',name+' / '+role);persist()}
+function renderUsers(){$('usersList').innerHTML=db.users.map(u=>`<div class="card"><b>${u.name}</b><br>Rol: ${u.role} · ${u.active?'Activo':'Inactivo'}<div class="actionbar"><button class="btn" onclick="toggleUser('${u.id}')">${u.active?'Desactivar':'Activar'}</button></div></div>`).join('')}
+function toggleUser(id){const u=db.users.find(x=>x.id===id);u.active=!u.active;audit('USUARIO_ESTADO',u.name);persist()}
+function addCapital(){const detail=prompt('Origen / detalle del capital','Aporte propietario');if(detail===null)return;const amount=+prompt('Monto','0');if(!(amount>0))return toast('Monto inválido');db.capital.push({id:Date.now(),date:today(),detail,amount});audit('CAPITAL_INGRESADO',money(amount));persist()}
+function renderInvestors(){const total=db.capital.reduce((s,x)=>s+x.amount,0),used=db.credits.reduce((s,x)=>s+x.capital,0);$('capitalAvailable').textContent=money(total-used);$('investorList').innerHTML=db.capital.slice().reverse().map(x=>`<div class="info">${fmt(x.date)} · ${x.detail} <b>${money(x.amount)}</b></div>`).join('')||'<div class="info">Sin movimientos.</div>'}
+function addCashItem(type){const detail=prompt(type==='expense'?'Detalle del gasto':'Detalle de la entrada');if(detail===null)return;const amount=+prompt('Valor','0');if(!(amount>0))return toast('Valor inválido');const rec={id:Date.now(),date:today(),detail,amount};(type==='expense'?db.expenses:db.entries).push(rec);audit(type==='expense'?'GASTO':'ENTRADA',detail+' '+money(amount));persist()}
+function removeCashItem(type){const arr=type==='expense'?db.expenses:db.entries;if(!arr.length)return toast('No hay movimientos');const x=arr.pop();audit('ELIMINADO',x.detail);persist()}
+function renderBalance(){const from=$('bDesde')?.value||today(),to=$('bHasta')?.value||today();if($('bDesde'))$('bDesde').value=from;if($('bHasta'))$('bHasta').value=to;const inr=x=>x.date>=from&&x.date<=to;const cob=db.payments.filter(inr).reduce((s,x)=>s+x.amount,0),cred=db.credits.filter(x=>inr(x)).reduce((s,x)=>s+x.capital,0),entries=db.entries.filter(inr).reduce((s,x)=>s+x.amount,0)+db.capital.filter(inr).reduce((s,x)=>s+x.amount,0),exp=db.expenses.filter(inr).reduce((s,x)=>s+x.amount,0),caja=+db.settings.cashBase+cob+entries-exp;$('bCobrado').textContent=money(cob);$('bCreditos').textContent=money(cred);$('bIngresos').textContent=money(cob+entries);$('bEgresos').textContent=money(exp);$('bCaja').textContent=money(caja);$('entriesList').innerHTML=db.entries.filter(inr).concat(db.capital.filter(inr).map(x=>({...x,detail:'Capital: '+x.detail}))).map(x=>`<div class="info">${fmt(x.date)} / ${x.detail} <b>+${money(x.amount)}</b></div>`).join('')||'<div class="info">-</div>';$('expensesList').innerHTML=db.expenses.filter(inr).map(x=>`<div class="info">${fmt(x.date)} / ${x.detail} <b>−${money(x.amount)}</b></div>`).join('')||'<div class="info">-</div>';$('bEstado').textContent=db.cashClosures.length?'Último cierre: '+fmt(db.cashClosures.at(-1).date):'SIN CERRAR';$('lastBalance').innerHTML=db.cashClosures.length?`${fmt(db.cashClosures.at(-1).date)} · ${money(db.cashClosures.at(-1).amount)}`:'Sin balance cerrado'}
+function closeCash(){const from=$('bDesde').value,to=$('bHasta').value;const text=$('bCaja').textContent.replace(/[S/\s,]/g,'');const amount=+text;if(!(amount>=0))return toast('No se pudo calcular caja');db.cashClosures.push({id:Date.now(),date:today(),from,to,amount,status:'CERRADO'});db.settings.cashBase=amount;audit('CIERRE_CAJA',money(amount));persist();toast('Cierre de caja registrado')}
+function showCashHistory(){if(!db.cashClosures.length)return toast('Sin cierres');$('reportBox').innerHTML='<div class="card"><h3>Historial de cierres</h3>'+db.cashClosures.slice().reverse().map(x=>`<div class="info">${fmt(x.date)} · ${money(x.amount)} · ${x.status}</div>`).join('')+'</div>';go('reports')}
+function viewPortfolio(){report('portfolio')}
+function report(type){let html='<div class="card">';if(type==='portfolio'){html+='<h3>Cartera</h3>'+db.credits.map(c=>{const cl=db.clients.find(x=>x.id===c.clientId),s=status(c);return `<div class="info">${cl?.name||''} · Crédito ${c.id} · Saldo ${money(s.remain)} · Mora ${money(s.overdue)}</div>`}).join('')}if(type==='collections'){html+='<h3>Recaudos</h3>'+db.payments.slice().reverse().map(p=>{const c=db.credits.find(x=>x.id===p.creditId),cl=db.clients.find(x=>x.id===c?.clientId);return `<div class="info">${fmt(p.date)} · ${cl?.name||''} · ${money(p.amount)} · ${p.type}</div>`}).join('')}if(type==='arrears'){html+='<h3>Mora</h3>'+db.credits.filter(c=>status(c).overdue>0).map(c=>{const cl=db.clients.find(x=>x.id===c.clientId);return `<div class="info">${cl?.name||''} · ${money(status(c).overdue)}</div>`}).join('')}if(type==='loans'){html+='<h3>Colocaciones</h3>'+db.credits.map(c=>`<div class="info">${fmt(c.date)} · ${money(c.capital)} · ${c.term} cuotas</div>`).join('')}if(type==='clients'){html+='<h3>Clientes</h3>'+db.clients.map(c=>`<div class="info">${c.name} · ${c.phone} · ${routeName(c.routeId)}</div>`).join('')}if(type==='cash'){html+='<h3>Caja</h3><div class="info">Base: '+money(db.settings.cashBase)+'</div>'+db.cashClosures.map(x=>`<div class="info">${fmt(x.date)} · ${money(x.amount)}</div>`).join('')}html+='</div>';$('reportBox').innerHTML=html;go('reports')}
+function renderAudit(){$('auditList').innerHTML=db.audit.map(x=>`<div class="info"><b>${new Date(x.date).toLocaleString('es-PE')}</b><br>${x.action} · ${x.detail}</div>`).join('')||'<div class="card">Sin movimientos de auditoría.</div>'}
+function renderSettings(){[0,1,2,3,4,5,6].forEach(d=>{const e=$('off'+d);if(e)e.checked=db.settings.offDays.includes(d)});$('defaultRestDay').value=String(db.settings.defaultRestDay);$('maturityRule').value=db.settings.maturityRule;$('cashBase').value=db.settings.cashBase}
+function saveSettings(){db.settings.offDays=[0,1,2,3,4,5,6].filter(d=>$('off'+d).checked);db.settings.defaultRestDay=$('defaultRestDay').value==='none'?'none':+$('defaultRestDay').value;db.settings.maturityRule=$('maturityRule').value;db.settings.cashBase=+$('cashBase').value||0;audit('PARAMETROS','Actualizados');persist();toast('Parámetros guardados')}
+function renderProfile(){$('bizName').textContent=db.profile.name;$('bizUser').textContent='Administrador';$('bizCode').textContent='MC-'+String(db.profile.name.length).padStart(4,'0');$('pName').value=db.profile.name;$('pPhone').value=db.profile.phone}
+function saveProfile(){db.profile.name=$('pName').value.trim()||'MI CARTERA';db.profile.phone=$('pPhone').value.trim()||'+51';audit('EMPRESA','Perfil actualizado');persist();toast('Empresa guardada')}
+function backup(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi-cartera-respaldo-'+today()+'.json';a.click();audit('BACKUP','Exportación completa');persist()}
+function restore(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);normalize();audit('RESTORE','Respaldo restaurado');persist();toast('Respaldo restaurado')}catch(err){toast('Archivo no válido')}};r.readAsText(f)}
+function renderHome(){const due=db.credits.reduce((s,c)=>s+currentDue(c),0),col=db.payments.filter(p=>p.date===today()).reduce((s,p)=>s+p.amount,0),port=db.credits.reduce((s,c)=>s+status(c).remain,0),mora=db.credits.reduce((s,c)=>s+status(c).overdue,0);$('todayLabel').textContent=new Date().toLocaleDateString('es-PE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});$('mDue').textContent=money(due);$('mCollected').textContent=money(col);$('mPortfolio').textContent=money(port);$('mArrears').textContent=money(mora);$('homeAlerts').innerHTML=`<div class="info">Clientes: <b>${db.clients.length}</b></div><div class="info">Créditos: <b>${db.credits.length}</b></div><div class="info">Cobradores: <b>${db.users.filter(u=>u.role==='cobrador'&&u.active).length}</b></div><div class="info">Rutas: <b>${db.routes.length}</b></div>`}
+function renderAll(){renderHome();renderClients();renderCredits();renderRoutes();renderUsers();renderInvestors();renderBalance();renderCollections();renderAudit();renderSettings();renderProfile();renderRouteOptions('collectionRoute');if($('collectionDate')&&!$('collectionDate').value)$('collectionDate').value=today()}
+$('collectionDate').value=today();$('bDesde').value=today();$('bHasta').value=today();renderAll();
+</script></body></html>
