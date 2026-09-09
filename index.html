@@ -18,7 +18,7 @@ main{max-width:680px;margin:auto;padding:10px 16px}.page{display:none}.page.acti
 .sectionTitle{font-size:25px;font-weight:700;margin:23px 0 9px}.search{width:100%;padding:11px 14px;border:1px solid #bfc7cc;border-radius:13px;background:#eef2f3;font-size:18px;box-shadow:inset 0 1px 3px #0002}
 .routeCard{background:#ed1c24;color:#fff;border-radius:12px;margin:10px 0;overflow:hidden;box-shadow:0 2px 6px #0003}.routeRow{padding:16px 16px;border-bottom:1px solid #c4141b;display:flex;align-items:center;gap:8px}.routeRow:last-child{border:0}.routeName{flex:1;font-size:20px;font-weight:700}.routeSub{font-size:15px;margin-top:6px}.amount{background:#fff;color:#333;border-radius:6px;padding:8px 11px;font-size:18px;font-weight:700;white-space:nowrap}.alert{font-size:20px}
 .card{background:#fff;border:1px solid #ddd;border-radius:9px;padding:13px;margin:11px 0;box-shadow:0 2px 5px #0001}.field{margin:11px 0}.field label{display:block;font-size:18px;margin-bottom:6px}.input,.select{width:100%;padding:11px 13px;border:1px solid #bfc7cc;border-radius:12px;background:#eef2f3;font-size:18px;min-height:44px}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:8px}.info{padding:11px;background:#eee;border:1px solid #ddd;font-size:17px}.infoHead{background:#bfc7cc;color:#fff;padding:8px;font-weight:700;text-shadow:1px 1px #777}.bigTotal{font-size:34px;font-weight:800;background:#eef2f3;border:1px solid #bfc7cc;border-radius:11px;padding:16px}
-.actionbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.wide{width:100%}.small{font-size:14px}.muted{color:#777}.success{color:#078f07;font-weight:700}.warning{color:#e87900;font-weight:700}.dangerTxt{color:#ed1c24;font-weight:700}.routeCard.greenStatus{background:#4caf50}.routeCard.orangeStatus{background:#f39c12}.routeCard.redStatus{background:#ed1c24}.statusBadge{display:inline-block;padding:5px 9px;border-radius:6px;font-weight:700;color:#fff}.statusGreen{background:#4caf50}.statusOrange{background:#f39c12}.statusRed{background:#ed1c24}
+.actionbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.wide{width:100%}.small{font-size:14px}.muted{color:#777}.btn.orange{background:#f39c12}.btn.red{background:#ed1c24}.success{color:#078f07;font-weight:700}.warning{color:#e87900;font-weight:700}.dangerTxt{color:#ed1c24;font-weight:700}.routeCard.greenStatus{background:#4caf50}.routeCard.orangeStatus{background:#f39c12}.routeCard.redStatus{background:#ed1c24}.statusBadge{display:inline-block;padding:5px 9px;border-radius:6px;font-weight:700;color:#fff}.statusGreen{background:#4caf50}.statusOrange{background:#f39c12}.statusRed{background:#ed1c24}
 .clientBox{background:#eef2f3;border:1px solid #bfc7cc;border-radius:12px;padding:14px;font-size:17px}.clientBox h3{margin:0 0 7px;font-size:21px}
 .ticket{background:#eee;border:1px solid #ccc;padding:17px;text-align:center;font-size:16px;line-height:1.5}.ticket h2{font-size:26px}.ticket .line{border-top:2px solid #333;margin:11px 0}
 .bottom{position:fixed;bottom:0;left:0;right:0;height:60px;background:#101116;color:#fff;z-index:30;display:flex;align-items:center;justify-content:space-around;font-size:12px}.bottom button{background:none;border:0;color:#fff;font-size:11px}.bottom span{display:block;font-size:22px}
@@ -78,7 +78,7 @@ hr{border:0;border-top:2px solid #aaa;margin:24px 0}
  <div class="actionbar"><button class="btn blue" onclick="saveClient()">➡ Guardar y continuar</button><button class="btn" onclick="showPage('clients')">Cancelar</button></div>
  </div></section>
 
-<section id="credits" class="page"><div class="sectionTitle">Créditos</div><button class="btn blue wide" onclick="newCredit()">＋ Nuevo crédito</button><div id="creditsList"></div></section>
+<section id="credits" class="page"><div class="sectionTitle">Créditos</div><button class="btn blue wide" onclick="newCredit()">＋ Nuevo crédito</button><div class="twocol" style="margin:10px 0"><button class="btn" onclick="setCreditFilter('all')">Todos</button><button class="btn green" onclick="setCreditFilter('active')">Activos</button><button class="btn orange" onclick="setCreditFilter('due')">Por vencer</button><button class="btn red" onclick="setCreditFilter('overdue')">Vencidos / Mora</button></div><div id="creditsSummary" class="card"></div><div id="creditsList"></div></section>
 
 <section id="creditForm" class="page"><div class="sectionTitle">Crédito</div><div id="creditClientBox" class="clientBox"></div>
  <div class="field"><label>Fecha</label><input class="input" type="date" id="cDate"></div>
@@ -137,7 +137,17 @@ hr{border:0;border-top:2px solid #aaa;margin:24px 0}
 
 <section id="lists" class="page"><div class="sectionTitle">Listados</div><div class="card"><button class="btn wide" onclick="listReport('clientes')">👥 Listado de clientes</button><button class="btn wide" onclick="listReport('creditos')">💳 Créditos activos</button><button class="btn wide" onclick="listReport('mora')">⚠️ Créditos en mora</button><button class="btn wide" onclick="listReport('pagos')">💵 Pagos registrados</button></div><div id="reportBox"></div></section>
 
-<section id="balance" class="page"><div class="sectionTitle">Balance</div><div class="metrics"><div class="metric"><div class="head">Capital colocado</div><div class="val" id="bCapital">S/ 0</div></div><div class="metric"><div class="head">Saldo actual</div><div class="val" id="bSaldo">S/ 0</div></div></div><div class="metrics"><div class="metric"><div class="head">Cobrado</div><div class="val" id="bCobrado">S/ 0</div></div><div class="metric"><div class="head">En mora</div><div class="val" id="bMora">S/ 0</div></div></div><div id="balanceReport"></div></section>
+<section id="balance" class="page">
+ <div class="sectionTitle">BALANCE</div>
+ <div class="metrics"><div class="metric"><div class="head">Cobrado</div><div class="val" id="bCobrado">S/ 0</div></div><div class="metric"><div class="head">Créditos</div><div class="val" id="bCapital">S/ 0</div></div></div>
+ <div class="card"><h3 style="margin-top:0">Rango del balance</h3><div class="twocol"><div class="field"><label>Desde</label><input class="input" type="date" id="bDesde"></div><div class="field"><label>Hasta cierre</label><input class="input" type="date" id="bHasta"></div></div><button class="btn blue wide" onclick="renderBalance()">↻ Actualizar balance</button></div>
+ <div class="sectionTitle">Entradas / Inversión</div><div class="metrics"><div class="metric"><div class="head">Detalle</div><div class="val" style="font-size:17px">Entradas</div></div><div class="metric"><div class="head">Valor</div><div class="val" id="bEntradas">S/ 0</div></div></div><div id="entriesList"></div><div class="actionbar"><button class="btn green" onclick="addBalanceEntry('entry')">＋ Agregar</button><button class="btn" onclick="addBalanceEntry('investment')">＋ Inversión</button></div>
+ <div class="sectionTitle">Gastos / Salidas</div><div class="metrics"><div class="metric"><div class="head">Detalle</div><div class="val" style="font-size:17px">Gastos</div></div><div class="metric"><div class="head">Valor</div><div class="val" id="bGastos">S/ 0</div></div></div><div id="expensesList"></div><button class="btn red wide" onclick="addBalanceEntry('expense')">＋ Agregar gasto</button>
+ <div class="card"><div class="metrics"><div class="metric"><div class="head">Total ingresos</div><div class="val" id="bTotalIngr">S/ 0</div></div><div class="metric"><div class="head">Total egresos</div><div class="val" id="bTotalEgr">S/ 0</div></div></div><div class="sectionTitle">Total caja</div><div class="bigTotal" id="bCaja">S/ 0</div><div class="small muted">Caja base + cobros + entradas + inversiones − gastos.</div></div>
+ <button class="btn wide" onclick="closeCash()">🗓️ Solicitar Cierre de Caja</button>
+ <div class="sectionTitle">Estado balance</div><div class="info" id="bEstado">📂 SIN CERRAR</div><div class="sectionTitle">Último balance</div><div class="info" id="bUltimo">-</div><button class="btn orange wide" onclick="showCashHistory()">↗ Ver cartera / cierres</button>
+ <div id="balanceReport"></div>
+</section>
 
 
 <section id="settings" class="page">
@@ -185,9 +195,13 @@ hr{border:0;border-top:2px solid #aaa;margin:24px 0}
 <div id="toast" class="toast"></div>
 
 <script>
-const KEY='mi_cartera_pro_v8';
+const KEY='mi_cartera_pro_v13';
 let db=JSON.parse(localStorage.getItem(KEY)||'null')||{profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro'],settings:{offDays:[0],maturityRule:'month',defaultRestDay:0}};
 db.settings=db.settings||{offDays:[0],maturityRule:'month',defaultRestDay:0};
+db.entries=Array.isArray(db.entries)?db.entries:[];
+db.expenses=Array.isArray(db.expenses)?db.expenses:[];
+db.investments=Array.isArray(db.investments)?db.investments:[];
+db.cashClosures=Array.isArray(db.cashClosures)?db.cashClosures:[];
 if(!Array.isArray(db.settings.offDays)) db.settings.offDays=[0];
 if(!db.settings.maturityRule) db.settings.maturityRule='month'; if(db.settings.defaultRestDay===undefined) db.settings.defaultRestDay=0;
 let selectedClient=null, selectedCredit=null;
@@ -494,36 +508,46 @@ function renderRoute(){
 }
 function renderClients(){const q=(clientSearch.value||'').toLowerCase();clientsList.innerHTML=db.clients.filter(c=>(c.name+c.phone+c.reference).toLowerCase().includes(q)).map(c=>`<div class="card"><h3>${c.name}</h3>Tel. ${c.phone||'-'}<br>${c.address||'-'}<br>Ref. ${c.reference||'-'}<div class="actionbar"><button class="btn blue" onclick="newCredit(${c.id})">＋ Crédito</button><button class="btn" onclick="selectedClient=${c.id};showClientCredits(${c.id})">Ver créditos</button></div></div>`).join('')||'<div class="card">No hay clientes.</div>'}
 function showClientCredits(cid){selectedClient=cid;showPage('credits');renderCredits()}
-function renderCredits(){creditsList.innerHTML=db.credits.slice().reverse().map(cr=>{const c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);return `<div class="card" onclick="showCredit(${cr.id})"><h3>${c?.name||'Cliente'}</h3>Capital: ${money(cr.capital)} · Interés: ${cr.rate}%<br>Total: ${money(cr.total)} · Cuota: ${money(cr.installment)}<br>Plazo: ${labelFreq(cr.freq)}, ${cr.term} cuotas<br>Saldo: <b>${money(s.remain)}</b> · ${s.overdueCount?'⚠️ Mora':'✓ Al día'}</div>`}).join('')||'<div class="card">No hay créditos.</div>'}
-function renderRoutePage(){
- const date=document.getElementById('routeDate').value||isoToday(),route=document.getElementById('routeSelect').value;
- routePageList.innerHTML=db.credits.filter(cr=>cr.route===route&&cr.status==='Activo').map(cr=>{
-  const c=db.clients.find(x=>x.id===cr.clientId),due=cr.schedule.filter(q=>q.date<=date&&q.paid<q.amount&&!q.postponed).reduce((a,q)=>a+q.amount-q.paid,0);
-  const col=creditColor(cr), status=creditStateText(cr), sc=col==='red'?'statusRed':col==='orange'?'statusOrange':'statusGreen';
-  return `<div class="card"><h3>${c.name}</h3>${labelFreq(cr.freq)} · Cuota ${money(cr.installment)}<br>Debido ${money(due)}<br><span class="statusBadge ${sc}">${status}</span><div class="actionbar"><button class="btn green" onclick="openCollect(${cr.id})">Recaudar</button><button class="btn blue" onclick="showCredit(${cr.id})">Ver</button></div></div>`;
- }).join('')||'<div class="card">No hay créditos en esta ruta.</div>';
+let creditFilter='all';
+function setCreditFilter(f){creditFilter=f;renderCredits()}
+function renderCredits(){
+ let arr=db.credits.slice().reverse();
+ if(creditFilter==='active')arr=arr.filter(cr=>calcStatus(cr).remain>0 && calcStatus(cr).overdueCount===0);
+ if(creditFilter==='due')arr=arr.filter(cr=>{const d=dayDiff(isoToday(),maturityDate(cr));return d===0||d===1});
+ if(creditFilter==='overdue')arr=arr.filter(cr=>calcStatus(cr).overdueCount>0||dayDiff(isoToday(),maturityDate(cr))<0);
+ const all=db.credits.length, due=db.credits.filter(cr=>dayDiff(isoToday(),maturityDate(cr))<=1 && calcStatus(cr).remain>0).length, overdue=db.credits.filter(cr=>calcStatus(cr).overdueCount>0||dayDiff(isoToday(),maturityDate(cr))<0).length;
+ creditsSummary.innerHTML=`<b>Total créditos:</b> ${all} &nbsp; | &nbsp; <b>Por vencer:</b> ${due} &nbsp; | &nbsp; <b>Vencidos/Mora:</b> ${overdue}`;
+ creditsList.innerHTML=arr.map(cr=>{const c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr),col=creditColor(cr),sc=col==='red'?'statusRed':col==='orange'?'statusOrange':'statusGreen';return `<div class="card" onclick="showCredit(${cr.id})"><h3>${c?.name||'Cliente'}</h3>Capital: ${money(cr.capital)} · Interés: ${cr.rate}%<br>Total: ${money(cr.total)} · Cuota: ${money(cr.installment)}<br>Plazo: ${labelFreq(cr.freq)}, ${cr.term} cuotas<br>Vencimiento: ${fmtDate(maturityDate(cr))}<br>Saldo: <b>${money(s.remain)}</b> · <span class="statusBadge ${sc}">${creditStateText(cr)}</span><div class="actionbar"><button class="btn blue" onclick="event.stopPropagation();editCredit(${cr.id})">✏️ Modificar</button><button class="btn green" onclick="event.stopPropagation();openCollect(${cr.id})">💵 Recaudar</button></div></div>`}).join('')||'<div class="card">No hay créditos en este listado.</div>';
 }
-function listReport(type){let out='';if(type==='clientes')out=db.clients.map(c=>`<div class="card"><b>${c.name}</b><br>${c.phone||'-'}<br>${c.address||'-'}</div>`).join('');if(type==='creditos')out=db.credits.filter(c=>c.status==='Activo').map(cr=>{const c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);return `<div class="card"><b>${c.name}</b><br>${money(cr.total)} · Saldo ${money(s.remain)}<br>${labelFreq(cr.freq)} ${cr.term} cuotas</div>`}).join('');if(type==='mora')out=db.credits.map(cr=>{const s=calcStatus(cr),c=db.clients.find(x=>x.id===cr.clientId);return s.overdueCount?`<div class="card dangerTxt"><b>${c.name}</b><br>${s.overdueCount} cuotas mora · ${money(s.overdue)}</div>`:''}).join('');if(type==='pagos')out=db.payments.slice().reverse().map(p=>{const cr=db.credits.find(x=>x.id===p.creditId),c=db.clients.find(x=>x.id===cr?.clientId);return `<div class="card">${fmtDate(p.date)} · ${c?.name||''}<br><b>${money(p.amount)}</b></div>`}).join('');reportBox.innerHTML=out||'<div class="card">Sin datos.</div>'}
-function renderBalance(){let capital=db.credits.reduce((a,c)=>a+c.capital,0),sal=0,cob=0,mora=0;db.credits.forEach(cr=>{const s=calcStatus(cr);sal+=s.remain;cob+=s.paid;mora+=s.overdue});bCapital.textContent=money(capital);bSaldo.textContent=money(sal);bCobrado.textContent=money(cob);bMora.textContent=money(mora);balanceReport.innerHTML=`<div class="card"><b>Resumen operativo</b><br>Créditos: ${db.credits.length}<br>Clientes: ${db.clients.length}<br>Pagos registrados: ${db.payments.length}</div>`}
-function renderHome(){
- document.getElementById('today').textContent=fmtDate(isoToday());
- const pt=db.payments.filter(p=>p.date===isoToday()).reduce((a,p)=>a+p.amount,0);
- const ct=db.credits.filter(c=>c.date===isoToday()).reduce((a,c)=>a+c.total,0);
- let dueMin=0,dueTotal=0,count=0;
- db.credits.forEach(cr=>{
-  const dueToday=cr.schedule.filter(q=>q.date===isoToday()&&q.paid<q.amount&&!q.postponed).reduce((a,q)=>a+q.amount-q.paid,0);
-  dueMin+=dueToday;
-  const all=currentDue(cr);
-  dueTotal+=all;
-  if(dueToday>0||all>0)count++;
- });
- document.getElementById('colToday').textContent=money(pt);
- document.getElementById('creditToday').textContent=money(ct);
- document.getElementById('dueMin').textContent=money(dueMin);
- document.getElementById('dueTotal').textContent=money(dueTotal);
- document.getElementById('paymentsCount').textContent=count;
- renderRoute();
+function inRange(date,from,to){return date>=from&&date<=to}
+function renderBalance(){
+ const today=isoToday();
+ if(!bDesde.value)bDesde.value=today.slice(0,8)+'01'; if(!bHasta.value)bHasta.value=today;
+ const from=bDesde.value,to=bHasta.value;
+ let cob=0,cred=0,entries=0,invest=0,gastos=0;
+ db.payments.forEach(x=>{if(inRange(x.date,from,to))cob+=x.amount||0});
+ db.credits.forEach(x=>{if(inRange(x.date,from,to))cred+=x.capital||0});
+ db.entries.forEach(x=>{if(inRange(x.date,from,to))entries+=x.amount||0});
+ db.investments.forEach(x=>{if(inRange(x.date,from,to))invest+=x.amount||0});
+ db.expenses.forEach(x=>{if(inRange(x.date,from,to))gastos+=x.amount||0});
+ const base=Number(db.settings.cashBase||0), caja=base+cob+entries+invest-gastos;
+ bCapital.textContent=money(cred);bCobrado.textContent=money(cob);bEntradas.textContent=money(entries+invest);bGastos.textContent=money(gastos);bTotalIngr.textContent=money(cob+entries+invest);bTotalEgr.textContent=money(gastos);bCaja.textContent=money(caja);
+ bEstado.textContent=db.cashClosures.length?'📂 ÚLTIMO CIERRE: '+fmtDate(db.cashClosures[db.cashClosures.length-1].date):'📂 SIN CERRAR';
+ bUltimo.textContent=db.cashClosures.length?fmtDate(db.cashClosures[db.cashClosures.length-1].date):'Sin balance cerrado';
+ entriesList.innerHTML=db.entries.concat(db.investments.map(x=>({...x,type:'investment'})).filter(x=>inRange(x.date,from,to)).map(x=>x)).filter(x=>inRange(x.date,from,to)).map(x=>`<div class="info">${x.date} / ${x.detail||'Entrada'} <b>+ ${money(x.amount)}</b></div>`).join('')||'<div class="info">-</div>';
+ expensesList.innerHTML=db.expenses.filter(x=>inRange(x.date,from,to)).map(x=>`<div class="info">${x.date} / ${x.detail||'Gasto'} <b>− ${money(x.amount)}</b></div>`).join('')||'<div class="info">-</div>';
+ balanceReport.innerHTML=`<div class="card"><b>Resumen:</b><br>Desde ${fmtDate(from)} hasta ${fmtDate(to)}<br>Recaudo: ${money(cob)}<br>Créditos colocados: ${money(cred)}<br>Entradas/Inversiones: ${money(entries+invest)}<br>Gastos/Salidas: ${money(gastos)}<br><b>Saldo de caja calculado: ${money(caja)}</b></div>`;
 }
+function addBalanceEntry(type){
+ const detail=prompt(type==='expense'?'Detalle del gasto':type==='investment'?'Detalle de la inversión':'Detalle de la entrada',''); if(detail===null)return;
+ const amount=Number(prompt('Valor','0')); if(!amount||amount<=0)return toast('Valor inválido');
+ const rec={id:Date.now(),date:isoToday(),detail,amount}; if(type==='expense')db.expenses.push(rec);else if(type==='investment')db.investments.push(rec);else db.entries.push(rec);save();showPage('balance');
+}
+function closeCash(){
+ const amount=Number((document.getElementById('bCaja')?.textContent||'').replace(/[^0-9.-]/g,''));
+ const rec={id:Date.now(),date:isoToday(),amount,from:bDesde.value,to:bHasta.value,status:'closed'};db.cashClosures.push(rec);db.settings.cashBase=amount;save();toast('Cierre de caja registrado');
+}
+function showCashHistory(){showPage('balance');setTimeout(()=>{balanceReport.innerHTML+=`<div class="card"><b>Historial de cierres</b>${db.cashClosures.map(x=>`<div class="info">${x.date} · ${money(x.amount)} · ${x.status}</div>`).join('')||'<br>Sin cierres registrados.'}</div>`},20)}
 function renderProfile(){bizName.textContent=db.profile.name;bizCode.textContent='MC-'+String(db.profile.name.length).padStart(4,'0');pName.value=db.profile.name;pPhone.value=db.profile.phone}
 function saveProfile(){db.profile.name=pName.value||'MI CARTERA';db.profile.phone=pPhone.value||'+51';save();toast('Perfil guardado')}
 function renderSettings(){
@@ -540,7 +564,7 @@ function saveSettings(){
  refresh();
 }
 function refresh(){renderHome();renderClients();renderCredits();renderRoutePage();renderBalance();renderProfile();renderSettings()}
-function backup(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi-cartera-respaldo.json';a.click();toast('Respaldo exportado')}
+function backup(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi-cartera-respaldo-completo.json';a.click();toast('Respaldo exportado')}
 function restore(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();toast('Respaldo restaurado')}catch{toast('Archivo no válido')}};r.readAsText(f)}
 function seedDemo(){
  const c={id:685,name:'Cliente Demo',phone:'999999999',address:'Lima',guarantor:'-',reference:'Demo',location:'[-12.0464,-77.0428]',route:'Principal'};
@@ -551,7 +575,7 @@ function seedDemo(){
  cr.maturity=maturityDate(cr);
  db.credits=[cr];db.payments=[];localStorage.setItem(KEY,JSON.stringify(db));toast('Datos de prueba cargados');
 }
-function resetAll(){if(confirm('¿Borrar todos los datos?')){db={profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro'],settings:{offDays:[0],maturityRule:'month',defaultRestDay:0}};save();}}
+function resetAll(){if(confirm('¿Borrar todos los datos?')){db={profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],entries:[],expenses:[],investments:[],cashClosures:[],routes:['Principal','Norte','Sur','Centro'],settings:{offDays:[0],maturityRule:'month',defaultRestDay:0,cashBase:0}};save();}}
 function bluetoothInfo(){alert('Bluetooth queda reservado para impresora/comprobante. La app puede compartir el ticket por WhatsApp desde el teléfono.')}
 function tutorial(){alert('Flujo: 1) Crear cliente → 2) Crear crédito → 3) Enrutar → 4) Recaudar → 5) Ver balance/listados → 6) Respaldar datos.')}
 refresh();
