@@ -1,35 +1,240 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#14532d"><link rel="manifest" href="manifest.json"><title>Mi Cartera V4</title><style>
-*{box-sizing:border-box}body{margin:0;background:#f4f7f5;color:#17221b;font-family:Arial,sans-serif}.app{max-width:900px;margin:auto;min-height:100vh;padding-bottom:75px}header{background:#14532d;color:#fff;padding:17px;position:sticky;top:0;z-index:5}header h1{margin:0;font-size:21px}header small{opacity:.85}.page{display:none;padding:14px}.page.active{display:block}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.card{background:#fff;border-radius:13px;padding:14px;box-shadow:0 2px 9px #0001;margin-bottom:12px}.label{font-size:11px;color:#667168}.big{font-size:21px;font-weight:700;margin-top:6px}.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}.btn{border:0;border-radius:9px;padding:10px 13px;font-weight:700;cursor:pointer}.primary{background:#14532d;color:#fff}.light{background:#e7eee8;color:#14532d}input,select{width:100%;padding:10px;border:1px solid #ccd5ce;border-radius:8px;background:#fff}.field{margin:9px 0}.field label{display:block;font-size:11px;color:#667168;margin-bottom:5px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:8px 5px;border-bottom:1px solid #edf0ed;text-align:left}th{background:#f0f4f1}.pill{border-radius:99px;padding:4px 7px;font-size:10px;font-weight:700}.ok{background:#dcfce7;color:#15803d}.late{background:#fee2e2;color:#b91c1c}.today{background:#fef3c7;color:#a16207}#fabClient{display:none;position:fixed;right:18px;bottom:82px;z-index:15;width:58px;height:58px;border:0;border-radius:50%;background:#14532d;color:#fff;font-size:28px;font-weight:700;box-shadow:0 4px 14px #0004;cursor:pointer}.bottom{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #ddd;display:flex;justify-content:center;z-index:6}.bottom button{border:0;background:none;padding:9px 8px;font-size:10px;font-weight:700;color:#58645b}.bottom button.active{color:#14532d}.modal{display:none;position:fixed;inset:0;background:#0008;z-index:20;align-items:flex-end}.modal.show{display:flex}.sheet{background:#fff;width:100%;max-width:900px;margin:auto;border-radius:18px 18px 0 0;padding:17px;max-height:91vh;overflow:auto}.notice{font-size:11px;background:#eff6ff;padding:10px;border-radius:8px;margin:8px 0}.empty{text-align:center;color:#667168;padding:20px}@media(max-width:760px){.cards{grid-template-columns:1fr 1fr}}@media(min-width:761px){.bottom{left:50%;right:auto;width:900px;transform:translateX(-50%)}}</style></head><body><div class="app">
-<header><h1>💰 Mi Cartera V4</h1><small>Clientes · préstamos · pagos · cobranzas · reportes</small></header><main>
-<section id="home" class="page active"><h2>Dashboard</h2><div class="cards"><div class="card"><div class="label">Capital colocado</div><div class="big" id="placed">S/ 0</div></div><div class="card"><div class="label">Saldo por cobrar</div><div class="big" id="balance">S/ 0</div></div><div class="card"><div class="label">Cobrado</div><div class="big" id="collected">S/ 0</div></div><div class="card"><div class="label">Vencido</div><div class="big" id="overdue">S/ 0</div></div></div><div class="card"><h3>Indicadores</h3><div id="indicators"></div></div><div class="card"><h3>Próximas cobranzas</h3><div id="upcoming"></div></div></section>
-<section id="clients" class="page"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px"><h2 style="margin:0">Clientes</h2><button type="button" class="btn primary" id="newClientBtn" onclick="clientForm();return false">＋ AGREGAR CLIENTE</button></div><input id="clientSearch" placeholder="Buscar nombre, DNI o teléfono" oninput="renderClients()"><div id="clients"></div></section>
-<section id="loans" class="page"><div class="row"><h2>Préstamos</h2><button class="btn primary" onclick="loanForm()">+ Préstamo</button></div><select id="loanStatus" onchange="renderLoans()"><option value="all">Todos</option><option value="active">Activos</option><option value="late">Con vencidas</option><option value="closed">Cancelados</option></select><div id="loans"></div></section>
-<section id="payments" class="page"><h2>Pagos</h2><div class="card"><div id="payments"></div></div></section>
-<section id="collections" class="page"><h2>Cobranzas</h2><div class="cards"><div class="card"><div class="label">Hoy</div><div class="big" id="todayAmount">S/ 0</div></div><div class="card"><div class="label">Vencido</div><div class="big" id="lateAmount">S/ 0</div></div><div class="card"><div class="label">Próximos 7 días</div><div class="big" id="nextAmount">S/ 0</div></div><div class="card"><div class="label">Pendientes</div><div class="big" id="pendingCount">0</div></div></div><div class="card"><div id="collections"></div></div></section>
-<section id="reports" class="page"><h2>Reportes</h2><div class="card" id="report"></div><div class="card"><h3>Respaldo</h3><p style="font-size:12px">Exporta periódicamente tu información.</p><div class="row"><button class="btn primary" onclick="exportDB()">Exportar JSON</button><label class="btn light" style="text-align:center">Importar JSON<input type="file" accept=".json" style="display:none" onchange="importDB(event)"></label></div></div></section>
-<button type="button" id="fabClient" onclick="clientForm();return false" aria-label="Agregar cliente">＋</button></main><div class="bottom"><button class="active" onclick="go('home',this)">🏠<br>Inicio</button><button onclick="go('clients',this)">👥<br>Clientes</button><button onclick="go('loans',this)">💰<br>Préstamos</button><button onclick="go('payments',this)">💳<br>Pagos</button><button onclick="go('collections',this)">📅<br>Cobros</button><button onclick="go('reports',this)">📊<br>Reportes</button></div></div>
-<div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14532d">
+<title>Mi Cartera V6</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f5f7f6;color:#24302a;padding-bottom:82px}
+header{background:#14532d;color:#fff;padding:18px 16px 16px;position:sticky;top:0;z-index:10}
+header h1{margin:0;font-size:28px}header p{margin:6px 0 0;font-size:15px;opacity:.9}
+main{max-width:760px;margin:auto;padding:14px}
+.page{display:none}.page.active{display:block}
+h2{margin:4px 0 12px}.card{background:#fff;border-radius:14px;padding:15px;margin:10px 0;box-shadow:0 2px 8px #00000012}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.metric{padding:14px;border-radius:12px;background:#fff;box-shadow:0 2px 8px #00000010}.metric b{display:block;font-size:20px;margin-top:5px}
+label{display:block;font-size:14px;font-weight:700;margin:11px 0 5px}input,select,textarea{width:100%;padding:13px;border:1px solid #ccd4cf;border-radius:10px;font-size:16px;background:#fff}textarea{min-height:70px}
+.btn{border:0;border-radius:10px;padding:13px 16px;font-size:16px;font-weight:700;cursor:pointer}.primary{background:#14532d;color:#fff}.secondary{background:#e8efeb;color:#14532d}.danger{background:#b42318;color:#fff}.wide{width:100%;margin-top:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.item{border:1px solid #e0e5e2;border-radius:12px;padding:13px;margin:9px 0;background:#fff}.item strong{font-size:17px}.muted{color:#68756e;font-size:14px}.money{font-weight:800}
+.empty{text-align:center;padding:45px 15px;color:#68756e;font-size:18px}
+.bottom{position:fixed;left:0;right:0;bottom:0;height:74px;background:#fff;border-top:1px solid #ddd;display:grid;grid-template-columns:repeat(6,1fr);z-index:20}
+.bottom button{border:0;background:#fff;font-size:11px;color:#52605a;padding:5px 1px}.bottom button.active{color:#14532d;font-weight:800}.bottom span{display:block;font-size:22px;margin-bottom:2px}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;z-index:50}.modal.show{display:flex}.sheet{background:#fff;width:100%;max-width:760px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px}.sheet h3{margin:0 0 8px;font-size:22px}
+.notice{padding:12px;border-radius:10px;background:#eef7f0;margin:10px 0;font-size:14px}.error{background:#fff0ef;color:#9d1c14}.success{background:#eefaf1;color:#14652d}
+@media(min-width:700px){.modal{align-items:center}.sheet{border-radius:18px}.bottom{max-width:760px;left:50%;transform:translateX(-50%);border-radius:14px 14px 0 0}}
+</style>
+</head>
+<body>
+<header><h1>💰 Mi Cartera V6</h1><p>Clientes · Préstamos · Pagos · Cobranzas · Reportes</p></header>
+<main>
+<section id="home" class="page active">
+<h2>Resumen</h2>
+<div class="grid">
+<div class="metric">Capital colocado<b id="mCapital">S/ 0.00</b></div>
+<div class="metric">Saldo por cobrar<b id="mSaldo">S/ 0.00</b></div>
+<div class="metric">Cobrado<b id="mCobrado">S/ 0.00</b></div>
+<div class="metric">Vencido<b id="mVencido">S/ 0.00</b></div>
+</div>
+<div class="card"><h3>Acciones rápidas</h3>
+<div class="actions">
+<button class="btn primary" onclick="openClient()">＋ Agregar cliente</button>
+<button class="btn secondary" onclick="openLoan()">＋ Nuevo préstamo</button>
+<button class="btn secondary" onclick="show('payments')">💳 Registrar pago</button>
+</div></div>
+<div class="card"><h3>Próximas cobranzas</h3><div id="homeDue"></div></div>
+</section>
+
+<section id="clients" class="page">
+<h2>Clientes</h2>
+<button class="btn primary wide" onclick="openClient()">＋ AGREGAR CLIENTE</button>
+<input id="clientSearch" style="margin-top:10px" placeholder="Buscar por nombre, DNI o teléfono" oninput="renderClients()">
+<div id="clientList"></div>
+</section>
+
+<section id="loans" class="page">
+<h2>Préstamos</h2>
+<button class="btn primary wide" onclick="openLoan()">＋ NUEVO PRÉSTAMO</button>
+<div id="loanList"></div>
+</section>
+
+<section id="payments" class="page">
+<h2>Pagos</h2>
+<button class="btn primary wide" onclick="openPayment()">＋ REGISTRAR PAGO</button>
+<div id="paymentList"></div>
+</section>
+
+<section id="collections" class="page">
+<h2>Cobranzas</h2>
+<div class="grid">
+<div class="metric">Vencido<b id="cOverdue">S/ 0.00</b></div>
+<div class="metric">Próximos 7 días<b id="cNext">S/ 0.00</b></div>
+</div>
+<div class="card"><h3>Cuotas pendientes</h3><div id="collectionList"></div></div>
+</section>
+
+<section id="reports" class="page">
+<h2>Reportes</h2>
+<div class="card" id="reportBox"></div>
+<div class="card"><h3>Respaldo</h3>
+<p class="muted">Exporta tus datos antes de cambiar de teléfono o navegador.</p>
+<button class="btn primary wide" onclick="exportData()">⬇ Exportar datos</button>
+<label class="btn secondary wide" style="text-align:center;display:block">⬆ Importar datos<input id="importFile" type="file" accept=".json" style="display:none" onchange="importData(event)"></label>
+</div>
+</section>
+</main>
+
+<nav class="bottom">
+<button class="active" onclick="show('home',this)"><span>🏠</span>Inicio</button>
+<button onclick="show('clients',this)"><span>👥</span>Clientes</button>
+<button onclick="show('loans',this)"><span>💰</span>Préstamos</button>
+<button onclick="show('payments',this)"><span>💳</span>Pagos</button>
+<button onclick="show('collections',this)"><span>📅</span>Cobros</button>
+<button onclick="show('reports',this)"><span>📊</span>Reportes</button>
+</nav>
+
+<div id="modal" class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="sheet"></div></div>
+
 <script>
-const KEY='mi_cartera_v5';let db=JSON.parse(localStorage.getItem(KEY)||'{"clients":[],"loans":[],"payments":[]}');const $=id=>document.getElementById(id),money=n=>'S/ '+(+n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2}),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])),today=()=>{let d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate())},date=s=>new Date(s+'T00:00:00');
-function save(){localStorage.setItem(KEY,JSON.stringify(db));render()}function closeM(){$('modal').classList.remove('show')}function go(id,b){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.bottom button').forEach(x=>x.classList.remove('active'));b.classList.add('active');$('fabClient').style.display=id==='clients'?'block':'none';render();window.scrollTo(0,0)}
-function clientForm(id=''){let c=db.clients.find(x=>x.id===id)||{};$('sheet').innerHTML=`<h2>${id?'Editar':'Nuevo'} cliente</h2><div class=field><label>Nombre completo</label><input id=cn value="${esc(c.name)}"></div><div class=field><label>DNI</label><input id=cd value="${esc(c.dni)}"></div><div class=field><label>Teléfono</label><input id=cp value="${esc(c.phone)}"></div><div class=field><label>Dirección</label><input id=ca value="${esc(c.address)}"></div><div class=field><label>Referencia</label><input id=cr value="${esc(c.reference)}"></div><div class=row><button class="btn primary" onclick="saveClient('${id}')">Guardar</button><button class="btn light" onclick="closeM()">Cancelar</button></div>`;$('modal').classList.add('show')}
-function uid(){return (crypto&&crypto.randomUUID)?crypto.randomUUID():'id_'+Date.now()+'_'+Math.random().toString(36).slice(2)}
-function saveClient(id){let cnv=document.getElementById('cn'),cdv=document.getElementById('cd'),cpv=document.getElementById('cp'),cav=document.getElementById('ca'),crv=document.getElementById('cr');if(!cnv.value.trim())return alert('Ingresa el nombre');let x={id:id||uid(),name:cnv.value.trim(),dni:cdv.value.trim(),phone:cpv.value.trim(),address:cav.value.trim(),reference:crv.value.trim()};if(id)db.clients=db.clients.map(c=>c.id===id?x:c);else db.clients.push(x);closeM();save()}
-function renderClients(){let q=($('clientSearch')?.value||'').toLowerCase(),ar=db.clients.filter(c=>(c.name+c.dni+c.phone).toLowerCase().includes(q));$('clients').innerHTML=ar.length?ar.map(c=>{let ls=db.loans.filter(l=>l.clientId===c.id),bal=ls.reduce((s,l)=>s+loanBalance(l),0);return `<div class=card><b>${esc(c.name)}</b><div class=label>${esc(c.dni||'Sin DNI')} · ${esc(c.phone||'Sin teléfono')}</div><p>Saldo: <b>${money(bal)}</b></p><div class=row><button class="btn light" onclick="clientDetail('${c.id}')">Ficha</button><button class="btn primary" onclick="loanForm('${c.id}')">Prestar</button></div></div>`}).join(''):'<div class=empty>No hay clientes.</div>'}
-function loanForm(cid=''){if(!db.clients.length)return alert('Registra primero un cliente');$('sheet').innerHTML=`<h2>Nuevo préstamo</h2><div class=field><label>Cliente</label><select id=lc>${db.clients.map(c=>`<option value="${c.id}" ${c.id===cid?'selected':''}>${esc(c.name)} — ${esc(c.dni)}</option>`).join('')}</select></div><div class=field><label>Monto de capital (S/)</label><input id=la type=number step=.01 min=0></div><div class=field><label>Interés total sobre capital (%)</label><input id=lr type=number step=.01 min=0 value=20></div><div class=field><label>Número de cuotas</label><input id=ln type=number min=1 value=10></div><div class=field><label>Frecuencia</label><select id=lf><option value=diaria>Diaria</option><option value=semanal selected>Semanal</option><option value=quincenal>Quincenal</option><option value=mensual>Mensual</option></select></div><div class=field><label>Fecha de primera cuota</label><input id=ls type=date value="${new Date().toISOString().slice(0,10)}"></div><div class=notice>Interés = capital × tasa / 100. Total = capital + interés. Cuota = total / número de cuotas.</div><div class=row><button class="btn primary" onclick="saveLoan()">Crear</button><button class="btn light" onclick="closeM()">Cancelar</button></div>`;$('modal').classList.add('show')}
-function addDate(s,f,i){let d=date(s);if(f==='diaria')d.setDate(d.getDate()+i);if(f==='semanal')d.setDate(d.getDate()+7*i);if(f==='quincenal')d.setDate(d.getDate()+15*i);if(f==='mensual')d.setMonth(d.getMonth()+i);return d.toISOString().slice(0,10)}
-function saveLoan(){let A=+la.value,R=+lr.value,N=+ln.value;if(!(A>0&&N>0))return alert('Revisa monto y cuotas');let interest=A*R/100,total=A+interest,l={id:uid(),clientId:lc.value,amount:A,rate:R,n:N,freq:lf.value,start:ls.value,total,created:new Date().toISOString(),inst:[]};for(let i=0;i<N;i++)l.inst.push({id:uid(),n:i+1,date:addDate(l.start,l.freq,i),due:total/N,paid:0});db.loans.push(l);closeM();save();alert('Préstamo creado')}
-function paid(l){return l.inst.reduce((s,x)=>s+x.paid,0)}function loanBalance(l){return Math.max(0,l.total-paid(l))}function state(x){if(x.paid>=x.due-.01)return ['Pagada','ok'];let d=date(x.date),t=today();if(d<t)return ['Vencida','late'];if(d.getTime()===t.getTime())return ['Hoy','today'];return ['Pendiente','today']}
-function renderLoans(){let f=$('loanStatus')?.value||'all',ar=db.loans.filter(l=>f==='all'||(f==='active'&&loanBalance(l)>0&&!l.inst.some(x=>state(x)[0]==='Vencida'))||(f==='late'&&l.inst.some(x=>state(x)[0]==='Vencida'))||(f==='closed'&&loanBalance(l)<=.01));$('loans').innerHTML=ar.length?ar.slice().reverse().map(l=>{let c=db.clients.find(x=>x.id===l.clientId)||{};return `<div class=card><b>${esc(c.name)}</b><div class=label>Capital ${money(l.amount)} · Total ${money(l.total)} · ${l.n} cuotas</div><p>Saldo: <b>${money(loanBalance(l))}</b></p><div class=row><button class="btn light" onclick="detail('${l.id}')">Cronograma</button><button class="btn primary" onclick="pay('${l.id}')">Cobrar</button></div></div>`}).join(''):'<div class=empty>No hay préstamos.</div>'}
-function detail(id){let l=db.loans.find(x=>x.id===id),c=db.clients.find(x=>x.id===l.clientId)||{};$('sheet').innerHTML=`<h2>${esc(c.name)}</h2><p>Capital: <b>${money(l.amount)}</b> · Total: <b>${money(l.total)}</b> · Saldo: <b>${money(loanBalance(l))}</b></p><table><tr><th>#</th><th>Fecha</th><th>Cuota</th><th>Pagado</th><th>Saldo</th><th>Estado</th></tr>${l.inst.map(x=>{let s=state(x);return `<tr><td>${x.n}</td><td>${x.date}</td><td>${money(x.due)}</td><td>${money(x.paid)}</td><td>${money(x.due-x.paid)}</td><td><span class="pill ${s[1]}">${s[0]}</span></td></tr>`}).join('')}</table><button class="btn primary" style="margin-top:12px" onclick="pay('${id}')">Registrar pago</button> <button class="btn light" onclick="closeM()">Cerrar</button>`;$('modal').classList.add('show')}
-function pay(id){let l=db.loans.find(x=>x.id===id),p=l.inst.filter(x=>x.paid<x.due-.01);if(!p.length)return alert('Préstamo cancelado');$('sheet').innerHTML=`<h2>Registrar pago</h2><div class=field><label>Cuota</label><select id=pi>${p.map(x=>`<option value="${x.id}">Cuota ${x.n} — ${x.date} — saldo ${money(x.due-x.paid)}</option>`).join('')}</select></div><div class=field><label>Monto recibido (S/)</label><input id=pa type=number step=.01 value="${p[0].due-p[0].paid}"></div><div class=field><label>Fecha</label><input id=pd type=date value="${new Date().toISOString().slice(0,10)}"></div><button class="btn primary" onclick="savePay('${id}')">Guardar</button> <button class="btn light" onclick="closeM()">Cancelar</button>`;$('modal').classList.add('show')}
-function savePay(id){let l=db.loans.find(x=>x.id===id),piv=document.getElementById('pi'),pav=document.getElementById('pa'),pdv=document.getElementById('pd'),x=l.inst.find(y=>y.id===piv.value),v=+pav.value;if(!(v>0)||v>x.due-x.paid+.01)return alert('Monto inválido');x.paid+=v;db.payments.push({id:uid(),loanId:id,installmentId:x.id,amount:v,date:pdv.value});closeM();save();alert('Pago registrado')}
-function clientDetail(id){let c=db.clients.find(x=>x.id===id),ls=db.loans.filter(l=>l.clientId===id);$('sheet').innerHTML=`<h2>${esc(c.name)}</h2><p>DNI: ${esc(c.dni||'-')}<br>Teléfono: ${esc(c.phone||'-')}<br>Dirección: ${esc(c.address||'-')}<br>Referencia: ${esc(c.reference||'-')}</p><h3>Préstamos</h3>${ls.length?ls.map(l=>`<div class=card>${money(l.amount)} · saldo ${money(loanBalance(l))}<br><button class="btn light" onclick="detail('${l.id}')">Cronograma</button></div>`).join(''):'<div class=empty>Sin préstamos.</div>'}<button class="btn light" onclick="closeM()">Cerrar</button>`;$('modal').classList.add('show')}
-function renderPayments(){let ar=db.payments.slice().reverse();$('payments').innerHTML=ar.length?`<table><tr><th>Fecha</th><th>Cliente</th><th>Cuota</th><th>Monto</th></tr>${ar.map(p=>{let l=db.loans.find(x=>x.id===p.loanId),c=l?db.clients.find(x=>x.id===l.clientId):{},i=l?.inst.find(x=>x.id===p.installmentId);return `<tr><td>${p.date}</td><td>${esc(c?.name||'')}</td><td>${i?.n||''}</td><td>${money(p.amount)}</td></tr>`}).join('')}</table>`:'<div class=empty>No hay pagos.</div>'}
-function renderCollections(){let t=today(),tv=0,lv=0,nv=0,ar=[];db.loans.forEach(l=>l.inst.forEach(x=>{let s=state(x),b=x.due-x.paid;if(s[0]!=='Pagada'){ar.push({l,x,s,b});let d=date(x.date);if(s[0]==='Hoy')tv+=b;else if(s[0]==='Vencida')lv+=b;else if((d-t)/86400000<=7)nv+=b}}));ar.sort((a,b)=>a.x.date.localeCompare(b.x.date));$('todayAmount').textContent=money(tv);$('lateAmount').textContent=money(lv);$('nextAmount').textContent=money(nv);$('pendingCount').textContent=ar.length;$('collections').innerHTML=ar.length?`<table><tr><th>Fecha</th><th>Cliente</th><th>Cuota</th><th>Saldo</th><th>Estado</th><th></th></tr>${ar.map(z=>{let c=db.clients.find(c=>c.id===z.l.clientId)||{};return `<tr><td>${z.x.date}</td><td>${esc(c.name)}</td><td>${z.x.n}</td><td>${money(z.b)}</td><td><span class="pill ${z.s[1]}">${z.s[0]}</span></td><td><button class="btn primary" onclick="pay('${z.l.id}')">Cobrar</button></td></tr>`}).join('')}</table>`:'<div class=empty>Sin cuotas pendientes.</div>'}
-function renderHome(){let placed=db.loans.reduce((s,l)=>s+l.amount,0),bal=db.loans.reduce((s,l)=>s+loanBalance(l),0),col=db.payments.reduce((s,p)=>s+p.amount,0),late=0,up=[];db.loans.forEach(l=>l.inst.forEach(x=>{let s=state(x);if(s[0]==='Vencida')late+=x.due-x.paid;if(s[0]!=='Pagada')up.push({l,x,s})}));$('placed').textContent=money(placed);$('balance').textContent=money(bal);$('collected').textContent=money(col);$('overdue').textContent=money(late);$('indicators').innerHTML=`Clientes: <b>${db.clients.length}</b> · Préstamos: <b>${db.loans.length}</b> · Activos: <b>${db.loans.filter(l=>loanBalance(l)>0).length}</b> · Interés pactado: <b>${money(db.loans.reduce((s,l)=>s+l.amount*l.rate/100,0))}</b>`;up.sort((a,b)=>a.x.date.localeCompare(b.x.date));$('upcoming').innerHTML=up.slice(0,7).map(z=>{let c=db.clients.find(c=>c.id===z.l.clientId)||{};return `<div style="padding:7px 0;border-bottom:1px solid #eee"><b>${esc(c.name)}</b> · ${z.x.date} · ${money(z.x.due-z.x.paid)} <span class="pill ${z.s[1]}">${z.s[0]}</span></div>`}).join('')||'<div class=empty>Sin pendientes.</div>'}
-function renderReports(){let cap=db.loans.reduce((s,l)=>s+l.amount,0),interest=db.loans.reduce((s,l)=>s+l.amount*l.rate/100,0),col=db.payments.reduce((s,p)=>s+p.amount,0),bal=db.loans.reduce((s,l)=>s+loanBalance(l),0),late=0;db.loans.forEach(l=>l.inst.forEach(x=>{if(state(x)[0]==='Vencida')late+=x.due-x.paid}));let mor=bal?late/bal*100:0;$('report').innerHTML=`<p>Capital colocado: <b>${money(cap)}</b></p><p>Interés pactado: <b>${money(interest)}</b></p><p>Total cobrado: <b>${money(col)}</b></p><p>Saldo por cobrar: <b>${money(bal)}</b></p><p>Saldo vencido: <b>${money(late)}</b></p><p>Morosidad sobre saldo: <b>${mor.toFixed(2)}%</b></p>`}
-function exportDB(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi_cartera_respaldo_'+new Date().toISOString().slice(0,10)+'.json';a.click()}
-function importDB(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.clients||!x.loans||!x.payments)throw 0;if(confirm('Esto reemplazará los datos actuales. ¿Continuar?')){db=x;save();alert('Datos importados')}}catch{alert('Archivo no válido')}};r.readAsText(f)}
-function render(){renderHome();renderClients();renderLoans();renderPayments();renderCollections();renderReports()}render();$('fabClient').style.display=document.querySelector('.page.active')?.id==='clients'?'block':'none';if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
-</script></body></html>
+const KEY='mi_cartera_v6';
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{clients:[],loans:[],payments:[]};
+const $=id=>document.getElementById(id);
+const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+function save(){localStorage.setItem(KEY,JSON.stringify(db));renderAll()}
+function show(id,btn){
+ document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+ $(id).classList.add('active');
+ document.querySelectorAll('.bottom button').forEach(b=>b.classList.remove('active'));
+ if(btn)btn.classList.add('active'); else [...document.querySelectorAll('.bottom button')].find(b=>b.textContent.toLowerCase().includes(id==='collections'?'cobros':id==='reports'?'reportes':id==='loans'?'préstamos':id==='payments'?'pagos':id==='clients'?'clientes':'inicio'))?.classList.add('active');
+ renderAll(); window.scrollTo(0,0);
+}
+function openModal(content){$('sheet').innerHTML=content;$('modal').classList.add('show')}
+function closeModal(){$('modal').classList.remove('show')}
+function esc(s){return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+function openClient(){
+ openModal(`<h3>Agregar cliente</h3>
+ <label>Nombre completo *</label><input id="fName" autofocus>
+ <label>DNI</label><input id="fDni" inputmode="numeric">
+ <label>Teléfono</label><input id="fPhone" inputmode="tel">
+ <label>Dirección</label><input id="fAddress">
+ <label>Referencia</label><textarea id="fRef"></textarea>
+ <button class="btn primary wide" onclick="saveClient()">GUARDAR CLIENTE</button>
+ <button class="btn secondary wide" onclick="closeModal()">Cancelar</button>`)
+}
+function saveClient(){
+ const name=$('fName').value.trim();
+ if(!name){alert('Ingresa el nombre del cliente.');$('fName').focus();return}
+ db.clients.push({id:Date.now().toString(),name,dni:$('fDni').value.trim(),phone:$('fPhone').value.trim(),address:$('fAddress').value.trim(),ref:$('fRef').value.trim(),created:new Date().toISOString()});
+ save();closeModal();show('clients');
+ alert('Cliente guardado correctamente.');
+}
+function openLoan(){
+ if(!db.clients.length){alert('Primero registra un cliente.');show('clients');return}
+ const opts=db.clients.map(c=>`<option value="${c.id}">${esc(c.name)}${c.dni?' — '+esc(c.dni):''}</option>`).join('');
+ openModal(`<h3>Nuevo préstamo</h3>
+ <label>Cliente *</label><select id="lClient">${opts}</select>
+ <label>Capital prestado (S/) *</label><input id="lCapital" type="number" min="0" step="0.01" inputmode="decimal">
+ <label>Interés total (%) *</label><input id="lRate" type="number" min="0" step="0.01" value="20" inputmode="decimal">
+ <label>Número de cuotas *</label><input id="lCount" type="number" min="1" step="1" value="10" inputmode="numeric">
+ <label>Frecuencia</label><select id="lFreq"><option value="daily">Diaria</option><option value="weekly" selected>Semanal</option><option value="biweekly">Quincenal</option><option value="monthly">Mensual</option></select>
+ <label>Primera cuota</label><input id="lDate" type="date" value="${new Date().toISOString().slice(0,10)}">
+ <div class="notice" id="loanPreview">Completa los datos para ver el cálculo.</div>
+ <button class="btn primary wide" onclick="saveLoan()">GUARDAR PRÉSTAMO Y GENERAR CUOTAS</button>
+ <button class="btn secondary wide" onclick="closeModal()">Cancelar</button>`)
+ ;['lCapital','lRate','lCount'].forEach(id=>$(id).addEventListener('input',previewLoan));previewLoan();
+}
+function previewLoan(){
+ const cap=+($('lCapital')?.value||0), rate=+($('lRate')?.value||0), count=+($('lCount')?.value||0);
+ const interest=cap*rate/100,total=cap+interest,inst=count?total/count:0;
+ if($('loanPreview'))$('loanPreview').innerHTML=`Interés: <b>${money(interest)}</b><br>Total a cobrar: <b>${money(total)}</b><br>Cuota: <b>${money(inst)}</b>`;
+}
+function addDays(date,n){let d=new Date(date+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
+function addMonths(date,n){let d=new Date(date+'T12:00:00');d.setMonth(d.getMonth()+n);return d.toISOString().slice(0,10)}
+function saveLoan(){
+ const clientId=$('lClient').value,cap=+$('lCapital').value,rate=+$('lRate').value,count=+$('lCount').value,freq=$('lFreq').value,date=$('lDate').value;
+ if(!cap||cap<0||!count||count<1||!date){alert('Completa capital, cuotas y fecha.');return}
+ const interest=cap*rate/100,total=cap+interest,inst=total/count;
+ const interval={daily:1,weekly:7,biweekly:14,monthly:0}[freq];
+ const schedule=Array.from({length:count},(_,i)=>({n:i+1,date:freq==='monthly'?addMonths(date,i):addDays(date,i*interval),amount:inst,paid:0}));
+ db.loans.push({id:Date.now().toString(),clientId,capital:cap,rate,totalInterest:interest,total,installment:inst,count,freq,firstDate:date,schedule,created:new Date().toISOString()});
+ save();closeModal();show('loans');alert('Préstamo guardado y cronograma generado.');
+}
+function openPayment(){
+ const pending=[];
+ db.loans.forEach(l=>l.schedule.forEach(q=>{let due=q.amount-q.paid;if(due>0)pending.push({l,q,due})}));
+ if(!pending.length){alert('No hay cuotas pendientes.');return}
+ const opts=pending.map((x,i)=>`<option value="${x.l.id}|${x.q.n}">${esc(clientName(x.l.clientId))} — Cuota ${x.q.n} — ${money(x.due)} — vence ${x.q.date}</option>`).join('');
+ openModal(`<h3>Registrar pago</h3><label>Cuota *</label><select id="pSel">${opts}</select>
+ <label>Monto pagado (S/) *</label><input id="pAmount" type="number" min="0.01" step="0.01" inputmode="decimal">
+ <label>Fecha de pago</label><input id="pDate" type="date" value="${new Date().toISOString().slice(0,10)}">
+ <button class="btn primary wide" onclick="savePayment()">GUARDAR PAGO</button>
+ <button class="btn secondary wide" onclick="closeModal()">Cancelar</button>`)
+}
+function savePayment(){
+ const [lid,qn]=$('pSel').value.split('|'),amt=+$('pAmount').value,date=$('pDate').value;
+ const l=db.loans.find(x=>x.id===lid),q=l?.schedule.find(x=>x.n===+qn);
+ if(!l||!q||!amt||amt<=0){alert('Ingresa un monto válido.');return}
+ const due=q.amount-q.paid,applied=Math.min(amt,due);
+ q.paid+=applied;db.payments.push({id:Date.now().toString(),loanId:lid,installment:+qn,amount:applied,date});
+ save();closeModal();show('payments');alert('Pago registrado: '+money(applied));
+}
+function clientName(id){return db.clients.find(c=>c.id===id)?.name||'Cliente eliminado'}
+function loanPaid(l){return l.schedule.reduce((s,q)=>s+q.paid,0)}
+function loanBalance(l){return l.total-loanPaid(l)}
+function renderClients(){
+ const q=($('clientSearch')?.value||'').toLowerCase();
+ const arr=db.clients.filter(c=>(c.name+' '+c.dni+' '+c.phone).toLowerCase().includes(q));
+ $('clientList').innerHTML=arr.length?arr.map(c=>`<div class="item"><strong>${esc(c.name)}</strong><div class="muted">DNI: ${esc(c.dni||'—')} · Tel: ${esc(c.phone||'—')}</div><div class="actions"><button class="btn primary" onclick="loanFor('${c.id}')">＋ Préstamo</button><button class="btn secondary" onclick="clientInfo('${c.id}')">Ver ficha</button></div></div>`).join(''):'<div class="empty">No hay clientes.</div>';
+}
+function loanFor(id){openLoan();setTimeout(()=>{if($('lClient'))$('lClient').value=id},0)}
+function clientInfo(id){
+ const c=db.clients.find(x=>x.id===id);if(!c)return;
+ const loans=db.loans.filter(l=>l.clientId===id);
+ openModal(`<h3>${esc(c.name)}</h3><p>DNI: ${esc(c.dni||'—')}<br>Teléfono: ${esc(c.phone||'—')}<br>Dirección: ${esc(c.address||'—')}<br>Referencia: ${esc(c.ref||'—')}</p><h4>Préstamos</h4>${loans.length?loans.map(l=>`<div class="item">${money(l.capital)} → saldo ${money(loanBalance(l))}</div>`).join(''):'<p class="muted">Sin préstamos.</p>'}<button class="btn secondary wide" onclick="closeModal()">Cerrar</button>`);
+}
+function renderLoans(){
+ $('loanList').innerHTML=db.loans.length?db.loans.slice().reverse().map(l=>`<div class="item"><strong>${esc(clientName(l.clientId))}</strong><div class="muted">Capital ${money(l.capital)} · Interés ${l.rate}% · ${l.count} cuotas</div><div>Total: <span class="money">${money(l.total)}</span> · Saldo: <span class="money">${money(loanBalance(l))}</span></div><div class="actions"><button class="btn secondary" onclick="loanInfo('${l.id}')">Ver cronograma</button><button class="btn primary" onclick="payLoan('${l.id}')">Registrar pago</button></div></div>`).join(''):'<div class="empty">No hay préstamos.</div>';
+}
+function loanInfo(id){
+ const l=db.loans.find(x=>x.id===id);if(!l)return;
+ openModal(`<h3>${esc(clientName(l.clientId))}</h3><p>Capital: <b>${money(l.capital)}</b><br>Total: <b>${money(l.total)}</b><br>Saldo: <b>${money(loanBalance(l))}</b></p>${l.schedule.map(q=>`<div class="item"><b>Cuota ${q.n}</b> · ${q.date}<br>${money(q.amount)} · Pagado ${money(q.paid)} · Pendiente ${money(q.amount-q.paid)}</div>`).join('')}<button class="btn secondary wide" onclick="closeModal()">Cerrar</button>`);
+}
+function payLoan(id){show('payments');setTimeout(()=>openPaymentForLoan(id),50)}
+function openPaymentForLoan(id){
+ const l=db.loans.find(x=>x.id===id),q=l?.schedule.find(q=>q.amount>q.paid);if(!q)return;
+ openModal(`<h3>Pago — ${esc(clientName(l.clientId))}</h3><p>Cuota ${q.n}: ${money(q.amount-q.paid)} pendiente.</p><label>Monto pagado</label><input id="pAmount" type="number" min="0.01" step="0.01" value="${(q.amount-q.paid).toFixed(2)}" inputmode="decimal"><label>Fecha</label><input id="pDate" type="date" value="${new Date().toISOString().slice(0,10)}"><button class="btn primary wide" onclick="savePaymentDirect('${id}',${q.n})">GUARDAR PAGO</button><button class="btn secondary wide" onclick="closeModal()">Cancelar</button>`);
+}
+function savePaymentDirect(lid,qn){
+ const l=db.loans.find(x=>x.id===lid),q=l.schedule.find(x=>x.n===qn),amt=+$('pAmount').value;
+ if(!amt||amt<=0)return alert('Ingresa un monto válido.');
+ const applied=Math.min(amt,q.amount-q.paid);q.paid+=applied;db.payments.push({id:Date.now().toString(),loanId:lid,installment:qn,amount:applied,date:$('pDate').value});save();closeModal();renderAll();alert('Pago registrado: '+money(applied));
+}
+function renderPayments(){
+ $('paymentList').innerHTML=db.payments.length?db.payments.slice().reverse().map(p=>{let l=db.loans.find(x=>x.id===p.loanId);return `<div class="item"><strong>${esc(clientName(l?.clientId))}</strong><div>Cuota ${p.installment} · ${p.date}</div><div class="money">${money(p.amount)}</div></div>`}).join(''):'<div class="empty">No hay pagos registrados.</div>';
+}
+function allPending(){return db.loans.flatMap(l=>l.schedule.filter(q=>q.amount>q.paid).map(q=>({l,q,due:q.amount-q.paid})))}
+function renderCollections(){
+ const today=new Date().toISOString().slice(0,10),end=addDays(today,7),p=allPending();
+ const overdue=p.filter(x=>x.q.date<today).reduce((s,x)=>s+x.due,0),next=p.filter(x=>x.q.date>=today&&x.q.date<=end).reduce((s,x)=>s+x.due,0);
+ $('cOverdue').textContent=money(overdue);$('cNext').textContent=money(next);
+ $('collectionList').innerHTML=p.sort((a,b)=>a.q.date.localeCompare(b.q.date)).map(x=>`<div class="item"><strong>${esc(clientName(x.l.clientId))}</strong><div>Cuota ${x.q.n} · vence ${x.q.date}</div><div class="money">${money(x.due)}</div></div>`).join('')||'<div class="empty">No hay cuotas pendientes.</div>';
+ $('homeDue').innerHTML=p.sort((a,b)=>a.q.date.localeCompare(b.q.date)).slice(0,5).map(x=>`<div class="item"><strong>${esc(clientName(x.l.clientId))}</strong> · ${x.q.date}<br>${money(x.due)}</div>`).join('')||'<div class="muted">No hay cuotas pendientes.</div>';
+}
+function renderHome(){
+ const capital=db.loans.reduce((s,l)=>s+l.capital,0),total=db.loans.reduce((s,l)=>s+l.total,0),col=db.payments.reduce((s,p)=>s+p.amount,0),saldo=total-col;
+ const today=new Date().toISOString().slice(0,10),v=allPending().filter(x=>x.q.date<today).reduce((s,x)=>s+x.due,0);
+ $('mCapital').textContent=money(capital);$('mSaldo').textContent=money(saldo);$('mCobrado').textContent=money(col);$('mVencido').textContent=money(v);
+}
+function renderReports(){
+ const capital=db.loans.reduce((s,l)=>s+l.capital,0),interest=db.loans.reduce((s,l)=>s+l.totalInterest,0),col=db.payments.reduce((s,p)=>s+p.amount,0),bal=db.loans.reduce((s,l)=>s+loanBalance(l),0),pending=allPending().length;
+ $('reportBox').innerHTML=`<p>Clientes: <b>${db.clients.length}</b></p><p>Préstamos: <b>${db.loans.length}</b></p><p>Capital colocado: <b>${money(capital)}</b></p><p>Interés generado: <b>${money(interest)}</b></p><p>Total cobrado: <b>${money(col)}</b></p><p>Saldo por cobrar: <b>${money(bal)}</b></p><p>Cuotas pendientes: <b>${pending}</b></p>`;
+}
+function renderAll(){renderHome();renderClients();renderLoans();renderPayments();renderCollections();renderReports()}
+function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi_cartera_respaldo.json';a.click();URL.revokeObjectURL(a.href)}
+function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.clients||!x.loans||!x.payments)throw 0;db=x;save();alert('Datos importados correctamente.')}catch{alert('El archivo no es un respaldo válido.')}};r.readAsText(f)}
+renderAll();
+</script>
+</body>
+</html>
