@@ -18,7 +18,7 @@ main{max-width:680px;margin:auto;padding:10px 16px}.page{display:none}.page.acti
 .sectionTitle{font-size:25px;font-weight:700;margin:23px 0 9px}.search{width:100%;padding:11px 14px;border:1px solid #bfc7cc;border-radius:13px;background:#eef2f3;font-size:18px;box-shadow:inset 0 1px 3px #0002}
 .routeCard{background:#ed1c24;color:#fff;border-radius:12px;margin:10px 0;overflow:hidden;box-shadow:0 2px 6px #0003}.routeRow{padding:16px 16px;border-bottom:1px solid #c4141b;display:flex;align-items:center;gap:8px}.routeRow:last-child{border:0}.routeName{flex:1;font-size:20px;font-weight:700}.routeSub{font-size:15px;margin-top:6px}.amount{background:#fff;color:#333;border-radius:6px;padding:8px 11px;font-size:18px;font-weight:700;white-space:nowrap}.alert{font-size:20px}
 .card{background:#fff;border:1px solid #ddd;border-radius:9px;padding:13px;margin:11px 0;box-shadow:0 2px 5px #0001}.field{margin:11px 0}.field label{display:block;font-size:18px;margin-bottom:6px}.input,.select{width:100%;padding:11px 13px;border:1px solid #bfc7cc;border-radius:12px;background:#eef2f3;font-size:18px;min-height:44px}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:8px}.info{padding:11px;background:#eee;border:1px solid #ddd;font-size:17px}.infoHead{background:#bfc7cc;color:#fff;padding:8px;font-weight:700;text-shadow:1px 1px #777}.bigTotal{font-size:34px;font-weight:800;background:#eef2f3;border:1px solid #bfc7cc;border-radius:11px;padding:16px}
-.actionbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.wide{width:100%}.small{font-size:14px}.muted{color:#777}.success{color:#078f07;font-weight:700}.warning{color:#e87900;font-weight:700}.dangerTxt{color:#ed1c24;font-weight:700}
+.actionbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.wide{width:100%}.small{font-size:14px}.muted{color:#777}.success{color:#078f07;font-weight:700}.warning{color:#e87900;font-weight:700}.dangerTxt{color:#ed1c24;font-weight:700}.routeCard.greenStatus{background:#4caf50}.routeCard.orangeStatus{background:#f39c12}.routeCard.redStatus{background:#ed1c24}.statusBadge{display:inline-block;padding:5px 9px;border-radius:6px;font-weight:700;color:#fff}.statusGreen{background:#4caf50}.statusOrange{background:#f39c12}.statusRed{background:#ed1c24}
 .clientBox{background:#eef2f3;border:1px solid #bfc7cc;border-radius:12px;padding:14px;font-size:17px}.clientBox h3{margin:0 0 7px;font-size:21px}
 .ticket{background:#eee;border:1px solid #ccc;padding:17px;text-align:center;font-size:16px;line-height:1.5}.ticket h2{font-size:26px}.ticket .line{border-top:2px solid #333;margin:11px 0}
 .bottom{position:fixed;bottom:0;left:0;right:0;height:60px;background:#101116;color:#fff;z-index:30;display:flex;align-items:center;justify-content:space-around;font-size:12px}.bottom button{background:none;border:0;color:#fff;font-size:11px}.bottom span{display:block;font-size:22px}
@@ -44,7 +44,7 @@ hr{border:0;border-top:2px solid #aaa;margin:24px 0}
   <button class="mi" onclick="backup();closeMenu()">📗 Salvar datos</button>
   <button class="mi" onclick="bluetoothInfo();closeMenu()">🔌 Opciones Bluetooth</button>
   <button class="mi" onclick="tutorial();closeMenu()">🎓 Tutoriales</button>
-  <button class="mi" onclick="showPage('actions');closeMenu()">🔧 Acciones</button>
+  <button class="mi" onclick="showPage('settings');closeMenu()">⚙️ Parámetros</button><button class="mi" onclick="showPage('actions');closeMenu()">🔧 Acciones</button>
  </div>
 </div>
 
@@ -87,7 +87,7 @@ hr{border:0;border-top:2px solid #aaa;margin:24px 0}
  <div class="field"><label>Plazo</label><select class="select" id="cTerm" onchange="calcCredit()"><option value="6">6 cuotas</option><option value="10">10 cuotas</option><option value="12">12 cuotas</option><option value="15">15 cuotas</option><option value="20">20 cuotas</option><option value="24" selected>24 cuotas</option><option value="30">30 cuotas</option><option value="40">40 cuotas</option><option value="50">50 cuotas</option></select></div>
  <div class="field"><label>Frecuencia</label><select class="select" id="cFreq" onchange="calcCredit()"><option value="daily" selected>Diario</option><option value="weekly">Semanal</option><option value="biweekly">Quincenal</option><option value="monthly">Mensual</option></select></div>
  <div class="field"><label>Valor cuota</label><div class="bigTotal" id="cInstallment">S/ 0.00</div></div>
- <div class="field"><label>Fecha primer pago (opcional)</label><input class="input" type="date" id="cFirst"></div>
+ <div class="field"><label>Fecha primer pago (opcional)</label><input class="input" type="date" id="cFirst"></div><div class="small muted">Los días configurados como NO cobrables (por defecto domingo) se saltan automáticamente.</div>
  <div class="field"><label>Total a pagar</label><div class="bigTotal" id="cTotal">S/ 0.00</div></div>
  <div class="card"><b>Fórmula operativa visible:</b><br>Interés = Capital × % / 100<br>Total a pagar = Capital + Interés<br>Valor cuota = Total a pagar ÷ Nº de cuotas</div>
  <div class="actionbar"><button class="btn blue" onclick="saveCredit()">➡ Crear crédito y Enrutar</button><button class="btn" onclick="showPage('credits')">Cancelar</button></div>
@@ -103,6 +103,35 @@ hr{border:0;border-top:2px solid #aaa;margin:24px 0}
 
 <section id="balance" class="page"><div class="sectionTitle">Balance</div><div class="metrics"><div class="metric"><div class="head">Capital colocado</div><div class="val" id="bCapital">S/ 0</div></div><div class="metric"><div class="head">Saldo actual</div><div class="val" id="bSaldo">S/ 0</div></div></div><div class="metrics"><div class="metric"><div class="head">Cobrado</div><div class="val" id="bCobrado">S/ 0</div></div><div class="metric"><div class="head">En mora</div><div class="val" id="bMora">S/ 0</div></div></div><div id="balanceReport"></div></section>
 
+
+<section id="settings" class="page">
+ <div class="sectionTitle">Parámetros</div>
+ <div class="card">
+  <h3 style="margin-top:0">Días que NO se cobran</h3>
+  <div class="small muted">Por defecto, domingo queda desactivado. Puedes desactivar cualquier otro día.</div>
+  <div class="twocol" style="margin-top:10px">
+   <label><input type="checkbox" id="offMon"> Lunes</label>
+   <label><input type="checkbox" id="offTue"> Martes</label>
+   <label><input type="checkbox" id="offWed"> Miércoles</label>
+   <label><input type="checkbox" id="offThu"> Jueves</label>
+   <label><input type="checkbox" id="offFri"> Viernes</label>
+   <label><input type="checkbox" id="offSat"> Sábado</label>
+   <label><input type="checkbox" id="offSun" checked> Domingo</label>
+  </div>
+ </div>
+ <div class="card">
+  <h3 style="margin-top:0">Vencimiento del crédito</h3>
+  <div class="field"><label>Regla</label>
+   <select class="select" id="maturityRule">
+    <option value="month" selected>Un mes después de la fecha del crédito</option>
+    <option value="term">Según la última cuota</option>
+   </select>
+  </div>
+  <div class="small muted">La regla "un mes" permite que un crédito iniciado el 09/09/2026 tenga vencimiento el 09/10/2026, independientemente de los domingos no cobrables.</div>
+ </div>
+ <button class="btn green wide" onclick="saveSettings()">✓ Guardar parámetros</button>
+</section>
+
 <section id="actions" class="page"><div class="sectionTitle">Acciones</div><div class="card"><button class="btn wide" onclick="backup()">💾 Exportar respaldo</button><button class="btn wide" onclick="document.getElementById('restoreFile').click()">📥 Restaurar respaldo</button><input id="restoreFile" type="file" accept=".json" hidden onchange="restore(event)"><button class="btn wide" onclick="seedDemo()">🧪 Cargar datos de prueba</button><button class="btn red wide" onclick="resetAll()">🗑️ Borrar todos los datos</button></div></section>
 
 <section id="profile" class="page"><div class="sectionTitle">Perfil</div><div class="card"><div class="field"><label>Nombre de empresa</label><input class="input" id="pName"></div><div class="field"><label>WhatsApp</label><input class="input" id="pPhone"></div><button class="btn green" onclick="saveProfile()">Guardar perfil</button></div></section>
@@ -113,14 +142,17 @@ hr{border:0;border-top:2px solid #aaa;margin:24px 0}
 
 <script>
 const KEY='mi_cartera_pro_v8';
-let db=JSON.parse(localStorage.getItem(KEY)||'null')||{profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro']};
+let db=JSON.parse(localStorage.getItem(KEY)||'null')||{profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro'],settings:{offDays:[0],maturityRule:'month'}};
+db.settings=db.settings||{offDays:[0],maturityRule:'month'};
+if(!Array.isArray(db.settings.offDays)) db.settings.offDays=[0];
+if(!db.settings.maturityRule) db.settings.maturityRule='month';
 let selectedClient=null, selectedCredit=null;
 const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:2});
 const isoToday=()=>new Date().toISOString().slice(0,10);
 const fmtDate=s=>s?new Date(s+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'long',year:'numeric'}):'';
 const save=()=>{localStorage.setItem(KEY,JSON.stringify(db));refresh()};
 function toast(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2200)}
-function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.getElementById('title').textContent={home:'Mi Cartera',clients:'Clientes',clientForm:'Crear cliente',credits:'Créditos',creditForm:'Crédito',creditDetail:'Crédito',collect:'Recaudar',routes:'Ruta',lists:'Listados',balance:'Balance',actions:'Acciones',profile:'Perfil'}[id]||'Mi Cartera';refresh()}
+function showPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.getElementById('title').textContent={home:'Mi Cartera',clients:'Clientes',clientForm:'Crear cliente',credits:'Créditos',creditForm:'Crédito',creditDetail:'Crédito',collect:'Recaudar',routes:'Ruta',lists:'Listados',balance:'Balance',actions:'Acciones',settings:'Parámetros',profile:'Perfil'}[id]||'Mi Cartera';refresh()}
 function openMenu(){document.getElementById('drawer').classList.add('show')}function closeMenu(e){if(!e||e.target.id==='drawer')document.getElementById('drawer').classList.remove('show')}
 function newClient(){['fName','fPhone','fAddress','fGuarantor','fReference','fLocation'].forEach(x=>document.getElementById(x).value='');showPage('clientForm')}
 function saveClient(){const name=fName.value.trim();if(!name)return toast('Ingrese el nombre del cliente');const c={id:Date.now(),name,phone:fPhone.value.trim(),address:fAddress.value.trim(),guarantor:fGuarantor.value.trim()||'-',reference:fReference.value.trim()||'-',location:fLocation.value.trim()||'[0,0]',route:'Principal'};db.clients.push(c);save();selectedClient=c.id;toast('Cliente creado');showPage('credits');}
@@ -149,7 +181,44 @@ function calcCredit(){
  if(instEl) instEl.textContent=money(total/n);
 }
 function addDays(date,n){const d=new Date(date+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
-function interval(freq){return freq==='daily'?1:freq==='weekly'?7:freq==='biweekly'?14:30}
+function addMonths(date,n){const d=new Date(date+'T12:00:00');const day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last));return d.toISOString().slice(0,10)}
+function isOffDay(date){const d=new Date(date+'T12:00:00');return db.settings.offDays.includes(d.getDay())}
+function nextPayableDate(date, includeSame=false){
+ let d=date;
+ if(!includeSame)d=addDays(d,1);
+ while(isOffDay(d))d=addDays(d,1);
+ return d;
+}
+function scheduleDates(start,n,freq){
+ const arr=[];
+ let d=start;
+ if(freq==='daily'){
+   for(let i=0;i<n;i++){d=nextPayableDate(d,i===0);arr.push(d);}
+ }else{
+   const step=freq==='weekly'?7:freq==='biweekly'?14:30;
+   for(let i=0;i<n;i++){d=(i===0?start:addDays(start,step*i));while(isOffDay(d))d=addDays(d,1);arr.push(d);}
+ }
+ return arr;
+}
+function maturityDate(cr){
+ if(db.settings.maturityRule==='month') return addMonths(cr.date,1);
+ return cr.schedule?.length?cr.schedule[cr.schedule.length-1].date:cr.date;
+}
+function dayDiff(a,b){const A=new Date(a+'T12:00:00'),B=new Date(b+'T12:00:00');return Math.round((B-A)/86400000)}
+function creditColor(cr){
+ const today=isoToday(),m=maturityDate(cr),diff=dayDiff(today,m),s=calcStatus(cr);
+ if(s.overdueCount>0 || diff<=0) return 'red';
+ if(diff===1) return 'orange';
+ return 'green';
+}
+function creditStateText(cr){
+ const diff=dayDiff(isoToday(),maturityDate(cr)),s=calcStatus(cr);
+ if(s.overdueCount>0)return 'En mora';
+ if(diff<0)return 'Vencido';
+ if(diff===0)return 'Vence hoy';
+ if(diff===1)return 'Vence mañana';
+ return 'Al día';
+}
 function saveCredit(){
  const cap=+(document.getElementById('cCapital')?.value||0);
  const n=+(document.getElementById('cTerm')?.value||0);
@@ -157,13 +226,15 @@ function saveCredit(){
  const rate=+(document.getElementById('cRate')?.value||0);
  const freq=document.getElementById('cFreq')?.value||'daily';
  const date=document.getElementById('cDate')?.value||isoToday();
- const first=document.getElementById('cFirst')?.value||date;
+ const first=document.getElementById('cFirst')?.value||nextPayableDate(date,false);
  const total=cap+cap*rate/100;
  const inst=total/n;
  const client=db.clients.find(x=>x.id===selectedClient);
  if(!client)return toast('Seleccione un cliente');
  const cr={id:Date.now(),clientId:selectedClient,date,capital:cap,rate,term:n,freq,installment:inst,total,start:first,paid:0,route:client.route||'Principal',status:'Activo',schedule:[]};
- for(let i=1;i<=n;i++)cr.schedule.push({n:i,date:addDays(first,interval(freq)*(i-1)),amount:inst,paid:0,postponed:false});
+ const dates=scheduleDates(first,n,freq);
+ dates.forEach((d,i)=>cr.schedule.push({n:i+1,date:d,amount:inst,paid:0,postponed:false}));
+ cr.maturity=maturityDate(cr);
  db.credits.push(cr);
  localStorage.setItem(KEY,JSON.stringify(db));
  selectedCredit=cr.id;
@@ -171,10 +242,65 @@ function saveCredit(){
  showCredit(cr.id);
 }
 function paidTotal(cr){return db.payments.filter(p=>p.creditId===cr.id).reduce((a,p)=>a+p.amount,0)}
-function calcStatus(cr){const paid=paidTotal(cr);let remain=Math.max(0,cr.total-paid);let overdue=0;let overdueCount=0;const today=isoToday();cr.schedule.forEach(q=>{const p=q.paid||0;if(p<q.amount && q.date<today && !q.postponed){overdue+=q.amount-p;overdueCount++}});return {paid,remain,overdue,overdueCount}}
-function showCredit(id){selectedCredit=id;const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);let state=s.overdueCount?'Crédito En mora':'al día';creditDetailBody.innerHTML=`<button class="btn" onclick="showPage('credits')">← Atrás</button><div class="sectionTitle">${c.name}</div><div class="clientBox">Teléfono. ${c.phone||'-'}<br>Dirección. ${c.address||'-'}<br>Referencia. ${c.reference||'-'}<br>📍 ${c.location||'[0,0]'}<br><hr><b>IDE. ${cr.id}</b></div><div class="actionbar"><button class="btn green" onclick="callClient('${c.phone||''}')">☎ Llamar</button><button class="btn blue" onclick="mapClient('${c.location||''}')">➤ Ver en Mapa</button></div><div class="sectionTitle">Estado</div><div class="info ${s.overdueCount?'dangerTxt':'success'}">${state}</div><div class="sectionTitle">Fecha crédito</div><div class="info">${fmtDate(cr.date)}</div><div class="sectionTitle">Vencimiento</div><div class="info">${fmtDate(cr.schedule[cr.schedule.length-1].date)}</div><div class="sectionTitle">Plazo</div><div class="info">🔵 ${labelFreq(cr.freq)}, ${cr.term} cuotas<br>Val.Cuota: ${money(cr.installment)}</div><div class="sectionTitle">Total crédito / Saldo actual</div><div class="metrics"><div class="metric"><div class="head">Total crédito</div><div class="val">${money(cr.total)}</div></div><div class="metric"><div class="head">Saldo actual</div><div class="val">${money(s.remain)}</div></div></div><button class="btn wide" onclick="showAbonos(${cr.id})">◉ Ver abonos &gt;&gt;</button><div class="sectionTitle">Cant.Cuotas</div><div class="metrics"><div class="metric"><div class="head">#Pagadas</div><div class="val">${Math.floor(s.paid/cr.installment)}</div></div><div class="metric"><div class="head">#Pendientes</div><div class="val">${Math.max(0,cr.term-Math.floor(s.paid/cr.installment))}</div></div></div><div class="sectionTitle">Para estar al día</div><div class="metrics"><div class="metric"><div class="head">#Cuotas mora</div><div class="val">${s.overdueCount}</div></div><div class="metric"><div class="head">Val.Mora</div><div class="val">${money(s.overdue)}</div></div></div><button class="btn green wide" onclick="openCollect(${cr.id})">💵 Recaudar</button>`;showPage('creditDetail')}
+function calcStatus(cr){
+ const paid=paidTotal(cr);
+ let remain=Math.max(0,cr.total-paid), overdue=0, overdueCount=0;
+ const today=isoToday();
+ cr.schedule.forEach(q=>{
+   const p=q.paid||0, room=Math.max(0,q.amount-p);
+   if(room>0 && q.date<today && !q.postponed){overdue+=room;overdueCount++;}
+ });
+ return {paid,remain,overdue,overdueCount};
+}
+function paidInstallments(cr){
+ return cr.schedule.filter(q=>(q.paid||0)>=q.amount-0.005).length;
+}
+function currentDue(cr){
+ const today=isoToday();
+ return cr.schedule.filter(q=>q.date<=today && (q.paid||0)<q.amount && !q.postponed)
+   .reduce((a,q)=>a+Math.max(0,q.amount-(q.paid||0)),0);
+}
+function showCredit(id){
+ selectedCredit=id;
+ const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);
+ const paidQ=paidInstallments(cr),pending=Math.max(0,cr.term-paidQ);
+ const color=creditColor(cr),state=creditStateText(cr);
+ const statusClass=color==='red'?'statusRed':color==='orange'?'statusOrange':'statusGreen';
+ creditDetailBody.innerHTML=`<button class="btn" onclick="showPage('credits')">← Atrás</button>
+ <div class="sectionTitle">${c.name}</div>
+ <div class="clientBox">Teléfono. ${c.phone||'-'}<br>Dirección. ${c.address||'-'}<br>Referencia. ${c.reference||'-'}<br>📍 ${c.location||'[0,0]'}<br><hr><b>IDE. ${cr.id}</b></div>
+ <div class="actionbar"><button class="btn green" onclick="callClient('${c.phone||''}')">☎ Llamar</button><button class="btn blue" onclick="mapClient('${c.location||''}')">➤ Ver en Mapa</button></div>
+ <div class="sectionTitle">Estado</div><div class="info"><span class="statusBadge ${statusClass}">${state}</span></div>
+ <div class="sectionTitle">Fecha crédito</div><div class="info">${fmtDate(cr.date)}</div>
+ <div class="sectionTitle">Vencimiento</div><div class="info">${fmtDate(maturityDate(cr))}</div>
+ <div class="sectionTitle">Plazo</div><div class="info">🔵 ${labelFreq(cr.freq)}, ${cr.term} cuotas<br>Val.Cuota: ${money(cr.installment)}</div>
+ <div class="sectionTitle">Total crédito / Saldo actual</div><div class="metrics"><div class="metric"><div class="head">Total crédito</div><div class="val">${money(cr.total)}</div></div><div class="metric"><div class="head">Saldo actual</div><div class="val">${money(s.remain)}</div></div></div>
+ <button class="btn wide" onclick="showAbonos(${cr.id})">◉ Ver abonos &gt;&gt;</button>
+ <div class="sectionTitle">Cant.Cuotas</div><div class="metrics"><div class="metric"><div class="head">#Pagadas</div><div class="val">${paidQ}</div></div><div class="metric"><div class="head">#Pendientes</div><div class="val">${pending}</div></div></div>
+ <div class="sectionTitle">Para estar al día</div><div class="metrics"><div class="metric"><div class="head">#Cuotas mora</div><div class="val">${s.overdueCount}</div></div><div class="metric"><div class="head">Val.Mora</div><div class="val">${money(s.overdue)}</div></div></div>
+ <div class="card"><b>Debido acumulado:</b> ${money(currentDue(cr))}<br><span class="muted">Si se paga menos de una cuota, la diferencia queda pendiente para la siguiente cobranza.</span></div>
+ <button class="btn green wide" onclick="openCollect(${cr.id})">💵 Recaudar</button>`;
+ showPage('creditDetail');
+}
 function labelFreq(f){return f==='daily'?'Diario':f==='weekly'?'Semanal':f==='biweekly'?'Quincenal':'Mensual'}
-function openCollect(id){selectedCredit=id;const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);collectBody.innerHTML=`<div class="top" style="margin:-12px -18px 15px"><button class="btn" onclick="showCredit(${id})">← Atrás</button><h1>Recaudar</h1><button class="btn" onclick="postponeNext(${id})">Aplazar 📅</button></div><button class="btn wide" onclick="showAbonos(${id})">◉ Ver abonos &gt;&gt;</button><div class="sectionTitle">Cant.Cuotas</div><div class="metrics"><div class="metric"><div class="head">#Pagadas</div><div class="val">${Math.floor(s.paid/cr.installment)}</div></div><div class="metric"><div class="head">#Pendientes</div><div class="val">${Math.max(0,cr.term-Math.floor(s.paid/cr.installment))}</div></div></div><div class="sectionTitle">Para estar al día</div><div class="metrics"><div class="metric"><div class="head">#Cuotas mora</div><div class="val">${s.overdueCount}</div></div><div class="metric"><div class="head">Val.Mora</div><div class="val">${money(s.overdue)}</div></div></div></div><hr><div class="sectionTitle">Registrar recaudo</div><div class="twocol"><div class="field"><label>Val.Cuota S/</label><input class="input" id="payAmount" type="number" value="${cr.installment.toFixed(2)}"></div><div class="field"><label># Cuotas</label><input class="input" id="payCount" type="number" min="1" value="1"></div></div><div class="field"><label>Descuento</label><input class="input" id="payDiscount" type="number" value="0"></div><div class="field"><label>Recargo / mora</label><input class="input" id="paySurcharge" type="number" value="0"></div><div class="card"><b>Total a registrar:</b> <span id="payPreview">S/ 0.00</span></div><button class="btn blue wide" onclick="registerPayment(${id})">☐ Imprimir comprobante?</button><div class="actionbar"><button class="btn green" onclick="registerPayment(${id})">✔ Abonar</button><button class="btn" onclick="showCredit(${id})">Salir</button></div>`;showPage('collect'); updatePayPreview()}
+function openCollect(id){
+ selectedCredit=id;
+ const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);
+ const due=currentDue(cr), defaultAmount=due>0?Math.min(cr.installment,due):cr.installment;
+ const paidQ=paidInstallments(cr);
+ collectBody.innerHTML=`<div class="top" style="margin:-10px -16px 12px"><button class="btn" onclick="showCredit(${id})">← Atrás</button><h1>Recaudar</h1><button class="btn" onclick="postponeNext(${id})">Aplazar 📅</button></div>
+ <button class="btn wide" onclick="showAbonos(${id})">◉ Ver abonos &gt;&gt;</button>
+ <div class="sectionTitle">Cant.Cuotas</div><div class="metrics"><div class="metric"><div class="head">#Pagadas</div><div class="val">${paidQ}</div></div><div class="metric"><div class="head">#Pendientes</div><div class="val">${Math.max(0,cr.term-paidQ)}</div></div></div>
+ <div class="sectionTitle">Para estar al día</div><div class="metrics"><div class="metric"><div class="head">#Cuotas mora</div><div class="val">${s.overdueCount}</div></div><div class="metric"><div class="head">Val.Mora</div><div class="val">${money(s.overdue)}</div></div></div>
+ <hr><div class="sectionTitle">Registrar recaudo</div>
+ <div class="twocol"><div class="field"><label>Val.Cuota S/</label><input class="input" id="payAmount" type="number" min="0" step="0.01" value="${defaultAmount.toFixed(2)}"></div><div class="field"><label># Cuotas</label><input class="input" id="payCount" type="number" min="1" step="1" value="1"></div></div>
+ <div class="small muted">Puedes cambiar el valor de cuota por el monto que el cliente pueda pagar. Si paga menos, la diferencia queda pendiente y se suma a la siguiente cobranza.</div>
+ <div class="field"><label>Descuento</label><input class="input" id="payDiscount" type="number" min="0" step="0.01" value="0"></div>
+ <div class="field"><label>Recargo / mora</label><input class="input" id="paySurcharge" type="number" min="0" step="0.01" value="0"></div>
+ <div class="card"><b>Total a registrar:</b> <span id="payPreview">S/ 0.00</span></div>
+ <div class="actionbar"><button class="btn green" onclick="registerPayment(${id})">✔ Abonar</button><button class="btn" onclick="showCredit(${id})">Salir</button></div>`;
+ showPage('collect'); updatePayPreview();
+}
 function updatePayPreview(){
  const q=+(document.getElementById('payAmount')?.value||0);
  const n=Math.max(1,+(document.getElementById('payCount')?.value||1));
@@ -188,63 +314,132 @@ document.addEventListener('input',e=>{
 });
 function registerPayment(id){
  const cr=db.credits.find(x=>x.id===id);
- if(!cr) return toast('Crédito no encontrado');
- const amountEl=document.getElementById('payAmount');
- const countEl=document.getElementById('payCount');
- const discountEl=document.getElementById('payDiscount');
- const surchargeEl=document.getElementById('paySurcharge');
- const cuota=+(amountEl?.value||0);
- const cantidad=Math.max(1,+(countEl?.value||1));
- const descuento=Math.max(0,+(discountEl?.value||0));
- const recargo=Math.max(0,+(surchargeEl?.value||0));
+ if(!cr)return toast('Crédito no encontrado');
+ const cuota=+(document.getElementById('payAmount')?.value||0);
+ const cantidad=Math.max(1,Math.floor(+(document.getElementById('payCount')?.value||1)));
+ const descuento=Math.max(0,+(document.getElementById('payDiscount')?.value||0));
+ const recargo=Math.max(0,+(document.getElementById('paySurcharge')?.value||0));
+ if(cuota<=0)return toast('Ingrese un valor de pago mayor a 0');
+
+ // El monto escrito es el valor por cuota. Para 2 cuotas se multiplica por 2.
  const base=cuota*cantidad;
- const final=Math.max(0,base-descuento+recargo);
- if(cuota<=0) return toast('Ingrese el valor de la cuota');
- if(final<=0) return toast('El importe a registrar debe ser mayor a 0');
-
  const saldoAntes=calcStatus(cr).remain;
- if(base-descuento>saldoAntes && recargo===0){
-   return toast('El abono supera el saldo pendiente');
- }
+ const aplicable=Math.min(base, saldoAntes);
+ const final=Math.max(0, aplicable-descuento+recargo);
+ if(final<=0)return toast('El importe a registrar debe ser mayor a 0');
 
- const payment={id:Date.now(),creditId:id,date:isoToday(),amount:final,base,discount:descuento,surcharge:recargo};
- db.payments.push(payment);
-
- let remaining=Math.min(Math.max(0,base-descuento),saldoAntes);
+ // Primero se aplica descuento proporcionalmente a lo que se está pagando.
+ let toApply=Math.max(0,aplicable-descuento);
  for(const q of cr.schedule){
-   if(remaining<=0) break;
+   if(toApply<=0)break;
    const room=Math.max(0,q.amount-(q.paid||0));
    if(room>0){
-     const x=Math.min(room,remaining);
+     const x=Math.min(room,toApply);
      q.paid=(q.paid||0)+x;
-     remaining-=x;
+     toApply-=x;
    }
  }
- save();
+ db.payments.push({id:Date.now(),creditId:id,date:isoToday(),amount:final,base,discount:descuento,surcharge:recargo});
+ localStorage.setItem(KEY,JSON.stringify(db));
  toast('Pago registrado correctamente');
- setTimeout(()=>showTicket(id,final),100);
+ setTimeout(()=>showTicket(id,final),150);
 }
 function showAbonos(id){const cr=db.credits.find(x=>x.id===id),ps=db.payments.filter(p=>p.creditId===id);creditDetailBody.innerHTML=`<button class="btn" onclick="showCredit(${id})">← Atrás</button><div class="sectionTitle">Abonos</div>${ps.length?ps.map(p=>`<div class="card"><b>${fmtDate(p.date)}</b><br>Abono: ${money(p.amount)}<br><span class="muted">Base ${money(p.base)} · Descuento ${money(p.discount)} · Recargo ${money(p.surcharge)}</span></div>`).join(''):'<div class="card">No hay abonos registrados.</div>'}`;showPage('creditDetail')}
-function postponeNext(id){const cr=db.credits.find(x=>x.id===id),q=cr.schedule.find(x=>x.paid<x.amount&&!x.postponed);if(q){q.date=addDays(q.date,1);q.postponed=true;save();toast('Cuota aplazada 1 día')} }
+function postponeNext(id){
+ const cr=db.credits.find(x=>x.id===id);
+ if(!cr)return;
+ const q=cr.schedule.find(x=>(x.paid||0)<x.amount);
+ if(q){
+   q.date=nextPayableDate(q.date,false);
+   q.postponed=true;
+   localStorage.setItem(KEY,JSON.stringify(db));
+   toast('Cuota aplazada al siguiente día de cobro');
+   setTimeout(()=>openCollect(id),250);
+ }
+}
 function showTicket(id,amount){const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);collectBody.innerHTML=`<div class="top" style="margin:-12px -18px 15px"><button class="btn red" onclick="showPage('home')">✖ Salir</button><h1>Ticket de venta</h1><span></span></div><div class="ticket"><h2>🧾 Ticket de Venta</h2><b>${db.profile.name}</b><br>WhatsApp ${db.profile.phone}<div class="line"></div>Cliente: ${c.name}<br>Tel. ${c.phone||'-'}<br>${c.address||''}<br>Código: ${cr.id}<div class="line"></div>Tipo: ${labelFreq(cr.freq).toLowerCase()}<br>Fecha pago: ${fmtDate(isoToday())}<br>Abono: ${money(amount)}<br>Valor cuota: ${money(cr.installment)}<br>Plazo: 🔵 ${labelFreq(cr.freq)}, ${cr.term} cuotas<div class="line"></div>Saldo actual: ${money(s.remain)}<br>Vence: ${fmtDate(cr.schedule[cr.schedule.length-1].date)}<br>Estado: ${s.overdueCount?'en mora':'al día'}<div class="line"></div>** Gracias por preferirnos **<br>Hoy es: ${fmtDate(isoToday())}</div><button class="btn wide" onclick="shareTicket('${c.name}',${amount},${s.remain})">🚀 Compartir Ticket</button>`;showPage('collect')}
 function shareTicket(name,amount,balance){const txt=`Mi Cartera - Pago registrado\\nCliente: ${name}\\nAbono: ${money(amount)}\\nSaldo: ${money(balance)}`;if(navigator.share)navigator.share({text:txt});else navigator.clipboard?.writeText(txt).then(()=>toast('Ticket copiado'))}
 function callClient(p){if(p)location.href='tel:'+p}
 function mapClient(loc){if(loc&&loc!=='[0,0]')location.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(loc);else toast('Cliente sin ubicación')}
-function renderRoute(){const q=(routeSearch.value||'').toLowerCase();const today=isoToday();const rows=[];db.credits.forEach(cr=>{const c=db.clients.find(x=>x.id===cr.clientId);if(!c||cr.status!=='Activo'||(q&&!c.name.toLowerCase().includes(q)))return;const s=calcStatus(cr);const due=cr.schedule.filter(x=>x.date<=today&&x.paid<x.amount).reduce((a,x)=>a+x.amount-x.paid,0);if(due>0||cr.schedule.some(x=>x.date===today&&x.paid<x.amount))rows.push({c,cr,s,due})});routeList.innerHTML=rows.length?rows.map(r=>`<div class="routeRow" onclick="showCredit(${r.cr.id})"><div class="routeName">${r.c.name}<div class="routeSub">🔵 ${labelFreq(r.cr.freq)} | ID.${r.cr.id}</div></div><div class="amount">${money(r.due||r.cr.installment)}</div><div class="alert">${r.s.overdueCount?'⚠️':''}</div></div>`).join(''):'<div style="padding:25px;color:#fff">No hay cobranzas para hoy.</div>'}
+function renderRoute(){
+ const q=(document.getElementById('routeSearch')?.value||'').toLowerCase();
+ const today=isoToday(); const rows=[];
+ db.credits.forEach(cr=>{
+  const c=db.clients.find(x=>x.id===cr.clientId);
+  if(!c||cr.status!=='Activo'||(q&&!c.name.toLowerCase().includes(q)))return;
+  const s=calcStatus(cr), due=currentDue(cr);
+  if(due>0||cr.schedule.some(x=>x.date===today&&x.paid<x.amount))rows.push({c,cr,s,due});
+ });
+ const statuses=rows.map(r=>creditColor(r.cr));
+ let routeStatus='greenStatus';
+ if(statuses.includes('red'))routeStatus='redStatus';else if(statuses.includes('orange'))routeStatus='orangeStatus';
+ const el=document.getElementById('routeList');
+ el.className='routeCard '+routeStatus;
+ el.innerHTML=rows.length?rows.map(r=>{
+  const col=creditColor(r.cr), badge=col==='red'?'🔴':col==='orange'?'🟠':'🟢';
+  return `<div class="routeRow" onclick="showCredit(${r.cr.id})"><div class="routeName">${r.c.name}<div class="routeSub">${badge} ${labelFreq(r.cr.freq)} | ID.${r.cr.id} · ${creditStateText(r.cr)}</div></div><div class="amount">${money(r.due||r.cr.installment)}</div><div class="alert">${r.s.overdueCount?'⚠️':''}</div></div>`;
+ }).join(''):'<div style="padding:22px">No hay cobranzas para hoy.</div>';
+}
 function renderClients(){const q=(clientSearch.value||'').toLowerCase();clientsList.innerHTML=db.clients.filter(c=>(c.name+c.phone+c.reference).toLowerCase().includes(q)).map(c=>`<div class="card"><h3>${c.name}</h3>Tel. ${c.phone||'-'}<br>${c.address||'-'}<br>Ref. ${c.reference||'-'}<div class="actionbar"><button class="btn blue" onclick="newCredit(${c.id})">＋ Crédito</button><button class="btn" onclick="selectedClient=${c.id};showClientCredits(${c.id})">Ver créditos</button></div></div>`).join('')||'<div class="card">No hay clientes.</div>'}
 function showClientCredits(cid){selectedClient=cid;showPage('credits');renderCredits()}
 function renderCredits(){creditsList.innerHTML=db.credits.slice().reverse().map(cr=>{const c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);return `<div class="card" onclick="showCredit(${cr.id})"><h3>${c?.name||'Cliente'}</h3>Capital: ${money(cr.capital)} · Interés: ${cr.rate}%<br>Total: ${money(cr.total)} · Cuota: ${money(cr.installment)}<br>Plazo: ${labelFreq(cr.freq)}, ${cr.term} cuotas<br>Saldo: <b>${money(s.remain)}</b> · ${s.overdueCount?'⚠️ Mora':'✓ Al día'}</div>`}).join('')||'<div class="card">No hay créditos.</div>'}
-function renderRoutePage(){const date=routeDate.value||isoToday(),route=routeSelect.value;routePageList.innerHTML=db.credits.filter(cr=>cr.route===route&&cr.status==='Activo').map(cr=>{const c=db.clients.find(x=>x.id===cr.clientId),due=cr.schedule.filter(q=>q.date===date&&q.paid<q.amount).reduce((a,q)=>a+q.amount-q.paid,0);return `<div class="card"><h3>${c.name}</h3>${labelFreq(cr.freq)} · Cuota ${money(cr.installment)}<br>Debido ${money(due)}<div class="actionbar"><button class="btn green" onclick="openCollect(${cr.id})">Recaudar</button><button class="btn blue" onclick="showCredit(${cr.id})">Ver</button></div></div>`}).join('')||'<div class="card">No hay créditos en esta ruta.</div>'}
+function renderRoutePage(){
+ const date=document.getElementById('routeDate').value||isoToday(),route=document.getElementById('routeSelect').value;
+ routePageList.innerHTML=db.credits.filter(cr=>cr.route===route&&cr.status==='Activo').map(cr=>{
+  const c=db.clients.find(x=>x.id===cr.clientId),due=cr.schedule.filter(q=>q.date<=date&&q.paid<q.amount&&!q.postponed).reduce((a,q)=>a+q.amount-q.paid,0);
+  const col=creditColor(cr), status=creditStateText(cr), sc=col==='red'?'statusRed':col==='orange'?'statusOrange':'statusGreen';
+  return `<div class="card"><h3>${c.name}</h3>${labelFreq(cr.freq)} · Cuota ${money(cr.installment)}<br>Debido ${money(due)}<br><span class="statusBadge ${sc}">${status}</span><div class="actionbar"><button class="btn green" onclick="openCollect(${cr.id})">Recaudar</button><button class="btn blue" onclick="showCredit(${cr.id})">Ver</button></div></div>`;
+ }).join('')||'<div class="card">No hay créditos en esta ruta.</div>';
+}
 function listReport(type){let out='';if(type==='clientes')out=db.clients.map(c=>`<div class="card"><b>${c.name}</b><br>${c.phone||'-'}<br>${c.address||'-'}</div>`).join('');if(type==='creditos')out=db.credits.filter(c=>c.status==='Activo').map(cr=>{const c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);return `<div class="card"><b>${c.name}</b><br>${money(cr.total)} · Saldo ${money(s.remain)}<br>${labelFreq(cr.freq)} ${cr.term} cuotas</div>`}).join('');if(type==='mora')out=db.credits.map(cr=>{const s=calcStatus(cr),c=db.clients.find(x=>x.id===cr.clientId);return s.overdueCount?`<div class="card dangerTxt"><b>${c.name}</b><br>${s.overdueCount} cuotas mora · ${money(s.overdue)}</div>`:''}).join('');if(type==='pagos')out=db.payments.slice().reverse().map(p=>{const cr=db.credits.find(x=>x.id===p.creditId),c=db.clients.find(x=>x.id===cr?.clientId);return `<div class="card">${fmtDate(p.date)} · ${c?.name||''}<br><b>${money(p.amount)}</b></div>`}).join('');reportBox.innerHTML=out||'<div class="card">Sin datos.</div>'}
 function renderBalance(){let capital=db.credits.reduce((a,c)=>a+c.capital,0),sal=0,cob=0,mora=0;db.credits.forEach(cr=>{const s=calcStatus(cr);sal+=s.remain;cob+=s.paid;mora+=s.overdue});bCapital.textContent=money(capital);bSaldo.textContent=money(sal);bCobrado.textContent=money(cob);bMora.textContent=money(mora);balanceReport.innerHTML=`<div class="card"><b>Resumen operativo</b><br>Créditos: ${db.credits.length}<br>Clientes: ${db.clients.length}<br>Pagos registrados: ${db.payments.length}</div>`}
-function renderHome(){today.textContent=fmtDate(isoToday());const pt=db.payments.filter(p=>p.date===isoToday()).reduce((a,p)=>a+p.amount,0),ct=db.credits.filter(c=>c.date===isoToday()).reduce((a,c)=>a+c.total,0);let dueMin=0,dueTotal=0,count=0;db.credits.forEach(cr=>{const due=cr.schedule.filter(q=>q.date===isoToday()&&q.paid<q.amount).reduce((a,q)=>a+q.amount-q.paid,0);dueMin+=due;const all=cr.schedule.filter(q=>q.date<=isoToday()&&q.paid<q.amount&&!q.postponed).reduce((a,q)=>a+q.amount-q.paid,0);dueTotal+=all;if(due>0)count++});colToday.textContent=money(pt);creditToday.textContent=money(ct);dueMin.textContent=money(dueMin);dueTotal.textContent=money(dueTotal);paymentsCount.textContent=count;renderRoute()}
+function renderHome(){
+ document.getElementById('today').textContent=fmtDate(isoToday());
+ const pt=db.payments.filter(p=>p.date===isoToday()).reduce((a,p)=>a+p.amount,0);
+ const ct=db.credits.filter(c=>c.date===isoToday()).reduce((a,c)=>a+c.total,0);
+ let dueMin=0,dueTotal=0,count=0;
+ db.credits.forEach(cr=>{
+  const dueToday=cr.schedule.filter(q=>q.date===isoToday()&&q.paid<q.amount&&!q.postponed).reduce((a,q)=>a+q.amount-q.paid,0);
+  dueMin+=dueToday;
+  const all=currentDue(cr);
+  dueTotal+=all;
+  if(dueToday>0||all>0)count++;
+ });
+ document.getElementById('colToday').textContent=money(pt);
+ document.getElementById('creditToday').textContent=money(ct);
+ document.getElementById('dueMin').textContent=money(dueMin);
+ document.getElementById('dueTotal').textContent=money(dueTotal);
+ document.getElementById('paymentsCount').textContent=count;
+ renderRoute();
+}
 function renderProfile(){bizName.textContent=db.profile.name;bizCode.textContent='MC-'+String(db.profile.name.length).padStart(4,'0');pName.value=db.profile.name;pPhone.value=db.profile.phone}
 function saveProfile(){db.profile.name=pName.value||'MI CARTERA';db.profile.phone=pPhone.value||'+51';save();toast('Perfil guardado')}
-function refresh(){renderHome();renderClients();renderCredits();renderRoutePage();renderBalance();renderProfile()}
+function renderSettings(){
+ const map={1:'offMon',2:'offTue',3:'offWed',4:'offThu',5:'offFri',6:'offSat',0:'offSun'};
+ Object.keys(map).forEach(k=>{const el=document.getElementById(map[k]);if(el)el.checked=db.settings.offDays.includes(+k);});
+ const mr=document.getElementById('maturityRule');if(mr)mr.value=db.settings.maturityRule;
+}
+function saveSettings(){
+ const ids={1:'offMon',2:'offTue',3:'offWed',4:'offThu',5:'offFri',6:'offSat',0:'offSun'};
+ db.settings.offDays=Object.keys(ids).filter(k=>document.getElementById(ids[k])?.checked).map(Number);
+ db.settings.maturityRule=document.getElementById('maturityRule')?.value||'month';
+ localStorage.setItem(KEY,JSON.stringify(db));
+ toast('Parámetros guardados');
+ refresh();
+}
+function refresh(){renderHome();renderClients();renderCredits();renderRoutePage();renderBalance();renderProfile();renderSettings()}
 function backup(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi-cartera-respaldo.json';a.click();toast('Respaldo exportado')}
 function restore(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=JSON.parse(r.result);save();toast('Respaldo restaurado')}catch{toast('Archivo no válido')}};r.readAsText(f)}
-function seedDemo(){const c={id:685,name:'Cliente Demo',phone:'999999999',address:'Lima',guarantor:'-',reference:'Demo',location:'[-12.0464,-77.0428]',route:'Principal'};db.clients=[c];const cap=1500,rate=20,n=24,total=1800,inst=75,start=isoToday();const cr={id:1047,clientId:c.id,date:start,capital:cap,rate,term:n,freq:'daily',installment:inst,total,start,paid:0,route:'Principal',status:'Activo',schedule:[]};for(let i=1;i<=n;i++)cr.schedule.push({n:i,date:addDays(start,i-1),amount:inst,paid:0,postponed:false});db.credits=[cr];db.payments=[];save();toast('Datos de prueba cargados')}
-function resetAll(){if(confirm('¿Borrar todos los datos?')){db={profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro']};save();}}
+function seedDemo(){
+ const c={id:685,name:'Cliente Demo',phone:'999999999',address:'Lima',guarantor:'-',reference:'Demo',location:'[-12.0464,-77.0428]',route:'Principal'};
+ db.clients=[c];
+ const cap=1500,rate=20,n=24,total=1800,inst=75,start=isoToday();
+ const cr={id:1047,clientId:c.id,date:start,capital:cap,rate,term:n,freq:'daily',installment:inst,total,start,paid:0,route:'Principal',status:'Activo',schedule:[]};
+ scheduleDates(start,n,'daily').forEach((d,i)=>cr.schedule.push({n:i+1,date:d,amount:inst,paid:0,postponed:false}));
+ cr.maturity=maturityDate(cr);
+ db.credits=[cr];db.payments=[];localStorage.setItem(KEY,JSON.stringify(db));toast('Datos de prueba cargados');
+}
+function resetAll(){if(confirm('¿Borrar todos los datos?')){db={profile:{name:'MI CARTERA',phone:'+51'},clients:[],credits:[],payments:[],routes:['Principal','Norte','Sur','Centro'],settings:{offDays:[0],maturityRule:'month'}};save();}}
 function bluetoothInfo(){alert('Bluetooth queda reservado para impresora/comprobante. La app puede compartir el ticket por WhatsApp desde el teléfono.')}
 function tutorial(){alert('Flujo: 1) Crear cliente → 2) Crear crédito → 3) Enrutar → 4) Recaudar → 5) Ver balance/listados → 6) Respaldar datos.')}
 refresh();
