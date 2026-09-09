@@ -2,27 +2,27 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#87cefa">
 <title>Mi Cartera PRO</title>
 <link rel="manifest" href="manifest.json">
 <style>
 *{box-sizing:border-box}html,body{margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;color:#292929}
 body{padding-bottom:70px}.top{height:86px;background:#87cefa;border-bottom:1px solid #aaa;display:flex;align-items:center;gap:10px;padding:8px 10px;position:sticky;top:0;z-index:20}
-.top h1{flex:1;text-align:center;margin:0;font-size:28px;color:#fff}.btn{border:1px solid #aaa;border-radius:7px;padding:12px 15px;font-weight:700;font-size:17px;background:#e8e8e8;color:#666;box-shadow:0 2px 5px #0002}.btn.blue{background:#87cefa;color:#fff}.btn.green{background:#08b908;color:#fff;border-color:#078f07}.btn.red{background:#ed1c24;color:#fff;border-color:#c00}.btn.orange{background:#ffd36b;color:#444;border-color:#d8a72b}
-main{max-width:760px;margin:auto;padding:12px 18px}.page{display:none}.page.active{display:block}
-.drawer{position:fixed;inset:0;background:#0007;z-index:50;display:none}.drawer.show{display:block}.menu{width:78%;max-width:520px;height:100%;background:#d7d7d7;overflow:auto;box-shadow:4px 0 10px #0005}
-.profile{padding:24px 22px;background:#eee;border-bottom:1px solid #bbb}.profile .logo{width:95px;height:95px;border-radius:22px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:54px;float:left;margin-right:28px}.profile h2{margin:8px 0 4px;font-size:23px}.profile a{color:#3185bd;font-size:21px;font-weight:700}.code{clear:both;background:#eee;padding:14px 20px;font-size:22px;font-weight:700;border-top:1px solid #aaa;border-bottom:1px solid #aaa}
-.menuTitle{padding:18px 22px;font-size:25px;font-weight:700;background:#eee}.mi{display:block;width:100%;padding:17px 22px;border:0;border-bottom:1px solid #bbb;background:#aeb8bd;color:#fff;text-align:left;font-size:22px;font-weight:700}
-.dashboardDate{background:#eee;border:1px solid #ddd;text-align:center;font-size:29px;font-weight:700;padding:22px;margin-top:18px}.metrics{display:grid;grid-template-columns:1fr 1fr;border:1px solid #ddd}.metric{background:#eee;text-align:center;border-right:1px solid #ddd}.metric:last-child{border:0}.metric .head{background:#bfc7cc;color:#fff;text-shadow:1px 1px #777;padding:8px;font-size:20px;font-weight:700}.metric .val{padding:10px;font-size:29px;font-weight:700}
-.sectionTitle{font-size:29px;font-weight:700;margin:30px 0 10px}.search{width:100%;padding:14px 16px;border:1px solid #bfc7cc;border-radius:15px;background:#eef2f3;font-size:21px;box-shadow:inset 0 1px 3px #0002}
-.routeCard{background:#ed1c24;color:#fff;border-radius:14px;margin:12px 0;overflow:hidden;box-shadow:0 2px 6px #0003}.routeRow{padding:20px 18px;border-bottom:1px solid #c4141b;display:flex;align-items:center;gap:10px}.routeRow:last-child{border:0}.routeName{flex:1;font-size:23px;font-weight:700}.routeSub{font-size:17px;margin-top:8px}.amount{background:#fff;color:#333;border-radius:6px;padding:10px 13px;font-size:20px;font-weight:700;white-space:nowrap}.alert{font-size:23px}
-.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:16px;margin:14px 0;box-shadow:0 2px 5px #0001}.field{margin:15px 0}.field label{display:block;font-size:20px;margin-bottom:8px}.input,.select{width:100%;padding:14px;border:1px solid #bfc7cc;border-radius:14px;background:#eef2f3;font-size:20px}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:10px}.info{padding:13px;background:#eee;border:1px solid #ddd;font-size:19px}.infoHead{background:#bfc7cc;color:#fff;padding:9px;font-weight:700;text-shadow:1px 1px #777}.bigTotal{font-size:42px;font-weight:800;background:#eef2f3;border:1px solid #bfc7cc;border-radius:12px;padding:22px}
-.actionbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.wide{width:100%}.small{font-size:15px}.muted{color:#777}.success{color:#078f07;font-weight:700}.warning{color:#e87900;font-weight:700}.dangerTxt{color:#ed1c24;font-weight:700}
-.clientBox{background:#eef2f3;border:1px solid #bfc7cc;border-radius:14px;padding:18px;font-size:18px}.clientBox h3{margin:0 0 8px;font-size:24px}
-.ticket{background:#eee;border:1px solid #ccc;padding:20px;text-align:center;font-size:18px;line-height:1.55}.ticket h2{font-size:30px}.ticket .line{border-top:2px solid #333;margin:14px 0}
-.bottom{position:fixed;bottom:0;left:0;right:0;height:68px;background:#101116;color:#fff;z-index:30;display:flex;align-items:center;justify-content:space-around;font-size:13px}.bottom button{background:none;border:0;color:#fff;font-size:12px}.bottom span{display:block;font-size:25px}
-.toast{position:fixed;left:50%;bottom:82px;transform:translateX(-50%);background:#222;color:#fff;padding:13px 18px;border-radius:8px;display:none;z-index:80}.toast.show{display:block}
+.top h1{flex:1;text-align:center;margin:0;font-size:28px;color:#fff}.btn{border:1px solid #aaa;border-radius:7px;padding:9px 12px;font-weight:700;font-size:15px;background:#e8e8e8;color:#666;box-shadow:0 2px 5px #0002}.btn.blue{background:#87cefa;color:#fff}.btn.green{background:#08b908;color:#fff;border-color:#078f07}.btn.red{background:#ed1c24;color:#fff;border-color:#c00}.btn.orange{background:#ffd36b;color:#444;border-color:#d8a72b}
+main{max-width:680px;margin:auto;padding:10px 16px}.page{display:none}.page.active{display:block}
+.drawer{position:fixed;inset:0;background:#0007;z-index:50;display:none}.drawer.show{display:block}.menu{width:76%;max-width:500px;height:100%;background:#d7d7d7;overflow:auto;box-shadow:4px 0 10px #0005}
+.profile{padding:20px 18px;background:#eee;border-bottom:1px solid #bbb}.profile .logo{width:78px;height:78px;border-radius:18px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:42px;float:left;margin-right:20px}.profile h2{margin:6px 0 3px;font-size:20px}.profile a{color:#3185bd;font-size:18px;font-weight:700}.code{clear:both;background:#eee;padding:11px 18px;font-size:19px;font-weight:700;border-top:1px solid #aaa;border-bottom:1px solid #aaa}
+.menuTitle{padding:14px 18px;font-size:21px;font-weight:700;background:#eee}.mi{display:block;width:100%;padding:14px 18px;border:0;border-bottom:1px solid #bbb;background:#aeb8bd;color:#fff;text-align:left;font-size:19px;font-weight:700}
+.dashboardDate{background:#eee;border:1px solid #ddd;text-align:center;font-size:25px;font-weight:700;padding:18px;margin-top:15px}.metrics{display:grid;grid-template-columns:1fr 1fr;border:1px solid #ddd}.metric{background:#eee;text-align:center;border-right:1px solid #ddd}.metric:last-child{border:0}.metric .head{background:#bfc7cc;color:#fff;text-shadow:1px 1px #777;padding:7px;font-size:17px;font-weight:700}.metric .val{padding:8px;font-size:25px;font-weight:700}
+.sectionTitle{font-size:25px;font-weight:700;margin:23px 0 9px}.search{width:100%;padding:11px 14px;border:1px solid #bfc7cc;border-radius:13px;background:#eef2f3;font-size:18px;box-shadow:inset 0 1px 3px #0002}
+.routeCard{background:#ed1c24;color:#fff;border-radius:12px;margin:10px 0;overflow:hidden;box-shadow:0 2px 6px #0003}.routeRow{padding:16px 16px;border-bottom:1px solid #c4141b;display:flex;align-items:center;gap:8px}.routeRow:last-child{border:0}.routeName{flex:1;font-size:20px;font-weight:700}.routeSub{font-size:15px;margin-top:6px}.amount{background:#fff;color:#333;border-radius:6px;padding:8px 11px;font-size:18px;font-weight:700;white-space:nowrap}.alert{font-size:20px}
+.card{background:#fff;border:1px solid #ddd;border-radius:9px;padding:13px;margin:11px 0;box-shadow:0 2px 5px #0001}.field{margin:11px 0}.field label{display:block;font-size:18px;margin-bottom:6px}.input,.select{width:100%;padding:11px 13px;border:1px solid #bfc7cc;border-radius:12px;background:#eef2f3;font-size:18px;min-height:44px}.twocol{display:grid;grid-template-columns:1fr 1fr;gap:8px}.info{padding:11px;background:#eee;border:1px solid #ddd;font-size:17px}.infoHead{background:#bfc7cc;color:#fff;padding:8px;font-weight:700;text-shadow:1px 1px #777}.bigTotal{font-size:34px;font-weight:800;background:#eef2f3;border:1px solid #bfc7cc;border-radius:11px;padding:16px}
+.actionbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.wide{width:100%}.small{font-size:14px}.muted{color:#777}.success{color:#078f07;font-weight:700}.warning{color:#e87900;font-weight:700}.dangerTxt{color:#ed1c24;font-weight:700}
+.clientBox{background:#eef2f3;border:1px solid #bfc7cc;border-radius:12px;padding:14px;font-size:17px}.clientBox h3{margin:0 0 7px;font-size:21px}
+.ticket{background:#eee;border:1px solid #ccc;padding:17px;text-align:center;font-size:16px;line-height:1.5}.ticket h2{font-size:26px}.ticket .line{border-top:2px solid #333;margin:11px 0}
+.bottom{position:fixed;bottom:0;left:0;right:0;height:60px;background:#101116;color:#fff;z-index:30;display:flex;align-items:center;justify-content:space-around;font-size:12px}.bottom button{background:none;border:0;color:#fff;font-size:11px}.bottom span{display:block;font-size:22px}
+.toast{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);background:#222;color:#fff;padding:11px 15px;border-radius:8px;display:none;z-index:80}.toast.show{display:block}
 hr{border:0;border-top:2px solid #aaa;margin:24px 0}
 @media(max-width:520px){.top h1{font-size:24px}.twocol{grid-template-columns:1fr}.routeName{font-size:21px}.sectionTitle{font-size:27px}.dashboardDate{font-size:25px}}
 </style>
@@ -125,17 +125,105 @@ function openMenu(){document.getElementById('drawer').classList.add('show')}func
 function newClient(){['fName','fPhone','fAddress','fGuarantor','fReference','fLocation'].forEach(x=>document.getElementById(x).value='');showPage('clientForm')}
 function saveClient(){const name=fName.value.trim();if(!name)return toast('Ingrese el nombre del cliente');const c={id:Date.now(),name,phone:fPhone.value.trim(),address:fAddress.value.trim(),guarantor:fGuarantor.value.trim()||'-',reference:fReference.value.trim()||'-',location:fLocation.value.trim()||'[0,0]',route:'Principal'};db.clients.push(c);save();selectedClient=c.id;toast('Cliente creado');showPage('credits');}
 function getLocation(){if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>{fLocation.value=`[${p.coords.latitude.toFixed(6)},${p.coords.longitude.toFixed(6)}]`},()=>toast('No se pudo obtener ubicación'));else toast('GPS no disponible')}
-function newCredit(clientId){selectedClient=clientId||selectedClient||db.clients[0]?.id;if(!selectedClient){toast('Primero cree un cliente');showPage('clients');return}const c=db.clients.find(x=>x.id===selectedClient);creditClientBox.innerHTML=`<h3>${c.name}</h3>Teléfono: ${c.phone||'-'}<br>Dirección: ${c.address||'-'}<br>Referencia: ${c.reference||'-'}`;cDate.value=isoToday();cCapital.value='';cRate.value=20;cTerm.value='24';cFreq.value='daily';cFirst.value='';calcCredit();showPage('creditForm')}
-function calcCredit(){const cap=+cCapital.value||0,rate=+cRate.value||0,n=+cTerm.value||1,total=cap+(cap*rate/100);cTotal.textContent=money(total);cInstallment.textContent=money(total/n)}
+function newCredit(clientId){
+ selectedClient=clientId||selectedClient||db.clients[0]?.id;
+ if(!selectedClient){toast('Primero cree un cliente');showPage('clients');return}
+ const c=db.clients.find(x=>x.id===selectedClient);
+ document.getElementById('creditClientBox').innerHTML=`<h3>${c.name}</h3>Teléfono: ${c.phone||'-'}<br>Dirección: ${c.address||'-'}<br>Referencia: ${c.reference||'-'}`;
+ document.getElementById('cDate').value=isoToday();
+ document.getElementById('cCapital').value='';
+ document.getElementById('cRate').value=20;
+ document.getElementById('cTerm').value='24';
+ document.getElementById('cFreq').value='daily';
+ document.getElementById('cFirst').value='';
+ calcCredit();
+ showPage('creditForm');
+}
+function calcCredit(){
+ const cap=+(document.getElementById('cCapital')?.value||0);
+ const rate=+(document.getElementById('cRate')?.value||0);
+ const n=+(document.getElementById('cTerm')?.value||1);
+ const total=cap+(cap*rate/100);
+ const totalEl=document.getElementById('cTotal'), instEl=document.getElementById('cInstallment');
+ if(totalEl) totalEl.textContent=money(total);
+ if(instEl) instEl.textContent=money(total/n);
+}
 function addDays(date,n){const d=new Date(date+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
 function interval(freq){return freq==='daily'?1:freq==='weekly'?7:freq==='biweekly'?14:30}
-function saveCredit(){const cap=+cCapital.value||0,n=+cTerm.value||0;if(cap<=0||n<=0)return toast('Ingrese capital y plazo');const rate=+cRate.value||0,total=cap+cap*rate/100,inst=total/n,start=cFirst.value||cDate.value||isoToday();const client=db.clients.find(x=>x.id===selectedClient);const cr={id:Date.now(),clientId:selectedClient,date:cDate.value||isoToday(),capital:cap,rate,term:n,freq:cFreq.value,installment:inst,total,start,paid:0,route:client.route||'Principal',status:'Activo',schedule:[]};for(let i=1;i<=n;i++)cr.schedule.push({n:i,date:addDays(start,interval(cr.freq)*(i-1)),amount:inst,paid:0,postponed:false});db.credits.push(cr);save();selectedCredit=cr.id;showCredit(cr.id);toast('Crédito creado y enroutado')}
+function saveCredit(){
+ const cap=+(document.getElementById('cCapital')?.value||0);
+ const n=+(document.getElementById('cTerm')?.value||0);
+ if(cap<=0||n<=0)return toast('Ingrese capital y plazo');
+ const rate=+(document.getElementById('cRate')?.value||0);
+ const freq=document.getElementById('cFreq')?.value||'daily';
+ const date=document.getElementById('cDate')?.value||isoToday();
+ const first=document.getElementById('cFirst')?.value||date;
+ const total=cap+cap*rate/100;
+ const inst=total/n;
+ const client=db.clients.find(x=>x.id===selectedClient);
+ if(!client)return toast('Seleccione un cliente');
+ const cr={id:Date.now(),clientId:selectedClient,date,capital:cap,rate,term:n,freq,installment:inst,total,start:first,paid:0,route:client.route||'Principal',status:'Activo',schedule:[]};
+ for(let i=1;i<=n;i++)cr.schedule.push({n:i,date:addDays(first,interval(freq)*(i-1)),amount:inst,paid:0,postponed:false});
+ db.credits.push(cr);
+ localStorage.setItem(KEY,JSON.stringify(db));
+ selectedCredit=cr.id;
+ toast('Crédito creado correctamente');
+ showCredit(cr.id);
+}
 function paidTotal(cr){return db.payments.filter(p=>p.creditId===cr.id).reduce((a,p)=>a+p.amount,0)}
 function calcStatus(cr){const paid=paidTotal(cr);let remain=Math.max(0,cr.total-paid);let overdue=0;let overdueCount=0;const today=isoToday();cr.schedule.forEach(q=>{const p=q.paid||0;if(p<q.amount && q.date<today && !q.postponed){overdue+=q.amount-p;overdueCount++}});return {paid,remain,overdue,overdueCount}}
 function showCredit(id){selectedCredit=id;const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);let state=s.overdueCount?'Crédito En mora':'al día';creditDetailBody.innerHTML=`<button class="btn" onclick="showPage('credits')">← Atrás</button><div class="sectionTitle">${c.name}</div><div class="clientBox">Teléfono. ${c.phone||'-'}<br>Dirección. ${c.address||'-'}<br>Referencia. ${c.reference||'-'}<br>📍 ${c.location||'[0,0]'}<br><hr><b>IDE. ${cr.id}</b></div><div class="actionbar"><button class="btn green" onclick="callClient('${c.phone||''}')">☎ Llamar</button><button class="btn blue" onclick="mapClient('${c.location||''}')">➤ Ver en Mapa</button></div><div class="sectionTitle">Estado</div><div class="info ${s.overdueCount?'dangerTxt':'success'}">${state}</div><div class="sectionTitle">Fecha crédito</div><div class="info">${fmtDate(cr.date)}</div><div class="sectionTitle">Vencimiento</div><div class="info">${fmtDate(cr.schedule[cr.schedule.length-1].date)}</div><div class="sectionTitle">Plazo</div><div class="info">🔵 ${labelFreq(cr.freq)}, ${cr.term} cuotas<br>Val.Cuota: ${money(cr.installment)}</div><div class="sectionTitle">Total crédito / Saldo actual</div><div class="metrics"><div class="metric"><div class="head">Total crédito</div><div class="val">${money(cr.total)}</div></div><div class="metric"><div class="head">Saldo actual</div><div class="val">${money(s.remain)}</div></div></div><button class="btn wide" onclick="showAbonos(${cr.id})">◉ Ver abonos &gt;&gt;</button><div class="sectionTitle">Cant.Cuotas</div><div class="metrics"><div class="metric"><div class="head">#Pagadas</div><div class="val">${Math.floor(s.paid/cr.installment)}</div></div><div class="metric"><div class="head">#Pendientes</div><div class="val">${Math.max(0,cr.term-Math.floor(s.paid/cr.installment))}</div></div></div><div class="sectionTitle">Para estar al día</div><div class="metrics"><div class="metric"><div class="head">#Cuotas mora</div><div class="val">${s.overdueCount}</div></div><div class="metric"><div class="head">Val.Mora</div><div class="val">${money(s.overdue)}</div></div></div><button class="btn green wide" onclick="openCollect(${cr.id})">💵 Recaudar</button>`;showPage('creditDetail')}
 function labelFreq(f){return f==='daily'?'Diario':f==='weekly'?'Semanal':f==='biweekly'?'Quincenal':'Mensual'}
-function openCollect(id){selectedCredit=id;const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);collectBody.innerHTML=`<div class="top" style="margin:-12px -18px 15px"><button class="btn" onclick="showCredit(${id})">← Atrás</button><h1>Recaudar</h1><button class="btn" onclick="postponeNext(${id})">Aplazar 📅</button></div><button class="btn wide" onclick="showAbonos(${id})">◉ Ver abonos &gt;&gt;</button><div class="sectionTitle">Cant.Cuotas</div><div class="metrics"><div class="metric"><div class="head">#Pagadas</div><div class="val">${Math.floor(s.paid/cr.installment)}</div></div><div class="metric"><div class="head">#Pendientes</div><div class="val">${Math.max(0,cr.term-Math.floor(s.paid/cr.installment))}</div></div></div><div class="sectionTitle">Para estar al día</div><div class="metrics"><div class="metric"><div class="head">#Cuotas mora</div><div class="val">${s.overdueCount}</div></div><div class="metric"><div class="head">Val.Mora</div><div class="val">${money(s.overdue)}</div></div></div></div><hr><div class="sectionTitle">Registrar recaudo</div><div class="twocol"><div class="field"><label>Val.Cuota S/</label><input class="input" id="payAmount" type="number" value="${cr.installment.toFixed(2)}"></div><div class="field"><label># Cuotas</label><input class="input" id="payCount" type="number" min="1" value="1"></div></div><div class="field"><label>Descuento</label><input class="input" id="payDiscount" type="number" value="0"></div><div class="field"><label>Recargo / mora</label><input class="input" id="paySurcharge" type="number" value="0"></div><button class="btn blue wide" onclick="registerPayment(${id})">☐ Imprimir comprobante?</button><div class="actionbar"><button class="btn green" onclick="registerPayment(${id})">✔ Abonar</button><button class="btn" onclick="showCredit(${id})">Salir</button></div>`;showPage('collect')}
-function registerPayment(id){const cr=db.credits.find(x=>x.id===id),amt=(+payAmount.value||0)*(+payCount.value||1),disc=+payDiscount.value||0,sur=+paySurcharge.value||0,final=Math.max(0,amt-disc+sur);if(final<=0)return toast('Ingrese un importe');db.payments.push({id:Date.now(),creditId:id,date:isoToday(),amount:final,base:amt,discount:disc,surcharge:sur});let remaining=final;for(const q of cr.schedule){if(remaining<=0)break;const room=q.amount-(q.paid||0);if(room>0){const x=Math.min(room,remaining);q.paid=(q.paid||0)+x;remaining-=x}}save();showTicket(id,final)}
+function openCollect(id){selectedCredit=id;const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);collectBody.innerHTML=`<div class="top" style="margin:-12px -18px 15px"><button class="btn" onclick="showCredit(${id})">← Atrás</button><h1>Recaudar</h1><button class="btn" onclick="postponeNext(${id})">Aplazar 📅</button></div><button class="btn wide" onclick="showAbonos(${id})">◉ Ver abonos &gt;&gt;</button><div class="sectionTitle">Cant.Cuotas</div><div class="metrics"><div class="metric"><div class="head">#Pagadas</div><div class="val">${Math.floor(s.paid/cr.installment)}</div></div><div class="metric"><div class="head">#Pendientes</div><div class="val">${Math.max(0,cr.term-Math.floor(s.paid/cr.installment))}</div></div></div><div class="sectionTitle">Para estar al día</div><div class="metrics"><div class="metric"><div class="head">#Cuotas mora</div><div class="val">${s.overdueCount}</div></div><div class="metric"><div class="head">Val.Mora</div><div class="val">${money(s.overdue)}</div></div></div></div><hr><div class="sectionTitle">Registrar recaudo</div><div class="twocol"><div class="field"><label>Val.Cuota S/</label><input class="input" id="payAmount" type="number" value="${cr.installment.toFixed(2)}"></div><div class="field"><label># Cuotas</label><input class="input" id="payCount" type="number" min="1" value="1"></div></div><div class="field"><label>Descuento</label><input class="input" id="payDiscount" type="number" value="0"></div><div class="field"><label>Recargo / mora</label><input class="input" id="paySurcharge" type="number" value="0"></div><div class="card"><b>Total a registrar:</b> <span id="payPreview">S/ 0.00</span></div><button class="btn blue wide" onclick="registerPayment(${id})">☐ Imprimir comprobante?</button><div class="actionbar"><button class="btn green" onclick="registerPayment(${id})">✔ Abonar</button><button class="btn" onclick="showCredit(${id})">Salir</button></div>`;showPage('collect'); updatePayPreview()}
+function updatePayPreview(){
+ const q=+(document.getElementById('payAmount')?.value||0);
+ const n=Math.max(1,+(document.getElementById('payCount')?.value||1));
+ const d=Math.max(0,+(document.getElementById('payDiscount')?.value||0));
+ const s=Math.max(0,+(document.getElementById('paySurcharge')?.value||0));
+ const el=document.getElementById('payPreview');
+ if(el) el.textContent=money(Math.max(0,q*n-d+s));
+}
+document.addEventListener('input',e=>{
+ if(['payAmount','payCount','payDiscount','paySurcharge'].includes(e.target.id)) updatePayPreview();
+});
+function registerPayment(id){
+ const cr=db.credits.find(x=>x.id===id);
+ if(!cr) return toast('Crédito no encontrado');
+ const amountEl=document.getElementById('payAmount');
+ const countEl=document.getElementById('payCount');
+ const discountEl=document.getElementById('payDiscount');
+ const surchargeEl=document.getElementById('paySurcharge');
+ const cuota=+(amountEl?.value||0);
+ const cantidad=Math.max(1,+(countEl?.value||1));
+ const descuento=Math.max(0,+(discountEl?.value||0));
+ const recargo=Math.max(0,+(surchargeEl?.value||0));
+ const base=cuota*cantidad;
+ const final=Math.max(0,base-descuento+recargo);
+ if(cuota<=0) return toast('Ingrese el valor de la cuota');
+ if(final<=0) return toast('El importe a registrar debe ser mayor a 0');
+
+ const saldoAntes=calcStatus(cr).remain;
+ if(base-descuento>saldoAntes && recargo===0){
+   return toast('El abono supera el saldo pendiente');
+ }
+
+ const payment={id:Date.now(),creditId:id,date:isoToday(),amount:final,base,discount:descuento,surcharge:recargo};
+ db.payments.push(payment);
+
+ let remaining=Math.min(Math.max(0,base-descuento),saldoAntes);
+ for(const q of cr.schedule){
+   if(remaining<=0) break;
+   const room=Math.max(0,q.amount-(q.paid||0));
+   if(room>0){
+     const x=Math.min(room,remaining);
+     q.paid=(q.paid||0)+x;
+     remaining-=x;
+   }
+ }
+ save();
+ toast('Pago registrado correctamente');
+ setTimeout(()=>showTicket(id,final),100);
+}
 function showAbonos(id){const cr=db.credits.find(x=>x.id===id),ps=db.payments.filter(p=>p.creditId===id);creditDetailBody.innerHTML=`<button class="btn" onclick="showCredit(${id})">← Atrás</button><div class="sectionTitle">Abonos</div>${ps.length?ps.map(p=>`<div class="card"><b>${fmtDate(p.date)}</b><br>Abono: ${money(p.amount)}<br><span class="muted">Base ${money(p.base)} · Descuento ${money(p.discount)} · Recargo ${money(p.surcharge)}</span></div>`).join(''):'<div class="card">No hay abonos registrados.</div>'}`;showPage('creditDetail')}
 function postponeNext(id){const cr=db.credits.find(x=>x.id===id),q=cr.schedule.find(x=>x.paid<x.amount&&!x.postponed);if(q){q.date=addDays(q.date,1);q.postponed=true;save();toast('Cuota aplazada 1 día')} }
 function showTicket(id,amount){const cr=db.credits.find(x=>x.id===id),c=db.clients.find(x=>x.id===cr.clientId),s=calcStatus(cr);collectBody.innerHTML=`<div class="top" style="margin:-12px -18px 15px"><button class="btn red" onclick="showPage('home')">✖ Salir</button><h1>Ticket de venta</h1><span></span></div><div class="ticket"><h2>🧾 Ticket de Venta</h2><b>${db.profile.name}</b><br>WhatsApp ${db.profile.phone}<div class="line"></div>Cliente: ${c.name}<br>Tel. ${c.phone||'-'}<br>${c.address||''}<br>Código: ${cr.id}<div class="line"></div>Tipo: ${labelFreq(cr.freq).toLowerCase()}<br>Fecha pago: ${fmtDate(isoToday())}<br>Abono: ${money(amount)}<br>Valor cuota: ${money(cr.installment)}<br>Plazo: 🔵 ${labelFreq(cr.freq)}, ${cr.term} cuotas<div class="line"></div>Saldo actual: ${money(s.remain)}<br>Vence: ${fmtDate(cr.schedule[cr.schedule.length-1].date)}<br>Estado: ${s.overdueCount?'en mora':'al día'}<div class="line"></div>** Gracias por preferirnos **<br>Hoy es: ${fmtDate(isoToday())}</div><button class="btn wide" onclick="shareTicket('${c.name}',${amount},${s.remain})">🚀 Compartir Ticket</button>`;showPage('collect')}
