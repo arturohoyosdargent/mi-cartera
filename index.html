@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#14532d">
-<title>Mi Cartera V6</title>
+<title>Mi Cartera PRO V7</title>
 <link rel="manifest" href="manifest.json">
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f5f7f6;color:#24302a;padding-bottom:82px}
@@ -19,7 +19,7 @@ label{display:block;font-size:14px;font-weight:700;margin:11px 0 5px}input,selec
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .item{border:1px solid #e0e5e2;border-radius:12px;padding:13px;margin:9px 0;background:#fff}.item strong{font-size:17px}.muted{color:#68756e;font-size:14px}.money{font-weight:800}
 .empty{text-align:center;padding:45px 15px;color:#68756e;font-size:18px}
-.bottom{position:fixed;left:0;right:0;bottom:0;height:74px;background:#fff;border-top:1px solid #ddd;display:grid;grid-template-columns:repeat(6,1fr);z-index:20}
+.bottom{position:fixed;left:0;right:0;bottom:0;height:74px;background:#fff;border-top:1px solid #ddd;display:grid;grid-template-columns:repeat(8,1fr);z-index:20}
 .bottom button{border:0;background:#fff;font-size:11px;color:#52605a;padding:5px 1px}.bottom button.active{color:#14532d;font-weight:800}.bottom span{display:block;font-size:22px;margin-bottom:2px}
 .modal{position:fixed;inset:0;background:#0008;display:none;align-items:flex-end;justify-content:center;z-index:50}.modal.show{display:flex}.sheet{background:#fff;width:100%;max-width:760px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px}.sheet h3{margin:0 0 8px;font-size:22px}
 .notice{padding:12px;border-radius:10px;background:#eef7f0;margin:10px 0;font-size:14px}.error{background:#fff0ef;color:#9d1c14}.success{background:#eefaf1;color:#14652d}
@@ -27,7 +27,7 @@ label{display:block;font-size:14px;font-weight:700;margin:11px 0 5px}input,selec
 </style>
 </head>
 <body>
-<header><h1>💰 Mi Cartera V6</h1><p>Clientes · Préstamos · Pagos · Cobranzas · Reportes</p></header>
+<header><h1>💰 Mi Cartera PRO V7</h1><p>Clientes · Préstamos · Pagos · Cobranzas · Reportes</p></header>
 <main>
 <section id="home" class="page active">
 <h2>Resumen</h2>
@@ -74,6 +74,11 @@ label{display:block;font-size:14px;font-weight:700;margin:11px 0 5px}input,selec
 <div class="card"><h3>Cuotas pendientes</h3><div id="collectionList"></div></div>
 </section>
 
+<section id="routes" class="page"><h2>🛵 Rutas de cobranza</h2>
+<div class="card"><label>Zona / ruta</label><input id="routeZone" placeholder="Ej. Centro" oninput="renderRoutes()">
+<label>Fecha</label><input id="routeDate" type="date" onchange="renderRoutes()"></div><div id="routeList"></div></section>
+<section id="cash" class="page"><h2>💵 Liquidación / Caja</h2>
+<div class="card"><button class="btn primary wide" onclick="openCash()">＋ NUEVA LIQUIDACIÓN</button></div><div id="cashList"></div></section>
 <section id="reports" class="page">
 <h2>Reportes</h2>
 <div class="card" id="reportBox"></div>
@@ -90,6 +95,8 @@ label{display:block;font-size:14px;font-weight:700;margin:11px 0 5px}input,selec
 <button onclick="show('clients',this)"><span>👥</span>Clientes</button>
 <button onclick="show('loans',this)"><span>💰</span>Préstamos</button>
 <button onclick="show('payments',this)"><span>💳</span>Pagos</button>
+<button onclick="show('routes',this)"><span>🛵</span>Rutas</button>
+<button onclick="show('cash',this)"><span>💵</span>Caja</button>
 <button onclick="show('collections',this)"><span>📅</span>Cobros</button>
 <button onclick="show('reports',this)"><span>📊</span>Reportes</button>
 </nav>
@@ -97,7 +104,7 @@ label{display:block;font-size:14px;font-weight:700;margin:11px 0 5px}input,selec
 <div id="modal" class="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="sheet"></div></div>
 
 <script>
-const KEY='mi_cartera_v6';
+const KEY='mi_cartera_v7';
 let db=JSON.parse(localStorage.getItem(KEY)||'null')||{clients:[],loans:[],payments:[]};
 const $=id=>document.getElementById(id);
 const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -107,7 +114,7 @@ function show(id,btn){
  $(id).classList.add('active');
  document.querySelectorAll('.bottom button').forEach(b=>b.classList.remove('active'));
  if(btn)btn.classList.add('active'); else [...document.querySelectorAll('.bottom button')].find(b=>b.textContent.toLowerCase().includes(id==='collections'?'cobros':id==='reports'?'reportes':id==='loans'?'préstamos':id==='payments'?'pagos':id==='clients'?'clientes':'inicio'))?.classList.add('active');
- renderAll(); window.scrollTo(0,0);
+ if($('routeDate'))$('routeDate').value=new Date().toISOString().slice(0,10);renderAll(); window.scrollTo(0,0);
 }
 function openModal(content){$('sheet').innerHTML=content;$('modal').classList.add('show')}
 function closeModal(){$('modal').classList.remove('show')}
@@ -126,7 +133,7 @@ function openClient(){
 function saveClient(){
  const name=$('fName').value.trim();
  if(!name){alert('Ingresa el nombre del cliente.');$('fName').focus();return}
- db.clients.push({id:Date.now().toString(),name,dni:$('fDni').value.trim(),phone:$('fPhone').value.trim(),address:$('fAddress').value.trim(),ref:$('fRef').value.trim(),created:new Date().toISOString()});
+ db.clients.push({id:Date.now().toString(),name,dni:$('fDni').value.trim(),phone:$('fPhone').value.trim(),address:$('fAddress').value.trim(),zone:$('fZone').value.trim(),ref:$('fRef').value.trim(),created:new Date().toISOString()});
  save();closeModal();show('clients');
  alert('Cliente guardado correctamente.');
 }
@@ -168,7 +175,7 @@ function openPayment(){
  const opts=pending.map((x,i)=>`<option value="${x.l.id}|${x.q.n}">${esc(clientName(x.l.clientId))} — Cuota ${x.q.n} — ${money(x.due)} — vence ${x.q.date}</option>`).join('');
  openModal(`<h3>Registrar pago</h3><label>Cuota *</label><select id="pSel">${opts}</select>
  <label>Monto pagado (S/) *</label><input id="pAmount" type="number" min="0.01" step="0.01" inputmode="decimal">
- <label>Fecha de pago</label><input id="pDate" type="date" value="${new Date().toISOString().slice(0,10)}">
+ <label>Descuento</label><input id="pDisc" type="number" step=".01" value="0" inputmode="decimal"><label>Recargo / mora</label><input id="pLate" type="number" step=".01" value="0" inputmode="decimal"><label>Fecha de pago</label><input id="pDate" type="date value="${new Date().toISOString().slice(0,10)}">
  <button class="btn primary wide" onclick="savePayment()">GUARDAR PAGO</button>
  <button class="btn secondary wide" onclick="closeModal()">Cancelar</button>`)
 }
@@ -186,7 +193,7 @@ function loanBalance(l){return l.total-loanPaid(l)}
 function renderClients(){
  const q=($('clientSearch')?.value||'').toLowerCase();
  const arr=db.clients.filter(c=>(c.name+' '+c.dni+' '+c.phone).toLowerCase().includes(q));
- $('clientList').innerHTML=arr.length?arr.map(c=>`<div class="item"><strong>${esc(c.name)}</strong><div class="muted">DNI: ${esc(c.dni||'—')} · Tel: ${esc(c.phone||'—')}</div><div class="actions"><button class="btn primary" onclick="loanFor('${c.id}')">＋ Préstamo</button><button class="btn secondary" onclick="clientInfo('${c.id}')">Ver ficha</button></div></div>`).join(''):'<div class="empty">No hay clientes.</div>';
+ $('clientList').innerHTML=arr.length?arr.map(c=>`<div class="item"><strong>${esc(c.name)}</strong><div class="muted">DNI: ${esc(c.dni||'—')} · Tel: ${esc(c.phone||'—')} · Ruta: ${esc(c.zone||'—')}</div><div class="actions"><button class="btn primary" onclick="loanFor('${c.id}')">＋ Préstamo</button><button class="btn secondary" onclick="clientInfo('${c.id}')">Ver ficha</button></div></div>`).join(''):'<div class="empty">No hay clientes.</div>';
 }
 function loanFor(id){openLoan();setTimeout(()=>{if($('lClient'))$('lClient').value=id},0)}
 function clientInfo(id){
@@ -231,7 +238,30 @@ function renderReports(){
  const capital=db.loans.reduce((s,l)=>s+l.capital,0),interest=db.loans.reduce((s,l)=>s+l.totalInterest,0),col=db.payments.reduce((s,p)=>s+p.amount,0),bal=db.loans.reduce((s,l)=>s+loanBalance(l),0),pending=allPending().length;
  $('reportBox').innerHTML=`<p>Clientes: <b>${db.clients.length}</b></p><p>Préstamos: <b>${db.loans.length}</b></p><p>Capital colocado: <b>${money(capital)}</b></p><p>Interés generado: <b>${money(interest)}</b></p><p>Total cobrado: <b>${money(col)}</b></p><p>Saldo por cobrar: <b>${money(bal)}</b></p><p>Cuotas pendientes: <b>${pending}</b></p>`;
 }
-function renderAll(){renderHome();renderClients();renderLoans();renderPayments();renderCollections();renderReports()}
+
+function renderRoutes(){
+ const d=$('routeDate')?.value||new Date().toISOString().slice(0,10), z=($('routeZone')?.value||'').toLowerCase();
+ const a=allPending().filter(x=>x.q.date===d && (!z || String(db.clients.find(c=>c.id===x.l.clientId)?.zone||'').toLowerCase().includes(z)));
+ $('routeList').innerHTML=a.length?a.map((x,i)=>{const c=db.clients.find(c=>c.id===x.l.clientId)||{};return `<div class="item"><strong>${i+1}. ${esc(c.name)}</strong><div class="muted">Ruta: ${esc(c.zone||'—')} · ${esc(c.address||'')}</div><div>Cuota ${x.q.n} · <b>${money(x.due)}</b></div><button class="btn primary wide" onclick="quickPay('${x.l.id}')">REGISTRAR COBRO</button></div>`}).join(''):'<div class="empty">No hay cobranzas para esta fecha/ruta.</div>';
+}
+function openCash(){
+ const d=new Date().toISOString().slice(0,10);
+ openModal(`<h3>Nueva liquidación</h3><label>Fecha</label><input id="cashDate" type="date" value="${d}">
+ <label>Caja inicial</label><input id="cashInitial" type="number" step=".01" value="0">
+ <label>Otros ingresos</label><input id="cashIn" type="number" step=".01" value="0">
+ <label>Gastos / egresos</label><input id="cashOut" type="number" step=".01" value="0">
+ <label>Observación</label><textarea id="cashObs"></textarea>
+ <button class="btn primary wide" onclick="saveCash()">GUARDAR LIQUIDACIÓN</button><button class="btn secondary wide" onclick="closeModal()">Cancelar</button>`);
+}
+function saveCash(){
+ const d=$('cashDate').value, rec=db.payments.filter(p=>p.date===d).reduce((s,p)=>s+p.amount,0), ini=+$('cashInitial').value||0, inn=+$('cashIn').value||0, out=+$('cashOut').value||0;
+ db.cash=db.cash||[];db.cash.push({id:Date.now()+'',date:d,initial:ini,collections:rec,otherIn:inn,expenses:out,total:ini+rec+inn-out,obs:$('cashObs').value.trim()});
+ save();closeModal();show('cash');alert('Liquidación guardada. Cobranza del día: '+money(rec));
+}
+function renderCash(){
+ const a=db.cash||[];$('cashList').innerHTML=a.length?a.slice().reverse().map(c=>`<div class="item"><strong>Liquidación ${c.date}</strong><div>Cobrado ${money(c.collections)} · Otros ingresos ${money(c.otherIn)} · Gastos ${money(c.expenses)}</div><b>Total esperado en caja: ${money(c.total)}</b></div>`).join(''):'<div class="empty">No hay liquidaciones.</div>';
+}
+function renderAll(){db.cash=db.cash||[];renderHome();renderClients();renderLoans();renderPayments();renderCollections();renderRoutes();renderCash();renderReports()}
 function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi_cartera_respaldo.json';a.click();URL.revokeObjectURL(a.href)}
 function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.clients||!x.loans||!x.payments)throw 0;db=x;save();alert('Datos importados correctamente.')}catch{alert('El archivo no es un respaldo válido.')}};r.readAsText(f)}
 renderAll();
