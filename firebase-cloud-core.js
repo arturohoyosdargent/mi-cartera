@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, deleteUser, initializeAuth, inMemoryPersistence } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, initializeAuth, inMemoryPersistence } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
 import { getFirestore, enableIndexedDbPersistence, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
 
 const cfg=window.MI_CARTERA_FIREBASE||{};
@@ -51,6 +51,7 @@ function dedupeClients(cleanCloud=false){
   if(duplicates.length){db.clients=keep;duplicates.forEach(c=>audit('CLIENTE_DUPLICADO_ELIMINADO',`${c.name} #${c.id}`));saveCloudDb();try{renderAll()}catch(_){}if(cleanCloud&&canAll()&&fs){Promise.all(duplicates.map(c=>deleteDoc(doc(fs,`orgs/${orgId}/clients`,String(c.id))).catch(()=>null))).then(()=>{pushList('clients',keep).catch(()=>{})})}}
 }
 async function pullCollection(name,constraints=[]){let q=collection(fs,`orgs/${orgId}/${name}`);let qq=constraints.length?query(q,...constraints):q;const snap=await getDocs(qq);return snap.docs.map(d=>d.data());}
+async function pullUsers(){const snap=await getDocs(collection(fs,'users'));return snap.docs.map(d=>d.data());}
 async function pullCloud(){
   if(!currentProfile)return;
   const names=['routes','clients','credits','payments','cashClosures','approvals'];
@@ -58,6 +59,7 @@ async function pullCloud(){
   if(canAll()){
     for(const n of names)data[n]=await pullCollection(n);
     for(const n of ['capital','entries','expenses','audit'])data[n]=await pullCollection(n);
+    data.users=await pullUsers();
   }else{
     data.routes=await pullCollection('routes',[where('collectorId','==',auth.currentUser.uid)]);
     const rids=data.routes.map(x=>x.id);
@@ -65,11 +67,17 @@ async function pullCloud(){
     for(const rid of rids){const cs=await pullCollection('clients',[where('routeId','==',rid)]);data.clients.push(...cs);const cr=await pullCollection('credits',[where('routeId','==',rid)]);data.credits.push(...cr);for(const crd of cr){const ps=await pullCollection('payments',[where('creditId','==',crd.id)]);data.payments.push(...ps);}}
     data.cashClosures=await pullCollection('cashClosures',[where('userId','==',auth.currentUser.uid)]);
     data.approvals=await pullCollection('approvals',[where('requestedByUid','==',auth.currentUser.uid)]);
+    data.users=[];
   }
   const firstCloudMigration=localStorage.getItem(SEED_KEY)!=='1';
   for(const n of Object.keys(data)){
     if(!Array.isArray(data[n]))continue;
     const local=Array.isArray(db[n])?db[n]:[];
+    if(n==='users'){
+      const merged=new Map(local.map(x=>[String(x.id||x.uid),x]));
+      for(const x of data[n]){const id=String(x.id||x.uid);merged.set(id,{...merged.get(id),id,uid:x.uid||id,name:x.name||x.email||id,email:x.email||'',role:x.role||'consulta',routeIds:Array.isArray(x.routeIds)?x.routeIds:[],active:x.active!==false});}
+      data[n]=Array.from(merged.values());
+    }
     if(firstCloudMigration&&local.length&&['payments','cashClosures','approvals'].includes(n)){
       const m=new Map(data[n].map(x=>[String(x.id),x]));
       for(const x of local)m.set(String(x.id),x);
@@ -130,7 +138,8 @@ window.cloudCreateUser=async()=>{
     if(idx>=0)localUsers[idx]={...localUsers[idx],...localUser};else localUsers.push(localUser);
     db.users=localUsers;
     saveCloudDb();
-    try{renderAll();}catch(_){ }
+    normalize();
+    renderUsers();
     show('Acceso creado correctamente.');
     setTimeout(()=>{closeForm();toast('Usuario Cloud creado: '+(createdUser.email||email));},500);
   }catch(e){
@@ -155,7 +164,7 @@ if(ready){
       if(!user){currentProfile=null;updateUI();return;}
       try{
         currentProfile=await getProfile(user.uid);if(!currentProfile||currentProfile.active===false){await signOut(auth);return msg('Usuario sin perfil activo en Préstamo Ya.');}
-        db.users=db.users||[];let lu=db.users.find(x=>x.id===user.uid);if(!lu){lu={id:user.uid,name:currentProfile.name||user.email,role:currentProfile.role||'consulta',active:true};db.users.push(lu);}currentUserId=user.uid;db.currentUserId=user.uid;saveCloudDb();updateUI();
+        db.users=db.users||[];let lu=db.users.find(x=>x.id===user.uid);if(!lu){lu={id:user.uid,name:currentProfile.name||user.email,role:currentProfile.role||'consulta',active:true,routeIds:Array.isArray(currentProfile.routeIds)?currentProfile.routeIds:[],email:currentProfile.email||user.email};db.users.push(lu);}currentUserId=user.uid;db.currentUserId=user.uid;saveCloudDb();updateUI();
         const firstCloudMigration=localStorage.getItem(SEED_KEY)!=='1';
         if(firstCloudMigration&&canAll())await pushLocalAllowed();
         await pullCloud();
