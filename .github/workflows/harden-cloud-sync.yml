@@ -1,0 +1,79 @@
+name: Harden Cloud Sync
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/harden-cloud-sync.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Harden first Cloud sync
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('firebase-cloud-core.js')
+          s=p.read_text(encoding='utf-8')
+          pattern=r'async function pullCloud\(\)\{.*?\n\}\nasync function pushList'
+          replacement='''async function pullCloud(){
+            if(!currentProfile)return;
+            const names=['routes','clients','credits','payments','cashClosures','approvals'];
+            const data={};
+            if(canAll()){
+              for(const n of names)data[n]=await pullCollection(n);
+              for(const n of ['capital','entries','expenses','audit'])data[n]=await pullCollection(n);
+            }else{
+              data.routes=await pullCollection('routes',[where('collectorId','==',auth.currentUser.uid)]);
+              const rids=data.routes.map(x=>x.id);
+              data.clients=[]; data.credits=[]; data.payments=[];
+              for(const rid of rids){
+                const cs=await pullCollection('clients',[where('routeId','==',rid)]);data.clients.push(...cs);
+                const cr=await pullCollection('credits',[where('routeId','==',rid)]);data.credits.push(...cr);
+                for(const crd of cr){const ps=await pullCollection('payments',[where('creditId','==',crd.id)]);data.payments.push(...ps);}
+              }
+              data.cashClosures=await pullCollection('cashClosures',[where('userId','==',auth.currentUser.uid)]);
+              data.approvals=await pullCollection('approvals',[where('requestedByUid','==',auth.currentUser.uid)]);
+            }
+            const firstCloudMigration=localStorage.getItem(SEED_KEY)!=='1';
+            for(const n of Object.keys(data)){
+              if(!Array.isArray(data[n]))continue;
+              const local=Array.isArray(db[n])?db[n]:[];
+              if(firstCloudMigration&&local.length&&['payments','cashClosures','approvals'].includes(n)){
+                const m=new Map(data[n].map(x=>[String(x.id),x]));
+                for(const x of local)m.set(String(x.id),x);
+                data[n]=Array.from(m.values());
+              }
+              if(firstCloudMigration&&canAll()&&data[n].length===0&&local.length)data[n]=local;
+              db[n]=data[n];
+            }
+            dedupeClients(true);
+            db.currentUserId=currentProfile.localUserId||db.currentUserId;
+            saveCloudDb();
+            normalize();renderAll();
+          }
+          async function pushList'''
+          ns,c=re.subn(pattern,replacement,s,count=1,flags=re.S)
+          if c!=1: raise SystemExit('No se encontró pullCloud para parchear')
+          p.write_text(ns,encoding='utf-8')
+          print('Cloud sync endurecido')
+          PY
+      - name: Validate
+        run: |
+          node --check firebase-cloud-core.js
+          grep -q "\['payments','cashClosures','approvals'\]" firebase-cloud-core.js
+          echo 'Cloud sync QA OK'
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add firebase-cloud-core.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'Harden first Cloud sync'
+          git push
