@@ -1,0 +1,65 @@
+name: Connect local queue to Firebase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-sync-cloud.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Firebase sync bridge
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('firebase-cloud-core.js')
+          s=p.read_text()
+          old="window.cloudSyncNow=async()=>{if(!ready||!auth?.currentUser)return toast('Inicia sesión en Cloud primero.');try{await pullCloud();await pushLocalAllowed();localStorage.setItem(SEED_KEY,'1');toast('Cloud sincronizado.');}catch(e){console.error(e);toast('Error Cloud: '+(e.code||e.message));}};"
+          new="""window.cloudSyncNow=async()=>{if(!ready||!auth?.currentUser){toast('Inicia sesión en Cloud primero.');return false;}try{await pushLocalAllowed();await pullCloud();localStorage.setItem(SEED_KEY,'1');toast('Cloud sincronizado.');return true;}catch(e){console.error(e);toast('Error Cloud: '+(e.code||e.message));return false;}};"""
+          if old not in s:
+              raise SystemExit('No se encontró cloudSyncNow')
+          s=s.replace(old,new,1)
+          bridge="""
+// Puente entre la cola local y Firebase Cloud.
+window.syncNow=async()=>{
+  if(!navigator.onLine)return toast('Sin internet: la información sigue guardada localmente.');
+  if(!auth?.currentUser)return toast('Inicia sesión en Cloud primero.');
+  const pending=(db.syncQueue||[]).filter(x=>x.status==='PENDIENTE');
+  if(!pending.length)return toast('No hay operaciones pendientes.');
+  try{
+    const ok=await window.cloudSyncNow();
+    if(!ok)return;
+    for(const item of pending){
+      try{
+        if(item.type==='CLIENTE_ELIMINADO'&&item.payload?.id!=null){
+          await deleteDoc(doc(fs,`orgs/${orgId}/clients`,String(item.payload.id)));
+        }
+        item.status='SINCRONIZADO';
+        item.syncedAt=new Date().toISOString();
+        item.error='';
+      }catch(e){item.status='ERROR';item.error=String(e?.message||e);throw e;}
+    }
+    db.settings.lastOnline=new Date().toISOString();
+    localStorage.setItem(DB_KEY,JSON.stringify(db));
+    try{renderAll();}catch(_){}
+    toast('Sincronización completada: '+pending.length+' operación(es).');
+  }catch(e){console.error('Cola local → Firebase:',e);toast('No se completó la sincronización: '+(e?.code||e?.message||e));}
+};
+"""
+          if 'Puente entre la cola local y Firebase Cloud.' not in s:
+              s += bridge
+          p.write_text(s)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firebase-cloud-core.js
+          git commit -m "Conectar cola local con Firebase Cloud" || exit 0
+          git push
