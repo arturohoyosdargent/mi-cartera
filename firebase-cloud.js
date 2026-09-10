@@ -19,24 +19,24 @@
     }
     const core=document.createElement('script');
     core.type='module';
-    core.src='./firebase-cloud-core.js?v=28';
+    core.src='./firebase-cloud-core.js?v=29';
     document.head.appendChild(core);
     const bridge=()=>{
       if(typeof window.cloudSyncNow==='function'){
         window.syncNow=async()=>{
           if(!navigator.onLine)return toast('Sin internet: la información sigue guardada localmente.');
+          const pending=(window.db?.syncQueue||[]).filter(x=>x.status==='PENDIENTE'||x.status==='ERROR');
+          if(!pending.length)return toast('No hay operaciones pendientes.');
           const ok=await window.cloudSyncNow();
           if(ok===true){
+            pending.forEach(x=>{x.status='SINCRONIZADO';x.syncedAt=new Date().toISOString();x.error='';});
             try{
-              const raw=localStorage.getItem('mi_cartera_pro_v21');
-              if(raw){
-                const d=JSON.parse(raw);
-                if(Array.isArray(d.syncQueue))d.syncQueue.forEach(x=>{if(x.status==='PENDIENTE'||x.status==='ERROR'){x.status='SINCRONIZADO';x.syncedAt=new Date().toISOString();}});
-                if(d.settings)d.settings.lastOnline=new Date().toISOString();
-                localStorage.setItem('mi_cartera_pro_v21',JSON.stringify(d));
-              }
-            }catch(e){console.warn('No se pudo actualizar la cola local',e)}
-            if(typeof updateSyncUI==='function')updateSyncUI();
+              if(window.db?.settings)window.db.settings.lastOnline=new Date().toISOString();
+              if(typeof persist==='function')persist();
+              if(typeof updateSyncUI==='function')updateSyncUI();
+              if(typeof renderAll==='function')renderAll();
+            }catch(e){console.warn('No se pudo refrescar la cola local',e)}
+            toast('Sincronización completada: '+pending.length+' operación(es).');
           }
         };
         return;
