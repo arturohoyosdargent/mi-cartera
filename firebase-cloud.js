@@ -19,7 +19,7 @@
     }
     const core=document.createElement('script');
     core.type='module';
-    core.src='./firebase-cloud-core.js?v=29';
+    core.src='./firebase-cloud-core.js?v=30';
     document.head.appendChild(core);
     const bridge=()=>{
       if(typeof window.cloudSyncNow==='function'){
