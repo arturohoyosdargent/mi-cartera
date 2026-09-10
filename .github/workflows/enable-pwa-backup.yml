@@ -1,33 +1,16 @@
 name: Enable PWA and Backup
 on:
-  workflow_dispatch:
   push:
     paths:
       - '.github/workflows/enable-pwa-backup.yml'
+  workflow_dispatch:
 jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Crear archivos PWA y respaldo
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-          if 'manifest.webmanifest' not in s:
-              s=s.replace('</head>','<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon.svg" type="image/svg+xml"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="Mi Cartera PRO"><link rel="apple-touch-icon" href="icon.svg"></head>',1)
-          anchor='<button class="btn" id="cloudUserBtn" onclick="openCloudLogin()">☁️ Entrar</button>'
-          if 'openBackupPanel()' not in s:
-              s=s.replace(anchor,'<button class="btn" onclick="openBackupPanel()">💾 Respaldo</button>'+anchor,1)
-          if 'src="backup.js"' not in s:
-              s=s.replace('</body>','<script src="backup.js"></script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script></body>',1)
-          p.write_text(s,encoding='utf-8')
-          Path('manifest.webmanifest').write_text('''{"name":"Mi Cartera PRO V21 Cloud","short_name":"Mi Cartera PRO","description":"Gestión de clientes, créditos, cobranza, caja y cartera.","start_url":"./","scope":"./","display":"standalone","orientation":"portrait","background_color":"#f4f6f7","theme_color":"#78c7ef","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}''',encoding='utf-8')
-          Path('icon.svg').write_text('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="96" fill="#78c7ef"/><rect x="96" y="120" width="320" height="272" rx="36" fill="#fff"/><path d="M140 190h232M140 250h180M140 310h120" stroke="#3ba9e8" stroke-width="28" stroke-linecap="round"/><circle cx="352" cy="326" r="38" fill="#31a354"/><path d="m334 326 12 12 24-27" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg>''',encoding='utf-8')
-          Path('sw.js').write_text('''const CACHE="mi-cartera-pro-v21-v1";const CORE=["./","./index.html","./manifest.webmanifest","./icon.svg","./backup.js"];self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()))});self.addEventListener("activate",e=>{e.waitUntil(self.clients.claim())});self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(x=>{const c=x.clone();caches.open(CACHE).then(k=>k.put(e.request,c));return x}).catch(()=>caches.match("./index.html"))))});''',encoding='utf-8')
-          Path('backup.js').write_text('''(function(){function safeDb(){try{return typeof db!=="undefined"?db:null}catch(e){return null}}function openBackupPanel(){const old=document.getElementById("backupPanel");if(old){old.remove();return}const d=document.createElement("div");d.id="backupPanel";d.className="modal open";d.innerHTML='<div class="sheet"><button class="btn close" onclick="document.getElementById(\\'backupPanel\\').remove()">✕</button><div class="sectionTitle">Respaldo y recuperación</div><p class="small muted">Exporta tu información y restáurala en otro dispositivo.</p><div class="card"><b>Guardar respaldo</b><p class="small">Clientes, créditos, pagos, caja, rutas, usuarios y configuración.</p><button class="btn green wide" onclick="exportCarteraBackup()">⬇️ Descargar respaldo</button></div><div class="card"><b>Recuperar respaldo</b><input id="backupFile" type="file" accept="application/json,.json" class="input" style="margin-bottom:8px"><button class="btn blue wide" onclick="importCarteraBackup()">⬆️ Restaurar respaldo</button></div><div class="card"><b>Importante</b><div class="small">La recuperación automática entre dispositivos llegará con la cuenta Cloud y la base de datos central.</div></div></div>';document.body.appendChild(d)}function exportCarteraBackup(){const d=safeDb();if(!d)return toast("No se pudo leer la información");const payload={app:"Mi Cartera PRO V21 Cloud",version:21,exportedAt:new Date().toISOString(),db:d};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="mi-cartera-backup-"+(typeof today==='function'?today():new Date().toISOString().slice(0,10))+".json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast("Respaldo descargado correctamente")}function importCarteraBackup(){const input=document.getElementById("backupFile"),file=input&&input.files&&input.files[0];if(!file)return toast("Selecciona un respaldo .json");const r=new FileReader();r.onload=()=>{try{const p=JSON.parse(r.result);if(!p||!p.db||!Array.isArray(p.db.clients)||!Array.isArray(p.db.credits)||!Array.isArray(p.db.payments))throw new Error();if(!confirm("Esto reemplazará los datos locales actuales. ¿Continuar?"))return;localStorage.setItem("miCarteraDB",JSON.stringify(p.db));location.reload()}catch(e){toast("Respaldo inválido o dañado")}};r.readAsText(file)}window.openBackupPanel=openBackupPanel;window.exportCarteraBackup=exportCarteraBackup;window.importCarteraBackup=importCarteraBackup})();''',encoding='utf-8')
-          PY
+      - name: Aplicar PWA y respaldo
+        run: python3 scripts/patch_pwa.py
       - name: Validar
         run: |
           node --check backup.js
@@ -35,7 +18,7 @@ jobs:
           test -s sw.js
           grep -q 'manifest.webmanifest' index.html
           grep -q 'openBackupPanel' index.html
-      - name: Guardar cambios
+      - name: Publicar
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
