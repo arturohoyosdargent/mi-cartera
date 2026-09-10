@@ -21,16 +21,13 @@ window.cloudLogout=async()=>{if(auth)await signOut(auth);};
 window.cloudSyncNow=async()=>{
   if(!ready||!auth?.currentUser){toast('Inicia sesión en Cloud primero.');return false;}
   try{
-    // Primero subimos los datos locales actuales para no pisar cambios pendientes.
     await pushLocalAllowed();
-    // Las eliminaciones no pueden viajar con pushList porque el registro ya no existe localmente.
     const pending=(db.syncQueue||[]).filter(x=>x.status==='PENDIENTE'||x.status==='ERROR');
     for(const item of pending){
       if(item.type==='CLIENTE_ELIMINADO'&&item.payload?.id!=null){
         await deleteDoc(doc(fs,`orgs/${orgId}/clients`,String(item.payload.id)));
       }
     }
-    // Luego descargamos el estado confirmado de Cloud.
     await pullCloud();
     localStorage.setItem(SEED_KEY,'1');
     toast('Cloud sincronizado.');
@@ -113,18 +110,33 @@ window.cloudCreateUser=async()=>{
   try{
     creatorApp=getApps().find(a=>a.name==='prestamoYaUserCreator')||initializeApp(cfg,'prestamoYaUserCreator');
     try{creatorAuth=getAuth(creatorApp);}catch(_){creatorAuth=initializeAuth(creatorApp,{persistence:inMemoryPersistence});}
-    const cred=await createUserWithEmailAndPassword(creatorAuth,email,password);
+    let cred;
+    try{
+      cred=await createUserWithEmailAndPassword(creatorAuth,email,password);
+    }catch(e){
+      if(e?.code==='auth/email-already-in-use'){
+        show('El correo ya existe. Verificando el acceso y recuperando su perfil...');
+        cred=await signInWithEmailAndPassword(creatorAuth,email,password);
+      }else throw e;
+    }
     createdUser=cred.user;
-    show('Usuario creado. Guardando permisos...');
-    await setDoc(doc(fs,'users',createdUser.uid),{uid:createdUser.uid,orgId,name,email:createdUser.email,role:rolev,routeIds:route?[route]:[],active:true,createdAt:new Date().toISOString(),createdBy:auth.currentUser.uid});
+    const profile={uid:createdUser.uid,orgId,name,email:createdUser.email,role:rolev,routeIds:route?[route]:[],active:true,createdAt:new Date().toISOString(),createdBy:auth.currentUser.uid};
+    show('Guardando permisos...');
+    await setDoc(doc(fs,'users',createdUser.uid),profile,{merge:true});
     await signOut(creatorAuth);
+    const localUsers=Array.isArray(db.users)?db.users:[];
+    const idx=localUsers.findIndex(u=>String(u.id||u.uid)===String(createdUser.uid));
+    const localUser={id:createdUser.uid,uid:createdUser.uid,name,role:rolev,active:true,routeIds:route?[route]:[],email:createdUser.email};
+    if(idx>=0)localUsers[idx]={...localUsers[idx],...localUser};else localUsers.push(localUser);
+    db.users=localUsers;
+    saveCloudDb();
+    try{renderAll();}catch(_){ }
     show('Acceso creado correctamente.');
     setTimeout(()=>{closeForm();toast('Usuario Cloud creado: '+(createdUser.email||email));},500);
   }catch(e){
     console.error('Crear acceso Cloud:',e);
-    if(createdUser){try{await deleteUser(createdUser);}catch(_){} }
     const code=e?.code||'';
-    const detail=code==='auth/email-already-in-use'||code==='auth/email-already-exists'?'El correo ya está registrado en Firebase.':code==='auth/admin-restricted-operation'?'Firebase tiene bloqueada la creación de cuentas desde la aplicación.':code==='permission-denied'||code==='firestore/permission-denied'?'Firebase rechazó el permiso para guardar el perfil del usuario.':(e?.message||code||'Error desconocido');
+    const detail=code==='auth/email-already-in-use'?'El correo ya está registrado y la contraseña no coincide.':code==='auth/invalid-credential'?'El correo ya existe, pero la contraseña temporal ingresada no coincide.':code==='auth/admin-restricted-operation'?'Firebase tiene bloqueada la creación de cuentas desde la aplicación.':code==='permission-denied'||code==='firestore/permission-denied'?'Firebase rechazó el permiso para guardar el perfil del usuario.':(e?.message||code||'Error desconocido');
     show('ERROR: '+detail);
     if(btn){btn.disabled=false;btn.textContent='Crear acceso';}
   }
