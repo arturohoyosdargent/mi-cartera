@@ -1,0 +1,59 @@
+name: Hardening global Préstamo Ya
+on:
+  push:
+    branches: [main]
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply global hardening
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          reps={
+          "function currentUser(){return db.users.find(u=>u.id===currentUserId)||db.users[0]||{id:'u-admin',name:'Administrador',role:'admin'}}\nfunction isAdmin(){return ['admin','supervisor'].includes(currentUser().role)}": "function currentUser(){return db.users.find(u=>u.id===currentUserId)||db.users[0]||{id:'u-admin',name:'Administrador',role:'admin'}}\nfunction isAdmin(){return ['admin','supervisor'].includes(currentUser().role)}\nfunction assignedRouteIds(){const u=currentUser();return Array.isArray(u.routeIds)?u.routeIds:[]}\nfunction canAccessRoute(rid){return isAdmin()||assignedRouteIds().includes(String(rid))||assignedRouteIds().includes(rid)}\nfunction canManageUsers(){return currentUser().role==='admin'}\nfunction canManageCompany(){return ['admin','supervisor'].includes(currentUser().role)}",
+          "function go(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');": "function go(id){if(!isAdmin()&&['users','investors','settings','audit','profile'].includes(id))return toast('Acceso restringido a administradores y supervisores');document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');",
+          "function renderRouteOptions(id,all=true){const e=$(id);if(!e)return;e.innerHTML=(all?'<option value=\"all\">Todas</option>':'')+db.routes.map(r=>`<option value=\"${r.id}\">${r.name}</option>`).join('')}": "function renderRouteOptions(id,all=true){const e=$(id);if(!e)return;const routes=isAdmin()?db.routes:db.routes.filter(r=>canAccessRoute(r.id));e.innerHTML=(all&&isAdmin()?'<option value=\"all\">Todas</option>':'')+routes.map(r=>`<option value=\"${r.id}\">${r.name}</option>`).join('')}",
+          "function renderClients(){const q=($('clientSearch')?.value||'').toLowerCase();$('clientsList').innerHTML=db.clients.filter(c=>": "function renderClients(){const q=($('clientSearch')?.value||'').toLowerCase();$('clientsList').innerHTML=db.clients.filter(c=>canAccessRoute(c.routeId)).filter(c=>",
+          "function renderCredits(){const el=$('creditsList');if(!el)return;let arr=db.credits.slice();": "function renderCredits(){const el=$('creditsList');if(!el)return;let arr=db.credits.filter(c=>canAccessRoute(c.routeId));",
+          "function registerPayment(id){const cr=db.credits.find(x=>x.id===id),amount=+$('payAmount').value;": "function registerPayment(id){const cr=db.credits.find(x=>x.id===id),amount=+$('payAmount').value;if(!cr||!canAccessRoute(cr.routeId))return toast('No autorizado para esta ruta');",
+          "db.payments.push({id:Date.now(),creditId:id,date:today(),amount,type,method,note:$('payNote').value.trim(),user:'Administrador'});": "db.payments.push({id:Date.now(),creditId:id,date:today(),amount,type,method,note:$('payNote').value.trim(),user:currentUser().name});",
+          "function saveCapital(){const amount=+$('xCapAmount').value;": "function saveCapital(){if(!canManageCompany())return toast('Solo administración puede gestionar capital');const amount=+$('xCapAmount').value;",
+          "function saveSettings(){db.settings.defaultRestDay": "function saveSettings(){if(!canManageCompany())return toast('Solo administración puede cambiar parámetros');db.settings.defaultRestDay",
+          "function saveProfile(){db.profile.name": "function saveProfile(){if(!canManageCompany())return toast('Solo administración puede modificar la empresa');db.profile.name",
+          "function addRoute(){openForm(": "function addRoute(){if(!canManageCompany())return toast('Solo administración puede crear rutas');openForm(",
+          "function saveRoute(){const n=$('xRouteName').value.trim();": "function saveRoute(){if(!canManageCompany())return toast('Solo administración puede crear rutas');const n=$('xRouteName').value.trim();",
+          "function assignCollector(rid){const users=": "function assignCollector(rid){if(!canManageCompany())return toast('Solo administración puede asignar cobradores');const users=",
+          "function saveAssignment(rid){const u=": "function saveAssignment(rid){if(!canManageCompany())return toast('Solo administración puede asignar cobradores');const u=",
+          "function openUserForm(id){const u=": "function openUserForm(id){if(!canManageUsers())return toast('Solo el administrador puede gestionar usuarios locales');const u=",
+          "function saveUser(id){const name=": "function saveUser(id){if(!canManageUsers())return toast('Solo el administrador puede gestionar usuarios');const name=",
+          "function toggleUser(id){const u=": "function toggleUser(id){if(!canManageUsers())return toast('Solo el administrador puede gestionar usuarios');const u=",
+          }
+          for a,b in reps.items(): s=s.replace(a,b,1)
+          old='<div class="card"><b>${u.name}</b><br>Rol: ${u.role} · ${u.active?\'<span class="status sGreen">Activo</span>\':\'<span class="status sGray">Inactivo</span>\'}'
+          new='<div class="card"><b>${u.name}</b><br>Rol: ${u.role} · ${u.active?\'<span class="status sGreen">Activo</span>\':\'<span class="status sGray">Inactivo</span>\'}<br>Correo: ${u.email||\'-\'} · Ruta: ${(u.routeIds||[]).map(routeName).join(\', \')||\'Sin asignar\'}'
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          p=Path('firebase-cloud-core.js')
+          s=p.read_text(encoding='utf-8')
+          old="db.users=db.users||[];let lu=db.users.find(x=>x.id===user.uid);if(!lu){lu={id:user.uid,name:currentProfile.name||user.email,role:currentProfile.role||'consulta',active:true,routeIds:Array.isArray(currentProfile.routeIds)?currentProfile.routeIds:[],email:currentProfile.email||user.email};db.users.push(lu);}currentUserId=user.uid;"
+          new="db.users=db.users||[];let lu=db.users.find(x=>x.id===user.uid);const cloudUser={id:user.uid,uid:user.uid,name:currentProfile.name||user.email,role:currentProfile.role||'consulta',active:true,routeIds:Array.isArray(currentProfile.routeIds)?currentProfile.routeIds:[],email:currentProfile.email||user.email};if(lu)Object.assign(lu,cloudUser);else{lu=cloudUser;db.users.push(lu);}currentUserId=user.uid;"
+          s=s.replace(old,new,1)
+          old="}else{\n    await pushList('payments',(db.payments||[]).map(p=>{"
+          new="}else{\n    const rids=routeIds();\n    await pushList('clients',(db.clients||[]).filter(c=>rids.includes(c.routeId)));\n    await pushList('payments',(db.payments||[]).map(p=>{"
+          s=s.replace(old,new,1)
+          old="    await pullCloud();\n    localStorage.setItem(SEED_KEY,'1');\n    toast('Cloud sincronizado.');\n    return true;"
+          new="    await pullCloud();\n    const pushable=new Set(canAll()?['CLIENTE_CREADO','CLIENTE_MODIFICADO','CREDITO_CREADO','CREDITO_MODIFICADO','RECAUDO','CIERRE_CAJA','SOLICITUD_AUTORIZACION','AUTORIZACION_APROBADA','AUTORIZACION_RECHAZADA','CLIENTE_ELIMINADO']:['CLIENTE_CREADO','CLIENTE_MODIFICADO','RECAUDO','CIERRE_CAJA','SOLICITUD_AUTORIZACION']);\n    (db.syncQueue||[]).forEach(x=>{if((x.status==='PENDIENTE'||x.status==='ERROR')&&pushable.has(x.type)){x.status='SINCRONIZADO';x.syncedAt=new Date().toISOString();x.error='';}});\n    saveCloudDb();\n    localStorage.setItem(SEED_KEY,'1');\n    toast('Cloud sincronizado.');\n    return true;"
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html firebase-cloud-core.js
+          git diff --cached --quiet || git commit -m "Endurecer permisos, rutas y sincronizacion Cloud"
+          git push
