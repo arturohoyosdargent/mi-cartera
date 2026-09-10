@@ -10,6 +10,7 @@ let app=null,auth=null,fs=null,functions=null,currentProfile=null;
 const el=id=>document.getElementById(id);
 const orgId=orgCfg.orgId||'mi-cartera';
 const DB_KEY='mi_cartera_pro_v21';
+const SEED_KEY='prestamo_ya_cloud_seeded_'+orgId;
 function status(t){if(el('cloudStatus'))el('cloudStatus').textContent=t;}
 function msg(t){if(el('cloudLoginMsg'))el('cloudLoginMsg').textContent=t;}
 function saveCloudDb(){try{const raw=JSON.stringify(db);localStorage.setItem(DB_KEY,raw);localStorage.setItem('mi_cartera_pro_v19',raw)}catch(e){console.error(e)}}
@@ -18,7 +19,7 @@ function closeLogin(){el('cloudLoginModal')?.classList.remove('open');}
 window.openCloudLogin=openLogin; window.closeCloudLogin=closeLogin;
 window.cloudLogin=async()=>{if(!ready)return msg('Firebase todavía no está configurado. Completa firebase-config.js.');const email=el('cloudEmail')?.value.trim(),pass=el('cloudPassword')?.value;if(!email||!pass)return msg('Ingrese correo y contraseña.');try{msg('Conectando...');await signInWithEmailAndPassword(auth,email,pass);closeLogin();}catch(e){console.error(e);msg('No se pudo iniciar sesión: '+(e.code||e.message));}};
 window.cloudLogout=async()=>{if(auth)await signOut(auth);};
-window.cloudSyncNow=async()=>{if(!ready||!auth?.currentUser)return toast('Inicia sesión en Cloud primero.');try{await pullCloud();await pushLocalAllowed();toast('Cloud sincronizado.');}catch(e){console.error(e);toast('Error Cloud: '+(e.code||e.message));}};
+window.cloudSyncNow=async()=>{if(!ready||!auth?.currentUser)return toast('Inicia sesión en Cloud primero.');try{await pullCloud();await pushLocalAllowed();localStorage.setItem(SEED_KEY,'1');toast('Cloud sincronizado.');}catch(e){console.error(e);toast('Error Cloud: '+(e.code||e.message));}};
 function addMeta(obj){return {...obj,orgId,userId:auth.currentUser.uid,updatedAt:serverTimestamp()};}
 async function getProfile(uid){const snap=await getDoc(doc(fs,'users',uid));return snap.exists()?snap.data():null;}
 function role(){return currentProfile?.role||'consulta';}
@@ -51,7 +52,14 @@ async function pullCloud(){
     data.cashClosures=await pullCollection('cashClosures',[where('userId','==',auth.currentUser.uid)]);
     data.approvals=await pullCollection('approvals',[where('requestedByUid','==',auth.currentUser.uid)]);
   }
-  for(const n of Object.keys(data))if(Array.isArray(data[n]))db[n]=data[n];
+  const firstCloudMigration=localStorage.getItem(SEED_KEY)!=='1';
+  for(const n of Object.keys(data)){
+    if(!Array.isArray(data[n]))continue;
+    const local=Array.isArray(db[n])?db[n]:[];
+    if(firstCloudMigration&&data[n].length===0&&local.length){data[n]=local;continue;}
+    if(firstCloudMigration&&local.length){const m=new Map(local.map(x=>[String(x.id),x]));for(const x of data[n])m.set(String(x.id),x);data[n]=Array.from(m.values());}
+    db[n]=data[n];
+  }
   dedupeClients(true);
   db.currentUserId=currentProfile.localUserId||db.currentUserId;
   saveCloudDb();
@@ -85,7 +93,16 @@ if(ready){
     enableIndexedDbPersistence(fs).catch(()=>{});
     onAuthStateChanged(auth,async user=>{
       if(!user){currentProfile=null;updateUI();return;}
-      try{currentProfile=await getProfile(user.uid);if(!currentProfile||currentProfile.active===false){await signOut(auth);return msg('Usuario sin perfil activo en Mi Cartera.');}db.users=db.users||[];let lu=db.users.find(x=>x.id===user.uid);if(!lu){lu={id:user.uid,name:currentProfile.name||user.email,role:currentProfile.role||'consulta',active:true};db.users.push(lu);}currentUserId=user.uid;db.currentUserId=user.uid;saveCloudDb();updateUI();await pullCloud();await pushLocalAllowed();toast('Sesión Cloud iniciada');}catch(e){console.error(e);status('🔴 Error al cargar perfil Cloud');}
+      try{
+        currentProfile=await getProfile(user.uid);if(!currentProfile||currentProfile.active===false){await signOut(auth);return msg('Usuario sin perfil activo en Préstamo Ya.');}
+        db.users=db.users||[];let lu=db.users.find(x=>x.id===user.uid);if(!lu){lu={id:user.uid,name:currentProfile.name||user.email,role:currentProfile.role||'consulta',active:true};db.users.push(lu);}currentUserId=user.uid;db.currentUserId=user.uid;saveCloudDb();updateUI();
+        const firstCloudMigration=localStorage.getItem(SEED_KEY)!=='1';
+        if(firstCloudMigration&&canAll())await pushLocalAllowed();
+        await pullCloud();
+        await pushLocalAllowed();
+        localStorage.setItem(SEED_KEY,'1');
+        toast('Sesión Cloud iniciada');
+      }catch(e){console.error(e);status('🔴 Error al cargar perfil Cloud');}
     });
   }catch(e){console.error(e);status('🔴 Error de configuración Firebase');}
 }else{updateUI();}
