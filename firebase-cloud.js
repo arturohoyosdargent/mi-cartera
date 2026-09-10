@@ -25,17 +25,13 @@
       if(typeof window.cloudSyncNow==='function'){
         window.syncNow=async()=>{
           if(!navigator.onLine)return toast('Sin internet: la información sigue guardada localmente.');
-          const pending=(window.db?.syncQueue||[]).filter(x=>x.status==='PENDIENTE'||x.status==='ERROR');
+          const pending=(db.syncQueue||[]).filter(x=>x.status==='PENDIENTE'||x.status==='ERROR');
           if(!pending.length)return toast('No hay operaciones pendientes.');
           const ok=await window.cloudSyncNow();
           if(ok===true){
             pending.forEach(x=>{x.status='SINCRONIZADO';x.syncedAt=new Date().toISOString();x.error='';});
-            try{
-              if(window.db?.settings)window.db.settings.lastOnline=new Date().toISOString();
-              if(typeof persist==='function')persist();
-              if(typeof updateSyncUI==='function')updateSyncUI();
-              if(typeof renderAll==='function')renderAll();
-            }catch(e){console.warn('No se pudo refrescar la cola local',e)}
+            db.settings.lastOnline=new Date().toISOString();
+            try{persist();updateSyncUI();renderAll();}catch(e){console.warn('No se pudo refrescar la cola local',e)}
             toast('Sincronización completada: '+pending.length+' operación(es).');
           }
         };
