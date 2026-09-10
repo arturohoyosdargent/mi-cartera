@@ -77,28 +77,34 @@ async function pushLocalAllowed(){
 }
 window.openCloudUserForm=()=>{
   if(!currentProfile||role()!=='admin')return toast('Solo el administrador puede crear accesos Cloud.');
-  openForm('Crear acceso Cloud',`<div class="field"><label>Nombre</label><input class="input" id="cloudNewName"></div><div class="field"><label>Correo</label><input class="input" id="cloudNewEmail" type="email"></div><div class="field"><label>Contraseña temporal</label><input class="input" id="cloudNewPass" type="password" minlength="6"></div><div class="field"><label>Rol</label><select class="select" id="cloudNewRole"><option value="cobrador">Cobrador</option><option value="supervisor">Supervisor</option><option value="consulta">Consulta</option></select></div><div class="field"><label>Ruta ID (opcional)</label><input class="input" id="cloudNewRoute"></div><button class="btn green wide" onclick="cloudCreateUser()">Crear acceso</button>`);
+  openForm('Crear acceso Cloud',`<div class="field"><label>Nombre</label><input class="input" id="cloudNewName"></div><div class="field"><label>Correo</label><input class="input" id="cloudNewEmail" type="email"></div><div class="field"><label>Contraseña temporal</label><input class="input" id="cloudNewPass" type="password" minlength="6"></div><div class="field"><label>Rol</label><select class="select" id="cloudNewRole"><option value="cobrador">Cobrador</option><option value="supervisor">Supervisor</option><option value="consulta">Consulta</option></select></div><div class="field"><label>Ruta ID (opcional)</label><input class="input" id="cloudNewRoute"></div><div id="cloudCreateUserMsg" class="small muted" style="margin:8px 0"></div><button type="button" class="btn green wide" id="cloudCreateUserBtn" onclick="window.cloudCreateUser()">Crear acceso</button>`);
 };
 window.cloudCreateUser=async()=>{
   if(!currentProfile||role()!=='admin')return toast('No autorizado');
-  const name=el('cloudNewName').value.trim(),email=el('cloudNewEmail').value.trim().toLowerCase(),password=el('cloudNewPass').value,rolev=el('cloudNewRole').value,route=el('cloudNewRoute').value.trim();
-  if(!name||!email||password.length<6)return toast('Complete nombre, correo y contraseña de 6+ caracteres.');
+  const msgEl=el('cloudCreateUserMsg'),btn=el('cloudCreateUserBtn');
+  const show=t=>{if(msgEl)msgEl.textContent=t;};
+  const name=el('cloudNewName')?.value.trim(),email=el('cloudNewEmail')?.value.trim().toLowerCase(),password=el('cloudNewPass')?.value,rolev=el('cloudNewRole')?.value,route=el('cloudNewRoute')?.value.trim();
+  if(!name||!email||password.length<6){show('Complete nombre, correo y contraseña de 6+ caracteres.');return;}
+  if(btn){btn.disabled=true;btn.textContent='Creando acceso...';}
+  show('Creando usuario en Firebase...');
   let creatorApp=null,creatorAuth=null,createdUser=null;
   try{
     creatorApp=getApps().find(a=>a.name==='prestamoYaUserCreator')||initializeApp(cfg,'prestamoYaUserCreator');
     try{creatorAuth=getAuth(creatorApp);}catch(_){creatorAuth=initializeAuth(creatorApp,{persistence:inMemoryPersistence});}
     const cred=await createUserWithEmailAndPassword(creatorAuth,email,password);
     createdUser=cred.user;
+    show('Usuario creado. Guardando permisos...');
     await setDoc(doc(fs,'users',createdUser.uid),{uid:createdUser.uid,orgId,name,email:createdUser.email,role:rolev,routeIds:route?[route]:[],active:true,createdAt:new Date().toISOString(),createdBy:auth.currentUser.uid});
     await signOut(creatorAuth);
-    closeForm();
-    toast('Usuario Cloud creado: '+(createdUser.email||email));
+    show('Acceso creado correctamente.');
+    setTimeout(()=>{closeForm();toast('Usuario Cloud creado: '+(createdUser.email||email));},500);
   }catch(e){
-    console.error(e);
+    console.error('Crear acceso Cloud:',e);
     if(createdUser){try{await deleteUser(createdUser);}catch(_){} }
     const code=e?.code||'';
-    const detail=code==='auth/email-already-in-use'||code==='auth/email-already-exists'?'El correo ya está registrado en Firebase.':(e?.message||code||'Error desconocido');
-    toast('No se pudo crear: '+detail);
+    const detail=code==='auth/email-already-in-use'||code==='auth/email-already-exists'?'El correo ya está registrado en Firebase.':code==='auth/admin-restricted-operation'?'Firebase tiene bloqueada la creación de cuentas desde la aplicación.':code==='permission-denied'||code==='firestore/permission-denied'?'Firebase rechazó el permiso para guardar el perfil del usuario.':(e?.message||code||'Error desconocido');
+    show('ERROR: '+detail);
+    if(btn){btn.disabled=false;btn.textContent='Crear acceso';}
   }
 };
 function updateUI(){
