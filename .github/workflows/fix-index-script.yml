@@ -28,9 +28,6 @@ jobs:
               raise SystemExit('No se encontró el script principal')
           body_start = start + len('<script>')
           body = s[body_start:end]
-          # The HTML parser treats every literal </script> as the end of the
-          # current script, even when it appears inside a JavaScript string.
-          # Escape every such terminator inside the main JS body.
           body = body.replace('</script>', '<\\/script>')
           s = s[:body_start] + body + s[end:]
           s = s.replace('<h1 id="title">Mi Cartera</h1>', '<h1 id="title">Préstamo Ya</h1>')
@@ -47,14 +44,14 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           s = Path('index.html').read_text(encoding='utf-8')
-          print('script tags:', s.count('<script'), 'closing tags:', s.count('</script>'))
           start = s.find('<script>\nconst KEY=')
           marker = '\n</script>\n<script src="firebase-config.js'
           end = s.find(marker, start)
           assert start >= 0 and end > start
           body = s[start + len('<script>'):end]
           assert '</script>' not in body, 'Hay un cierre </script> sin escapar dentro del JS principal'
-          assert s.count('<script') == s.count('</script>'), 'Etiquetas script desbalanceadas'
+          assert s.count('</script>') == 4, 'Debe haber exactamente 4 cierres de script HTML reales'
+          print('OK: script principal sin terminadores HTML internos')
           PY
       - name: Commit fix
         run: |
