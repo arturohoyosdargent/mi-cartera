@@ -44,11 +44,7 @@ async function pullCloud(){
     data.routes=await pullCollection('routes',[where('collectorId','==',auth.currentUser.uid)]);
     const rids=data.routes.map(x=>x.id);
     data.clients=[]; data.credits=[]; data.payments=[];
-    for(const rid of rids){
-      const cs=await pullCollection('clients',[where('routeId','==',rid)]);data.clients.push(...cs);
-      const cr=await pullCollection('credits',[where('routeId','==',rid)]);data.credits.push(...cr);
-      for(const crd of cr){const ps=await pullCollection('payments',[where('creditId','==',crd.id)]);data.payments.push(...ps);}
-    }
+    for(const rid of rids){const cs=await pullCollection('clients',[where('routeId','==',rid)]);data.clients.push(...cs);const cr=await pullCollection('credits',[where('routeId','==',rid)]);data.credits.push(...cr);for(const crd of cr){const ps=await pullCollection('payments',[where('creditId','==',crd.id)]);data.payments.push(...ps);}}
     data.cashClosures=await pullCollection('cashClosures',[where('userId','==',auth.currentUser.uid)]);
     data.approvals=await pullCollection('approvals',[where('requestedByUid','==',auth.currentUser.uid)]);
   }
@@ -56,6 +52,8 @@ async function pullCloud(){
   for(const n of Object.keys(data)){
     if(!Array.isArray(data[n]))continue;
     const local=Array.isArray(db[n])?db[n]:[];
+    // On the first Cloud login, preserve local operational records that the current user owns.
+    // Route/client/credit master data for non-managers remains Cloud-authoritative for security.
     if(firstCloudMigration&&local.length&&['payments','cashClosures','approvals'].includes(n)){
       const m=new Map(data[n].map(x=>[String(x.id),x]));
       for(const x of local)m.set(String(x.id),x);
