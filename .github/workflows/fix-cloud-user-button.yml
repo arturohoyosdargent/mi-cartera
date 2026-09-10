@@ -1,6 +1,11 @@
 name: Fix cloud user button
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-cloud-user-button.yml'
+      - 'firebase-cloud-core.js'
   workflow_dispatch:
 
 permissions:
