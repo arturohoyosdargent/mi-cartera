@@ -53,6 +53,8 @@ jobs:
           assert "request.resource.data.uid == uid" in s
           assert "validUserProfile(uid)" in s
           assert "me().routeIds is list" in s
+          assert "function supervisor()" in s
+          assert "(manager() && sameOrg(resource.data.orgId))" in s
           assert "collection in ['capital','entries','expenses','audit']" in s
           print('QA Firestore Rules OK')
           PY
