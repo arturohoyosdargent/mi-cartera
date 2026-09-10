@@ -1,5 +1,5 @@
-// Cargador de seguridad: el index actual contiene una etiqueta </script> dentro de una plantilla HTML.
-// Recuperamos el script principal como texto, corregimos esa secuencia y lo ejecutamos antes de Cloud.
+// Cargador de seguridad: el index contiene una secuencia </script> dentro de una plantilla HTML.
+// Recuperamos el script principal como texto y lo inyectamos como script DOM para evitar eval/CSP.
 (async()=>{
   try{
     const res=await fetch('./index.html?bootstrap='+Date.now(),{cache:'no-store'});
@@ -8,12 +8,13 @@
     const marker='</script>\n<script src="firebase-config.js';
     const end=html.indexOf(marker,start);
     if(start<0||end<0)throw new Error('No se encontró el script principal');
-    let code=html.slice(start+'<script>'.length,end);
-    code=code.replaceAll('</script>','<\\/script>');
-    (0,eval)(code);
+    const code=html.slice(start+'<script>'.length,end);
+    const main=document.createElement('script');
+    main.textContent=code;
+    document.head.appendChild(main);
     const core=document.createElement('script');
     core.type='module';
-    core.src='./firebase-cloud-core.js?v=22';
+    core.src='./firebase-cloud-core.js?v=23';
     document.head.appendChild(core);
     console.log('Préstamo Ya: núcleo principal cargado correctamente');
   }catch(e){
