@@ -24,16 +24,16 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import json
+          import json,re
           html=Path('index.html').read_text(encoding='utf-8')
           assert '<title>Préstamo Ya</title>' in html
           assert 'manifest.webmanifest' in html
           assert 'icon.svg' in html
           assert '<script src="backup.js"></script>' not in html
-          marker='</script>\n<script src="firebase-config.js"'
           start=html.find('<script>')
-          end=html.find(marker,start)
-          assert start>=0 and end>start, 'No se encontró el cierre seguro del script principal'
+          marker=re.search(r'</script>\s*<script src="firebase-config\.js(?:\?[^\"]*)?"></script>',html[start:])
+          assert start>=0 and marker, 'No se encontró el cierre seguro del script principal'
+          end=start+marker.start()
           body=html[start+len('<script>'):end]
           assert '</script>' not in body, 'Hay un </script> sin escapar dentro del JavaScript principal'
           json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
