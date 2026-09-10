@@ -1,0 +1,50 @@
+name: QA Préstamo Ya
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar archivos JavaScript
+        run: |
+          node --check backup.js
+          node --check sw.js
+          node --check firebase-cloud-core.js
+
+      - name: Validar index y PWA
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          html=Path('index.html').read_text(encoding='utf-8')
+          assert '<title>Préstamo Ya</title>' in html
+          assert 'manifest.webmanifest' in html
+          assert 'icon.svg' in html
+          assert '<script src="backup.js"></script>' not in html
+          marker='</script>\n<script src="firebase-config.js"'
+          start=html.find('<script>')
+          end=html.find(marker,start)
+          assert start>=0 and end>start, 'No se encontró el cierre seguro del script principal'
+          body=html[start+len('<script>'):end]
+          assert '</script>' not in body, 'Hay un </script> sin escapar dentro del JavaScript principal'
+          json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
+          print('QA HTML/PWA OK')
+          PY
+
+      - name: Verificar estructura Cloud
+        run: |
+          test -f firebase-config.js
+          test -f firebase-cloud-core.js
+          test -f firestore.rules
+          test -f firebase.json
+          test -f functions/index.js
+          echo 'QA Cloud OK'
