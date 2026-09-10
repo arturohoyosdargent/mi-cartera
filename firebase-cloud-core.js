@@ -104,13 +104,13 @@ async function pushLocalAllowed(){
 }
 window.openCloudUserForm=()=>{
   if(!currentProfile||role()!=='admin')return toast('Solo el administrador puede crear accesos Cloud.');
-  openForm('Crear acceso Cloud',`<div class="field"><label>Nombre</label><input class="input" id="cloudNewName"></div><div class="field"><label>Correo</label><input class="input" id="cloudNewEmail" type="email"></div><div class="field"><label>Contraseña temporal</label><input class="input" id="cloudNewPass" type="password" minlength="6"></div><div class="field"><label>Rol</label><select class="select" id="cloudNewRole"><option value="cobrador">Cobrador</option><option value="supervisor">Supervisor</option><option value="consulta">Consulta</option></select></div><div class="field"><label>Ruta ID (opcional)</label><input class="input" id="cloudNewRoute"></div><div id="cloudCreateUserMsg" class="small muted" style="margin:8px 0"></div><button type="button" class="btn green wide" id="cloudCreateUserBtn" onclick="window.cloudCreateUser()">Crear acceso</button>`);
+  openForm('Crear acceso Cloud',`<div class="field"><label>Nombre</label><input class="input" id="cloudNewName"></div><div class="field"><label>Correo</label><input class="input" id="cloudNewEmail" type="email"></div><div class="field"><label>Contraseña temporal</label><input class="input" id="cloudNewPass" type="password" minlength="6"></div><div class="field"><label>Rol</label><select class="select" id="cloudNewRole"><option value="cobrador">Cobrador</option><option value="supervisor">Supervisor</option><option value="consulta">Consulta</option></select></div><div class="field"><label>Ruta</label><select class="select" id="cloudNewRoute"><option value="">Sin ruta asignada</option>${(db.routes||[]).map(r=>'<option value="'+String(r.id).replace(/"/g,'&quot;')+'">'+String(r.name||r.id).replace(/</g,'&lt;')+'</option>').join('')}</select></div><div id="cloudCreateUserMsg" class="small muted" style="margin:8px 0"></div><button type="button" class="btn green wide" id="cloudCreateUserBtn" onclick="window.cloudCreateUser()">Crear acceso</button>`);
 };
 window.cloudCreateUser=async()=>{
   if(!currentProfile||role()!=='admin')return toast('No autorizado');
   const msgEl=el('cloudCreateUserMsg'),btn=el('cloudCreateUserBtn');
   const show=t=>{if(msgEl)msgEl.textContent=t;};
-  const name=el('cloudNewName')?.value.trim(),email=el('cloudNewEmail')?.value.trim().toLowerCase(),password=el('cloudNewPass')?.value,rolev=el('cloudNewRole')?.value,route=el('cloudNewRoute')?.value.trim();
+  const name=el('cloudNewName')?.value.trim(),email=el('cloudNewEmail')?.value.trim().toLowerCase(),password=el('cloudNewPass')?.value,rolev=el('cloudNewRole')?.value,routeRaw=el('cloudNewRoute')?.value.trim(); const routeObj=(db.routes||[]).find(r=>String(r.id)===routeRaw); const route=routeObj?.id||routeRaw;
   if(!name||!email||password.length<6){show('Complete nombre, correo y contraseña de 6+ caracteres.');return;}
   if(btn){btn.disabled=true;btn.textContent='Creando acceso...';}
   show('Creando usuario en Firebase...');
