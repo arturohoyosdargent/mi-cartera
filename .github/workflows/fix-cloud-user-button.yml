@@ -1,0 +1,38 @@
+name: Fix cloud user button
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch cloud user form
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('firebase-cloud-core.js')
+          s=p.read_text()
+          old='''<button class="btn green wide" onclick="cloudCreateUser()">Crear acceso</button>`);'''
+          new='''<div id="cloudCreateUserMsg" class="small muted" style="margin:8px 0"></div><button type="button" class="btn green wide" id="cloudCreateUserBtn" onclick="window.cloudCreateUser()">Crear acceso</button>`);'''
+          if old not in s:
+              raise SystemExit('No se encontró el botón de Crear acceso Cloud')
+          s=s.replace(old,new,1)
+          old2="""window.cloudCreateUser=async()=>{\n  if(!currentProfile||role()!=='admin')return toast('No autorizado');\n  const name=el('cloudNewName').value.trim(),email=el('cloudNewEmail').value.trim().toLowerCase(),password=el('cloudNewPass').value,rolev=el('cloudNewRole').value,route=el('cloudNewRoute').value.trim();\n  if(!name||!email||password.length<6)return toast('Complete nombre, correo y contraseña de 6+ caracteres.');\n  let creatorApp=null,creatorAuth=null,createdUser=null;\n  try{\n    creatorApp=getApps().find(a=>a.name==='prestamoYaUserCreator')||initializeApp(cfg,'prestamoYaUserCreator');\n    try{creatorAuth=getAuth(creatorApp);}catch(_){creatorAuth=initializeAuth(creatorApp,{persistence:inMemoryPersistence});}\n    const cred=await createUserWithEmailAndPassword(creatorAuth,email,password);\n    createdUser=cred.user;\n    await setDoc(doc(fs,'users',createdUser.uid),{uid:createdUser.uid,orgId,name,email:createdUser.email,role:rolev,routeIds:route?[route]:[],active:true,createdAt:new Date().toISOString(),createdBy:auth.currentUser.uid});\n    await signOut(creatorAuth);\n    closeForm();\n    toast('Usuario Cloud creado: '+(createdUser.email||email));\n  }catch(e){\n    console.error(e);\n    if(createdUser){try{await deleteUser(createdUser);}catch(_){} }\n    const code=e?.code||'';\n    const detail=code==='auth/email-already-in-use'||code==='auth/email-already-exists'?'El correo ya está registrado en Firebase.':(e?.message||code||'Error desconocido');\n    toast('No se pudo crear: '+detail);\n  }\n};"""
+          new2="""window.cloudCreateUser=async()=>{\n  if(!currentProfile||role()!=='admin')return toast('No autorizado');\n  const msgEl=el('cloudCreateUserMsg'),btn=el('cloudCreateUserBtn');\n  const show=t=>{if(msgEl)msgEl.textContent=t;};\n  const name=el('cloudNewName')?.value.trim(),email=el('cloudNewEmail')?.value.trim().toLowerCase(),password=el('cloudNewPass')?.value,rolev=el('cloudNewRole')?.value,route=el('cloudNewRoute')?.value.trim();\n  if(!name||!email||password.length<6){show('Complete nombre, correo y contraseña de 6+ caracteres.');return;}\n  if(btn){btn.disabled=true;btn.textContent='Creando acceso...';}\n  show('Creando usuario en Firebase...');\n  let creatorApp=null,creatorAuth=null,createdUser=null;\n  try{\n    creatorApp=getApps().find(a=>a.name==='prestamoYaUserCreator')||initializeApp(cfg,'prestamoYaUserCreator');\n    try{creatorAuth=getAuth(creatorApp);}catch(_){creatorAuth=initializeAuth(creatorApp,{persistence:inMemoryPersistence});}\n    const cred=await createUserWithEmailAndPassword(creatorAuth,email,password);\n    createdUser=cred.user;\n    show('Usuario creado. Guardando permisos...');\n    await setDoc(doc(fs,'users',createdUser.uid),{uid:createdUser.uid,orgId,name,email:createdUser.email,role:rolev,routeIds:route?[route]:[],active:true,createdAt:new Date().toISOString(),createdBy:auth.currentUser.uid});\n    await signOut(creatorAuth);\n    show('Acceso creado correctamente.');\n    setTimeout(()=>{closeForm();toast('Usuario Cloud creado: '+(createdUser.email||email));},500);\n  }catch(e){\n    console.error('Crear acceso Cloud:',e);\n    if(createdUser){try{await deleteUser(createdUser);}catch(_){} }\n    const code=e?.code||'';\n    const detail=code==='auth/email-already-in-use'||code==='auth/email-already-exists'?'El correo ya está registrado en Firebase.':code==='auth/admin-restricted-operation'?'Firebase tiene bloqueada la creación de cuentas desde la aplicación.':code==='permission-denied'||code==='firestore/permission-denied'?'Firebase rechazó el permiso para guardar el perfil del usuario.':(e?.message||code||'Error desconocido');\n    show('ERROR: '+detail);\n    if(btn){btn.disabled=false;btn.textContent='Crear acceso';}\n  }\n};"""
+          if old2 not in s:
+              raise SystemExit('No se encontró la función cloudCreateUser actual')
+          s=s.replace(old2,new2,1)
+          p.write_text(s)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firebase-cloud-core.js
+          git commit -m "Mostrar error real al crear acceso Cloud" || exit 0
+          git push
