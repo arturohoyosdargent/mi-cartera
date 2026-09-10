@@ -1,0 +1,50 @@
+name: Mejorar Balance V21
+on:
+  push:
+    paths:
+      - .github/workflows/patch-balance.yml
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parchear Balance
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          new_section='''<section id="balance" class="page"><div class="sectionTitle">Balance y caja</div><div class="card"><b>Periodo de control</b><div class="twocol"><div class="field"><label>Desde</label><input class="input" id="bDesde" type="date" onchange="renderBalance()"></div><div class="field"><label>Hasta cierre</label><input class="input" id="bHasta" type="date" onchange="renderBalance()"></div></div><div class="field"><label>Ruta</label><select class="select" id="bRuta" onchange="renderBalance()"><option value="all">Todas las rutas</option></select></div></div><div class="grid"><div class="card metric">Caja inicial<b id="bInicial">S/0.00</b></div><div class="card metric">Total entradas<b id="bIngresos">S/0.00</b></div><div class="card metric">Total salidas<b id="bEgresos">S/0.00</b></div><div class="card metric">Caja teórica<b id="bCaja">S/0.00</b></div><div class="card metric">Cobrado<b id="bCobrado">S/0.00</b></div><div class="card metric">Créditos desembolsados<b id="bCreditos">S/0.00</b></div></div><div class="card"><h3>Conciliación de caja</h3><div class="twocol"><div class="card metric">Caja teórica<b id="bCajaTeorica">S/0.00</b></div><div class="card metric">Caja física<b id="bCajaFisica">S/0.00</b></div></div><div class="card metric">Diferencia<b id="bDiferencia">S/0.00</b></div><div id="bEstadoConciliacion" class="info">Sin cierre físico registrado.</div><div class="field"><label>Importe físico al cerrar S/</label><input class="input" id="bFisicaInput" type="number" step="0.01" placeholder="Ingrese el efectivo contado"></div><button class="btn green wide" onclick="closeCash()">🔒 Cerrar y conciliar caja</button></div><div class="card"><h3>📥 Entradas</h3><div id="entriesList"></div></div><div class="card"><h3>📤 Salidas</h3><div id="expensesList"></div></div><div class="card"><h3>📊 Resumen del periodo</h3><div id="balanceBreakdown"></div></div><div class="card"><h3>🧾 Último cierre</h3><div id="lastBalance"></div><button class="btn wide" onclick="showCashHistory()">Ver historial de cierres</button></div></section>'''
+          s,n=re.subn(r'<section id="balance" class="page">.*?(?=<section id="[^\"]+" class="page">)',new_section,s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('No se encontró la sección Balance')
+          new_fn='''function renderBalance(){const from=$(\'bDesde\')?.value||today(),to=$(\'bHasta\')?.value||today(),route=$(\'bRuta\')?.value||\'all\';const inr=x=>x.date>=from&&x.date<=to;const routeOk=c=>route===\'all\'||String(c?.routeId)===String(route);const pay=db.payments.filter(p=>inr(p)).filter(p=>{const c=db.credits.find(x=>String(x.id)===String(p.creditId));return routeOk(c)});const credRows=db.credits.filter(c=>inr(c)&&routeOk(c));const cob=pay.reduce((s,x)=>s+Number(x.amount||0),0),cred=credRows.reduce((s,x)=>s+Number(x.capital||0),0),ent=db.entries.filter(inr).reduce((s,x)=>s+Number(x.amount||0),0),cap=db.capital.filter(inr).reduce((s,x)=>s+Number(x.amount||0),0),exp=db.expenses.filter(inr).reduce((s,x)=>s+Number(x.amount||0),0),totalIn=cob+ent+cap,totalOut=cred+exp,base=Number(db.settings.cashBase||0),caja=base+totalIn-totalOut;$(\'bInicial\').textContent=money(base);$(\'bCobrado\').textContent=money(cob);$(\'bCreditos\').textContent=money(cred);$(\'bIngresos\').textContent=money(totalIn);$(\'bEgresos\').textContent=money(totalOut);$(\'bCaja\').textContent=money(caja);$(\'bCajaTeorica\').textContent=money(caja);const last=db.cashClosures.length?db.cashClosures.at(-1):null;const physical=last&&last.physical!=null&&last.date<=to?Number(last.physical):null;const diff=physical==null?null:physical-caja;$(\'bCajaFisica\').textContent=physical==null?\'Pendiente\':money(physical);$(\'bDiferencia\').textContent=diff==null?\'Pendiente\':money(diff);$(\'bEstadoConciliacion\').textContent=diff==null?\'⚠️ Falta registrar la caja física del cierre.\':Math.abs(diff)<0.01?\'🟢 Caja cuadrada: no hay diferencia.\':diff<0?\'🔴 Faltante de caja: \'+money(Math.abs(diff))+\'.\':\'🟠 Sobrante de caja: \'+money(diff)+\'.\';const routes=$(\'bRuta\');if(routes){const current=route;routes.innerHTML='<option value="all">Todas las rutas</option>'+db.routes.map(r=>'<option value="'+r.id+'">'+r.name+'</option>').join('');routes.value=current||'all'}$(\'entriesList\').innerHTML=db.entries.filter(inr).concat(db.capital.filter(inr).map(x=>({...x,detail:'Capital: '+x.detail}))).map(x=>'<div class="info">'+fmt(x.date)+' · '+x.detail+' <b class="right">+'+money(x.amount)+'</b></div>').join('')||'<div class="info">Sin entradas.</div>';$(\'expensesList\').innerHTML=db.expenses.filter(inr).map(x=>'<div class="info">'+fmt(x.date)+' · '+x.detail+' <b class="right">−'+money(x.amount)+'</b></div>').join('')||'<div class="info">Sin salidas.</div>';$(\'balanceBreakdown\').innerHTML='<div class="info">Recaudos <b class="right">+'+money(cob)+'</b></div><div class="info">Aportes de capital <b class="right">+'+money(cap)+'</b></div><div class="info">Otros ingresos <b class="right">+'+money(ent)+'</b></div><div class="info">Créditos desembolsados <b class="right">−'+money(cred)+'</b></div><div class="info">Gastos <b class="right">−'+money(exp)+'</b></div><div class="info"><b>Movimiento neto</b> <b class="right">'+money(totalIn-totalOut)+'</b></div>';$(\'lastBalance\').innerHTML=last?'<div class="info">'+fmt(last.date)+' · Caja física '+money(last.physical??last.amount)+' · Caja teórica '+money(last.theoretical??last.amount)+' · Diferencia '+money(last.difference??0)+' · Estado '+(last.status||\'CERRADO\')+'</div>':'Sin balance cerrado'}'''
+          s,n=re.subn(r'function renderBalance\(\)\{.*?\}\nfunction closeCash\(\)',new_fn+'\nfunction closeCash()',s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('No se encontró renderBalance')
+          new_close='''function closeCash(){const from=$(\'bDesde\').value,to=$(\'bHasta\').value;const text=$(\'bCaja\').textContent.replace(/[^0-9,.-]/g,'').replace(/\\./g,'').replace(',','.');const theoretical=Number(text);const physical=Number($(\'bFisicaInput\').value);if(!Number.isFinite(theoretical))return toast('No se pudo calcular caja');if(!Number.isFinite(physical)||physical<0)return toast('Ingrese la caja física contada');const difference=physical-theoretical;db.cashClosures.push({id:Date.now(),date:today(),from,to,amount:physical,theoretical,physical,difference,status:Math.abs(difference)<0.01?'CUADRADO':difference<0?'FALTANTE':'SOBRANTE'});db.settings.cashBase=physical;audit('CIERRE_CAJA',money(physical)+' · Teórica '+money(theoretical)+' · Diferencia '+money(difference));persist();toast(Math.abs(difference)<0.01?'Cierre cuadrado':'Cierre registrado con diferencia')}'''
+          s,n=re.subn(r'function closeCash\(\)\{.*?\}\nfunction showCashHistory\(\)',new_close+'\nfunction showCashHistory()',s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('No se encontró closeCash')
+          new_hist='''function showCashHistory(){let h='<div class="card"><h3>Historial de cierres</h3>';db.cashClosures.slice().reverse().forEach(x=>h+='<div class="info"><b>'+fmt(x.date)+'</b> · Caja física '+money(x.physical??x.amount)+' · Teórica '+money(x.theoretical??x.amount)+' · Diferencia '+money(x.difference??0)+' · <span class="status '+(Math.abs(Number(x.difference??0))<0.01?'sGreen':Number(x.difference??0)<0?'sRed':'sOrange')+'">'+(x.status||'CERRADO')+'</span></div>');h+='</div><div class="actionbar"><button class="btn" onclick="go(\'balance\')">← Volver a Balance</button></div>';$('reportBox').innerHTML=h;go('reports')}'''
+          s,n=re.subn(r'function showCashHistory\(\)\{.*?\}\nfunction viewPortfolio\(\)',new_hist+'\nfunction viewPortfolio()',s,count=1,flags=re.S)
+          if n!=1: raise SystemExit('No se encontró showCashHistory')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Mejorar Balance y conciliacion de caja" || exit 0
+          git push
+      - name: Eliminar workflow temporal
+        if: always()
+        run: |
+          rm -f .github/workflows/patch-balance.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Eliminar parche temporal de Balance" || exit 0
+          git push
