@@ -1,4 +1,4 @@
-// MI CARTERA PRO V19 - CONFIGURACIÓN FIREBASE
+// MI CARTERA PRO V21 - CONFIGURACIÓN FIREBASE
 window.MI_CARTERA_FIREBASE = {
   apiKey: "AIzaSyCOQ--YUB9rKei3_CKz_txfYf8Y8a9Tdv8",
   authDomain: "mi-cartera-d0d8c.firebaseapp.com",
