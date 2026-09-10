@@ -28,7 +28,7 @@
     document.head.appendChild(main);
     const core=document.createElement('script');
     core.type='module';
-    core.src='./firebase-cloud-core.js?v=25';
+    core.src='./firebase-cloud-core.js?v=26';
     document.head.appendChild(core);
     console.log('Préstamo Ya: núcleo principal cargado correctamente');
   }catch(e){
