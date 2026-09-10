@@ -1,12 +1,11 @@
 import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, deleteUser, initializeAuth, inMemoryPersistence } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
 import { getFirestore, enableIndexedDbPersistence, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
-import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js';
 
 const cfg=window.MI_CARTERA_FIREBASE||{};
 const orgCfg=window.MI_CARTERA_CLOUD||{orgId:'mi-cartera',cloudEnabled:false};
 const ready=!!(orgCfg.cloudEnabled && cfg.apiKey && cfg.authDomain && cfg.projectId && cfg.appId);
-let app=null,auth=null,fs=null,functions=null,currentProfile=null;
+let app=null,auth=null,fs=null,currentProfile=null;
 const el=id=>document.getElementById(id);
 const orgId=orgCfg.orgId||'mi-cartera';
 const DB_KEY='mi_cartera_pro_v21';
@@ -52,8 +51,6 @@ async function pullCloud(){
   for(const n of Object.keys(data)){
     if(!Array.isArray(data[n]))continue;
     const local=Array.isArray(db[n])?db[n]:[];
-    // On the first Cloud login, preserve local operational records that the current user owns.
-    // Route/client/credit master data for non-managers remains Cloud-authoritative for security.
     if(firstCloudMigration&&local.length&&['payments','cashClosures','approvals'].includes(n)){
       const m=new Map(data[n].map(x=>[String(x.id),x]));
       for(const x of local)m.set(String(x.id),x);
@@ -82,7 +79,28 @@ window.openCloudUserForm=()=>{
   if(!currentProfile||role()!=='admin')return toast('Solo el administrador puede crear accesos Cloud.');
   openForm('Crear acceso Cloud',`<div class="field"><label>Nombre</label><input class="input" id="cloudNewName"></div><div class="field"><label>Correo</label><input class="input" id="cloudNewEmail" type="email"></div><div class="field"><label>Contraseña temporal</label><input class="input" id="cloudNewPass" type="password" minlength="6"></div><div class="field"><label>Rol</label><select class="select" id="cloudNewRole"><option value="cobrador">Cobrador</option><option value="supervisor">Supervisor</option><option value="consulta">Consulta</option></select></div><div class="field"><label>Ruta ID (opcional)</label><input class="input" id="cloudNewRoute"></div><button class="btn green wide" onclick="cloudCreateUser()">Crear acceso</button>`);
 };
-window.cloudCreateUser=async()=>{if(!currentProfile||role()!=='admin')return toast('No autorizado');const name=el('cloudNewName').value.trim(),email=el('cloudNewEmail').value.trim(),password=el('cloudNewPass').value,rolev=el('cloudNewRole').value,route=el('cloudNewRoute').value.trim();if(!name||!email||password.length<6)return toast('Complete nombre, correo y contraseña de 6+ caracteres.');try{const fn=httpsCallable(functions,'createCarteraUser');const res=await fn({orgId,name,email,password,role:rolev,routeIds:route?[route]:[]});closeForm();toast('Usuario Cloud creado: '+(res.data?.email||email));}catch(e){console.error(e);toast('No se pudo crear: '+(e.code||e.message));}};
+window.cloudCreateUser=async()=>{
+  if(!currentProfile||role()!=='admin')return toast('No autorizado');
+  const name=el('cloudNewName').value.trim(),email=el('cloudNewEmail').value.trim().toLowerCase(),password=el('cloudNewPass').value,rolev=el('cloudNewRole').value,route=el('cloudNewRoute').value.trim();
+  if(!name||!email||password.length<6)return toast('Complete nombre, correo y contraseña de 6+ caracteres.');
+  let creatorApp=null,creatorAuth=null,createdUser=null;
+  try{
+    creatorApp=getApps().find(a=>a.name==='prestamoYaUserCreator')||initializeApp(cfg,'prestamoYaUserCreator');
+    try{creatorAuth=getAuth(creatorApp);}catch(_){creatorAuth=initializeAuth(creatorApp,{persistence:inMemoryPersistence});}
+    const cred=await createUserWithEmailAndPassword(creatorAuth,email,password);
+    createdUser=cred.user;
+    await setDoc(doc(fs,'users',createdUser.uid),{uid:createdUser.uid,orgId,name,email:createdUser.email,role:rolev,routeIds:route?[route]:[],active:true,createdAt:new Date().toISOString(),createdBy:auth.currentUser.uid});
+    await signOut(creatorAuth);
+    closeForm();
+    toast('Usuario Cloud creado: '+(createdUser.email||email));
+  }catch(e){
+    console.error(e);
+    if(createdUser){try{await deleteUser(createdUser);}catch(_){} }
+    const code=e?.code||'';
+    const detail=code==='auth/email-already-in-use'||code==='auth/email-already-exists'?'El correo ya está registrado en Firebase.':(e?.message||code||'Error desconocido');
+    toast('No se pudo crear: '+detail);
+  }
+};
 function updateUI(){
   if(!el('cloudStatus'))return;
   if(!ready){status('🟡 Cloud no configurado · modo local/offline');if(el('cloudUserInfo'))el('cloudUserInfo').textContent='Sin sesión';return;}
@@ -91,7 +109,7 @@ function updateUI(){
 }
 if(ready){
   try{
-    app=getApps().length?getApp():initializeApp(cfg);auth=getAuth(app);fs=getFirestore(app);functions=getFunctions(app);
+    app=getApps().length?getApp():initializeApp(cfg);auth=getAuth(app);fs=getFirestore(app);
     enableIndexedDbPersistence(fs).catch(()=>{});
     onAuthStateChanged(auth,async user=>{
       if(!user){currentProfile=null;updateUI();return;}
