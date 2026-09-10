@@ -8,9 +8,9 @@ service cloud.firestore {
     function supervisor() { return signedIn() && me().role == 'supervisor'; }
     function manager() { return admin() || supervisor(); }
     function sameOrg(org) { return signedIn() && me().orgId == org; }
-    function assignedRoute(rid) { return signedIn() && rid in me().routeIds; }
-    function validUserProfile() {
-      return request.resource.data.uid == request.resource.id
+    function assignedRoute(rid) { return signedIn() && me().routeIds is list && rid in me().routeIds; }
+    function validUserProfile(uid) {
+      return request.resource.data.uid == uid
         && request.resource.data.orgId is string
         && request.resource.data.orgId == me().orgId
         && request.resource.data.name is string
@@ -22,8 +22,8 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if signedIn() && ((request.auth.uid == uid && sameOrg(resource.data.orgId)) || (admin() && sameOrg(resource.data.orgId)));
-      allow create: if admin() && validUserProfile();
-      allow update: if admin() && validUserProfile()
+      allow create: if admin() && validUserProfile(uid);
+      allow update: if admin() && validUserProfile(uid)
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.orgId == resource.data.orgId;
       allow delete: if admin() && sameOrg(resource.data.orgId);
