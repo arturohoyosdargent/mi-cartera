@@ -1,0 +1,49 @@
+name: Fix Cloud route selector
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Cloud user route selector
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('firebase-cloud-core.js')
+          s=p.read_text(encoding='utf-8')
+          old='<div class="field"><label>Ruta ID (opcional)</label><input class="input" id="cloudNewRoute"></div>'
+          new='''<div class="field"><label>Ruta</label><select class="select" id="cloudNewRoute"><option value="">Sin ruta asignada</option>${(db.routes||[]).map(r=>'<option value="'+String(r.id).replace(/"/g,'&quot;')+'">'+String(r.name||r.id).replace(/</g,'&lt;')+'</option>').join('')}</select></div>'''
+          if old in s:
+              s=s.replace(old,new,1)
+          old2="const name=el('cloudNewName')?.value.trim(),email=el('cloudNewEmail')?.value.trim().toLowerCase(),password=el('cloudNewPass')?.value,rolev=el('cloudNewRole')?.value,route=el('cloudNewRoute')?.value.trim();"
+          new2="const name=el('cloudNewName')?.value.trim(),email=el('cloudNewEmail')?.value.trim().toLowerCase(),password=el('cloudNewPass')?.value,rolev=el('cloudNewRole')?.value,routeRaw=el('cloudNewRoute')?.value.trim(); const routeObj=(db.routes||[]).find(r=>String(r.id)===routeRaw); const route=routeObj?.id||routeRaw;"
+          if old2 in s:
+              s=s.replace(old2,new2,1)
+          old3="<div class=\"card\"><b>${u.name}</b><br>Rol: ${u.role} · ${u.active?'<span class=\"status sGreen\">Activo</span>':'<span class=\"status sGray\">Inactivo</span>'}"
+          new3="<div class=\"card\"><b>${u.name}</b><br>Rol: ${u.role} · ${u.active?'<span class=\"status sGreen\">Activo</span>':'<span class=\"status sGray\">Inactivo</span>'}<br>${u.email?'Correo: '+u.email+'<br>':''}${Array.isArray(u.routeIds)&&u.routeIds.length?'Ruta: '+u.routeIds.map(rid=>{const rr=db.routes.find(r=>String(r.id)===String(rid));return rr?.name||rid}).join(', '):'Ruta: Sin asignar'}"
+          # The users renderer lives in index.html, so this replacement is intentionally skipped here.
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('firebase-cloud.js')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('./firebase-cloud-core.js?v=30','./firebase-cloud-core.js?v=31')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add firebase-cloud-core.js firebase-cloud.js
+          if git diff --cached --quiet; then
+            echo 'No changes needed.'
+            exit 0
+          fi
+          git commit -m 'Mejorar asignacion de rutas en accesos Cloud'
+          git push
