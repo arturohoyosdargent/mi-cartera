@@ -1,0 +1,69 @@
+name: Fix historial detallado
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Actualizar historial
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          text = p.read_text(encoding='utf-8')
+          start = text.index('function clientHistory(id){')
+          end = text.index('function addMonths', start)
+          new = r'''function clientHistory(id){
+            const c=db.clients.find(x=>String(x.id)===String(id));
+            if(!c)return toast('Cliente no encontrado');
+            const credits=db.credits.filter(x=>String(x.clientId)===String(id));
+            const creditIds=new Set(credits.map(x=>String(x.id)));
+            const payments=db.payments.filter(p=>creditIds.has(String(p.creditId))).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))||Number(a.id)-Number(b.id));
+            const totalCapital=credits.reduce((s,x)=>s+Number(x.capital||0),0);
+            const totalCredit=credits.reduce((s,x)=>s+Number(x.total||0),0);
+            const totalPaid=payments.reduce((s,x)=>s+Number(x.amount||0),0);
+            const totalRemain=credits.reduce((s,x)=>s+status(x).remain,0);
+            let h='<div class="card"><h3>Historial completo · '+c.name+'</h3>'+
+              '<div class="info"><b>Cliente:</b> '+c.name+' · <b>Teléfono:</b> '+(c.phone||'-')+' · <b>DNI:</b> '+(c.dni||'-')+'<br><b>Dirección:</b> '+(c.address||'-')+' · <b>Ruta:</b> '+routeName(c.routeId)+'</div>'+
+              '<div class="grid"><div class="card metric">Créditos<b>'+credits.length+'</b></div><div class="card metric">Capital colocado<b>'+money(totalCapital)+'</b></div><div class="card metric">Total pactado<b>'+money(totalCredit)+'</b></div><div class="card metric">Saldo actual<b>'+money(totalRemain)+'</b></div><div class="card metric">Total pagado<b>'+money(totalPaid)+'</b></div><div class="card metric">Mora actual<b>'+money(credits.reduce((s,x)=>s+status(x).overdue,0))+'</b></div></div></div>';
+            if(!credits.length){h+='<div class="card">Este cliente todavía no tiene créditos ni movimientos financieros.</div>';}
+            credits.slice().reverse().forEach(cr=>{
+              const s=status(cr), cp=payments.filter(p=>String(p.creditId)===String(cr.id));
+              h+='<div class="card"><h3>💳 Crédito #'+cr.id+' '+badge(cr)+'</h3>'+
+                '<div class="info"><b>Fecha:</b> '+fmt(cr.date)+' · <b>1ra cuota:</b> '+fmt(cr.first)+' · <b>Vencimiento:</b> '+fmt(s.maturity)+'<br><b>Capital:</b> '+money(cr.capital)+' · <b>Interés:</b> '+cr.rate+'% · <b>Plazo:</b> '+cr.term+' cuotas · <b>Frecuencia:</b> '+cr.freq+'<br><b>Total:</b> '+money(cr.total)+' · <b>Pagado:</b> '+money(s.paid)+' · <b>Saldo:</b> '+money(s.remain)+' · <b>Mora:</b> '+money(s.overdue)+'</div>';
+              h+='<h4>📅 Cronograma y estado de cuotas</h4><table class="table"><tr><th>#</th><th>Vencimiento</th><th>Cuota</th><th>Pagado</th><th>Saldo</th><th>Estado</th></tr>';
+              (cr.schedule||[]).forEach(q=>{const left=Math.max(0,Number(q.amount||0)-Number(q.paid||0));const st=left<=0?'PAGADA':q.date<today()?'VENCIDA':q.date===today()?'HOY':'PENDIENTE';h+='<tr><td>'+q.n+'</td><td>'+fmt(q.date)+'</td><td>'+money(q.amount)+'</td><td>'+money(q.paid)+'</td><td>'+money(left)+'</td><td>'+st+'</td></tr>';});
+              h+='</table>';
+              h+='<h4>💵 Recaudos de este crédito</h4>';
+              if(cp.length){let acumulado=0;cp.forEach(p=>{acumulado+=Number(p.amount||0);const saldo=Math.max(0,Number(cr.total||0)-acumulado);h+='<div class="info"><b>'+fmt(p.date)+'</b> · <b>'+money(p.amount)+'</b> · '+(p.type||'Recaudo')+' · '+(p.method||'-')+'<br>Usuario: '+(p.user||'-')+' · Observación: '+(p.note||'-')+'<br><span class="muted">Pagado acumulado: '+money(acumulado)+' · Saldo después del movimiento: '+money(saldo)+'</span></div>';});}else h+='<div class="info">Sin recaudos registrados.</div>';
+              h+='<div class="actionbar"><button class="btn green" onclick="openCollect('+cr.id+')">💵 Recaudar</button><button class="btn blue" onclick="showCredit('+cr.id+')">Ver crédito</button></div></div>';
+            });
+            const auditRows=db.audit.filter(a=>{const d=String(a.detail||'');return d.includes(String(c.name||''))||credits.some(cr=>d.includes('#'+cr.id));}).slice(0,100);
+            h+='<div class="card"><h3>🔎 Auditoría relacionada</h3>'+(auditRows.length?auditRows.map(a=>'<div class="info"><b>'+new Date(a.date).toLocaleString('es-PE')+'</b> · '+a.action+' · '+(a.detail||'-')+' · Usuario: '+(a.user||'-')+'</div>').join(''):'<div class="info">No hay registros de auditoría relacionados.</div>')+'</div>';
+            h+='<div class="actionbar"><button class="btn" onclick="go(\'clients\')">← Volver a clientes</button><button class="btn blue" onclick="report(\'clients\')">Reporte de clientes</button></div>';
+            h+='</div>';
+            $('reportBox').innerHTML=h;
+            go('reports');
+          }
+          '''
+          p.write_text(text[:start] + new + text[end:], encoding='utf-8')
+      - name: Publicar cambio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet && { echo 'Sin cambios'; exit 0; }
+          git commit -m "Mejorar historial con detalle completo"
+          git push
+      - name: Eliminar parche temporal
+        if: success()
+        run: |
+          git rm .github/workflows/fix-historial.yml
+          git commit -m "Eliminar parche temporal de historial"
+          git push
