@@ -11,8 +11,8 @@ service cloud.firestore {
     function assignedRoute(rid) { return signedIn() && rid in me().routeIds; }
 
     match /users/{uid} {
-      allow read: if signedIn() && (request.auth.uid == uid || admin());
-      allow write: if admin();
+      allow read: if signedIn() && ((request.auth.uid == uid && sameOrg(resource.data.orgId)) || (admin() && sameOrg(resource.data.orgId)));
+      allow write: if admin() && sameOrg(request.resource.data.orgId);
     }
 
     match /orgs/{orgId}/routes/{id} {
