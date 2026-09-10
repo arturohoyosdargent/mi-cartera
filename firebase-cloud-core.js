@@ -56,8 +56,12 @@ async function pullCloud(){
   for(const n of Object.keys(data)){
     if(!Array.isArray(data[n]))continue;
     const local=Array.isArray(db[n])?db[n]:[];
-    if(firstCloudMigration&&data[n].length===0&&local.length){data[n]=local;continue;}
-    if(firstCloudMigration&&local.length){const m=new Map(local.map(x=>[String(x.id),x]));for(const x of data[n])m.set(String(x.id),x);data[n]=Array.from(m.values());}
+    if(firstCloudMigration&&local.length&&['payments','cashClosures','approvals'].includes(n)){
+      const m=new Map(data[n].map(x=>[String(x.id),x]));
+      for(const x of local)m.set(String(x.id),x);
+      data[n]=Array.from(m.values());
+    }
+    if(firstCloudMigration&&canAll()&&data[n].length===0&&local.length)data[n]=local;
     db[n]=data[n];
   }
   dedupeClients(true);
