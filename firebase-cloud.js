@@ -1,7 +1,21 @@
-// Cargador de seguridad: el index contiene una secuencia </script> dentro de una plantilla HTML.
-// Recuperamos el script principal como texto y lo inyectamos como script DOM para evitar eval/CSP.
+// Arranque seguro de Préstamo Ya.
+// Primero elimina cualquier Service Worker/caché antiguo que pueda estar mostrando una versión rota de index.html.
 (async()=>{
   try{
+    const cleanKey='prestamo_ya_cache_clean_v1';
+    if(!sessionStorage.getItem(cleanKey)){
+      sessionStorage.setItem(cleanKey,'1');
+      if('serviceWorker' in navigator){
+        const regs=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));
+      }
+      if('caches' in window){
+        const keys=await caches.keys();
+        await Promise.all(keys.map(k=>caches.delete(k)));
+      }
+      location.reload();
+      return;
+    }
     const res=await fetch('./index.html?bootstrap='+Date.now(),{cache:'no-store'});
     const html=await res.text();
     const start=html.indexOf('<script>');
@@ -14,7 +28,7 @@
     document.head.appendChild(main);
     const core=document.createElement('script');
     core.type='module';
-    core.src='./firebase-cloud-core.js?v=23';
+    core.src='./firebase-cloud-core.js?v=24';
     document.head.appendChild(core);
     console.log('Préstamo Ya: núcleo principal cargado correctamente');
   }catch(e){
