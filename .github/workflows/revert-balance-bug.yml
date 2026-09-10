@@ -1,0 +1,31 @@
+name: Revertir parche Balance
+on:
+  push:
+    paths:
+      - .github/workflows/revert-balance-bug.yml
+permissions:
+  contents: write
+jobs:
+  revert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restaurar index previo al parche de Balance
+        run: |
+          git show 283667329bbf2327b95d547b11407b55d413832f:index.html > index.html
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Restaurar funcionamiento de botones" || exit 0
+          git push
+      - name: Eliminar workflow temporal
+        if: always()
+        run: |
+          rm -f .github/workflows/revert-balance-bug.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Eliminar parche temporal de restauracion" || exit 0
+          git push
