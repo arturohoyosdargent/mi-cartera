@@ -4,6 +4,8 @@ on:
     paths:
       - '.github/workflows/enable-pwa-backup.yml'
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   patch:
     runs-on: ubuntu-latest
@@ -16,6 +18,7 @@ jobs:
           node --check backup.js
           test -s manifest.webmanifest
           test -s sw.js
+          test -s icon.svg
           grep -q 'manifest.webmanifest' index.html
           grep -q 'openBackupPanel' index.html
       - name: Publicar
@@ -23,8 +26,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html manifest.webmanifest icon.svg sw.js backup.js
-          git diff --cached --quiet || git commit -m "Convertir Mi Cartera en app instalable con respaldo"
-          git push
+          if git diff --cached --quiet; then echo 'Sin cambios'; else git commit -m "Convertir Mi Cartera en app instalable con respaldo"; git push; fi
       - name: Eliminar workflow temporal
         if: always()
         run: |
