@@ -104,5 +104,9 @@ function renderHome(){const due=db.credits.reduce((s,c)=>s+currentDue(c),0),col=
 function renderAll(){renderHome();renderClients();renderCredits();renderRoutes();renderUsers();renderInvestors();renderBalance();renderCollections();renderAudit();renderApprovals();renderSettings();renderProfile();updateSyncUI();if($('collectionDate')&&!$('collectionDate').value)$('collectionDate').value=today();if($('bDesde')&&!$('bDesde').value)$('bDesde').value=today();if($('bHasta')&&!$('bHasta').value)$('bHasta').value=today()}
 load();renderAll();
 </script>
-<script type="module" src="firebase-cloud.js"></script></body></html>
-
+<script src="firebase-config.js?v=20"></script>
+<script>
+window.openCloudLogin=window.openCloudLogin||function(){document.getElementById("cloudLoginModal")?.classList.add("open")};
+window.closeCloudLogin=window.closeCloudLogin||function(){document.getElementById("cloudLoginModal")?.classList.remove("open")};
+</script>
+<script type="module" src="firebase-cloud.js?v=20"></script></body></html>
