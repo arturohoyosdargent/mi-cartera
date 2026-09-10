@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
-import { getFirestore, enableIndexedDbPersistence, doc, getDoc, setDoc, collection, getDocs, query, where, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
+import { getFirestore, enableIndexedDbPersistence, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
 import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-functions.js';
 
 const cfg=window.MI_CARTERA_FIREBASE||{};
@@ -24,6 +24,13 @@ async function getProfile(uid){const snap=await getDoc(doc(fs,'users',uid));retu
 function role(){return currentProfile?.role||'consulta';}
 function routeIds(){return Array.isArray(currentProfile?.routeIds)?currentProfile.routeIds:[];}
 function canAll(){return ['admin','supervisor'].includes(role());}
+function dedupeClients(cleanCloud=false){
+  if(!Array.isArray(db.clients))return;
+  const seen=new Map(), keep=[], duplicates=[];
+  const keyOf=c=>{const dni=String(c?.dni||'').replace(/\D/g,'');if(dni)return 'dni:'+dni;const n=String(c?.name||'').trim().toLowerCase().replace(/\s+/g,' ');const p=String(c?.phone||'').replace(/\D/g,'');return 'np:'+n+'|'+p};
+  for(const c of db.clients){const k=keyOf(c);if(!seen.has(k)){seen.set(k,c);keep.push(c)}else{const main=seen.get(k);['address','guarantor','guarantorPhone','reference','location','routeId'].forEach(f=>{if(!main[f]&&c[f])main[f]=c[f]});db.credits?.forEach(cr=>{if(String(cr.clientId)===String(c.id))cr.clientId=main.id});duplicates.push(c)}}
+  if(duplicates.length){db.clients=keep;duplicates.forEach(c=>audit('CLIENTE_DUPLICADO_ELIMINADO',`${c.name} #${c.id}`));localStorage.setItem('mi_cartera_pro_v21',JSON.stringify(db));try{renderAll()}catch(_){}if(cleanCloud&&canAll()&&fs){Promise.all(duplicates.map(c=>deleteDoc(doc(fs,`orgs/${orgId}/clients`,String(c.id))).catch(()=>null))).then(()=>{pushList('clients',keep).catch(()=>{})})}}
+}
 async function pullCollection(name, constraints=[]){let q=collection(fs,`orgs/${orgId}/${name}`);let qq=constraints.length?query(q,...constraints):q;const snap=await getDocs(qq);return snap.docs.map(d=>d.data());}
 async function pullCloud(){
   if(!currentProfile)return;
@@ -47,6 +54,7 @@ async function pullCloud(){
     data.approvals=await pullCollection('approvals',[where('requestedByUid','==',auth.currentUser.uid)]);
   }
   for(const n of Object.keys(data))if(Array.isArray(data[n]))db[n]=data[n];
+  dedupeClients(true);
   db.currentUserId=currentProfile.localUserId||db.currentUserId;
   localStorage.setItem('mi_cartera_pro_v19',JSON.stringify(db));
   normalize();renderAll();
@@ -85,6 +93,6 @@ if(ready){
       try{currentProfile=await getProfile(user.uid);if(!currentProfile||currentProfile.active===false){await signOut(auth);return msg('Usuario sin perfil activo en Mi Cartera.');}db.users=db.users||[];let lu=db.users.find(x=>x.id===user.uid);if(!lu){lu={id:user.uid,name:currentProfile.name||user.email,role:currentProfile.role||'consulta',active:true};db.users.push(lu);}currentUserId=user.uid;db.currentUserId=user.uid;localStorage.setItem('mi_cartera_pro_v19',JSON.stringify(db));updateUI();await pullCloud();await pushLocalAllowed();toast('Sesión Cloud iniciada');}catch(e){console.error(e);status('🔴 Error al cargar perfil Cloud');}
     });
   }catch(e){console.error(e);status('🔴 Error de configuración Firebase');}
-}else updateUI();
+}else { dedupeClients(false); updateUI(); }
 
 window.addEventListener('online',()=>{if(auth?.currentUser)setTimeout(()=>window.cloudSyncNow(),700);});
