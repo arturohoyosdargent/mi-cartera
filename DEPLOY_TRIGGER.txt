@@ -1,1 +1,0 @@
-Trigger de publicación después de la mejora del historial.
