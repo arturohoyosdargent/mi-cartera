@@ -1,7 +1,8 @@
 name: Fix Cloud user query
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 
 permissions:
   contents: write
