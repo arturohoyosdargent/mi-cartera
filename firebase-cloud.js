@@ -1,7 +1,7 @@
 // Arranque seguro de Préstamo Ya.
 (async()=>{
   try{
-    const cleanKey='prestamo_ya_cache_clean_v21';
+    const cleanKey='prestamo_ya_cache_clean_v22';
     if(!sessionStorage.getItem(cleanKey)){
       sessionStorage.setItem(cleanKey,'1');
       if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));}
@@ -11,21 +11,11 @@
     const loadScript=(src,type='text/javascript')=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.type=type;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
     await loadScript('./backup.js?v=13');
     const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=45';document.head.appendChild(core);
-    // Esperar a que el core termine de resolver la sesión Cloud antes de reparar rutas.
-    await new Promise(resolve=>{
-      const started=Date.now();
-      const tick=()=>{
-        try{
-          const ready=typeof window.cloudSyncNow==='function' && !!window.db?.currentUserId;
-          if(ready||Date.now()-started>15000)return resolve();
-        }catch(_){}
-        setTimeout(tick,200);
-      };
-      tick();
-    });
-    await loadScript('./cloud-repair-v2.js?v=1','module');
+    await new Promise(resolve=>{const started=Date.now();const tick=()=>{try{const ready=typeof window.cloudSyncNow==='function'&&!!window.db?.currentUserId;if(ready||Date.now()-started>15000)return resolve()}catch(_){}setTimeout(tick,200)};tick()});
+    await loadScript('./cloud-repair-v2.js?v=2','module');
     await loadScript('./session-switch.js?v=1');
     await loadScript('./data-integrity.js?v=2');
+    await loadScript('./field-collection-sync.js?v=1','module');
     const installGuards=()=>{
       if(typeof window.currentUser!=='function'||typeof window.go!=='function'){setTimeout(installGuards,300);return;}
       if(window.__prestamoYaGuards)return;window.__prestamoYaGuards=true;
@@ -38,8 +28,7 @@
     installGuards();
     const getPushable=()=>{const pending=(db.syncQueue||[]).filter(x=>x.status==='PENDIENTE'||x.status==='ERROR');const role=(typeof currentUser==='function'?currentUser()?.role:'consulta')||'consulta';const manager=['admin','supervisor'].includes(role);const types=manager?['CLIENTE_CREADO','CLIENTE_MODIFICADO','CREDITO_CREADO','CREDITO_MODIFICADO','RECAUDO','CIERRE_CAJA','SOLICITUD_AUTORIZACION','AUTORIZACION_APROBADA','AUTORIZACION_RECHAZADA','CLIENTE_ELIMINADO']:['CLIENTE_CREADO','CLIENTE_MODIFICADO','RECAUDO','CIERRE_CAJA','SOLICITUD_AUTORIZACION'];return pending.filter(x=>types.includes(x.type));};
     const markSynced=(items)=>{const stamp=new Date().toISOString();if(Array.isArray(items))items.forEach(x=>{x.status='SINCRONIZADO';x.syncedAt=stamp;x.error='';});db.settings=db.settings||{};db.settings.lastOnline=stamp;try{persist();updateSyncUI();renderAll()}catch(e){console.warn(e)}};
-    const bridge=()=>{if(typeof window.cloudSyncNow==='function'){if(!window.__prestamoYaCloudWrapped){const rawSync=window.cloudSyncNow;window.cloudSyncNow=async()=>{const handled=getPushable();const ok=await rawSync();if(ok===true)markSynced(handled);return ok;};window.__prestamoYaCloudWrapped=true;}window.syncNow=async()=>{if(!navigator.onLine)return toast('Sin internet: la información sigue guardada localmente.');return window.cloudSyncNow();};if(!window.__prestamoYaAutoSync){window.__prestamoYaAutoSync=true;window.addEventListener('online',()=>setTimeout(()=>window.syncNow().catch(()=>{}),900));}return;}setTimeout(bridge,300);};
+    const bridge=()=>{if(typeof window.cloudSyncNow==='function'){if(!window.__prestamoYaCloudWrapped){const rawSync=window.cloudSyncNow;window.cloudSyncNow=async()=>{const handled=getPushable();const ok=await rawSync();if(ok===true)markSynced(handled);return ok;};window.__prestamoYaCloudWrapped=true;}window.syncNow=async()=>{if(!navigator.onLine)return toast('Sin internet: la información sigue guardada localmente.');return window.cloudSyncNow();};if(!window.__prestamoYaAutoSync){window.__prestamoYaAutoSync=true;window.addEventListener('online',()=>setTimeout(()=>window.syncNow().catch(()=>{}),900));}return;}setTimeout(bridge,300)};
     bridge();console.log('Préstamo Ya: integración Cloud cargada correctamente');
-  }catch(e){console.error('Préstamo Ya: no se pudo cargar la integración Cloud',e);try{window.toast&&window.toast('Error de carga de Cloud. Recargue la página.')}catch(_){}
-  }
+  }catch(e){console.error('Préstamo Ya: no se pudo cargar la integración Cloud',e);try{window.toast&&window.toast('Error de carga de Cloud. Recargue la página.')}catch(_){} }
 })();
