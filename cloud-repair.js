@@ -29,36 +29,51 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
         const meSnap=await getDocs(query(collection(fs,'users'),where('uid','==',user.uid),where('orgId','==',orgId)));
         const me=meSnap.docs[0]?.data();
         if(!me||!['admin','supervisor'].includes(me.role))return;
-        window.__prestamoYaRepairDone=true;
 
-        const routesSnap=await getDocs(query(collection(fs,`orgs/${orgId}/routes`),where('orgId','==',orgId)));
-        const routes=routesSnap.docs.map(d=>d.data());
-        const routeFor=value=>routes.find(r=>String(r.id)===String(value)||String(r.name||'').trim().toLowerCase()===String(value||'').trim().toLowerCase());
+        // Las colecciones dentro de /orgs/mi-cartera están protegidas por la ruta.
+        // Para una reparación administrativa no debemos exigir que los documentos
+        // antiguos ya tengan el campo orgId.
+        const readOrgCollection=async name=>getDocs(collection(fs,`orgs/${orgId}/${name}`));
+        const routesSnap=await readOrgCollection('routes');
+        const routes=routesSnap.docs.map(d=>({docId:d.id,...d.data()}));
+        const routeFor=value=>routes.find(r=>String(r.id??r.docId)===String(value)||String(r.name||'').trim().toLowerCase()===String(value||'').trim().toLowerCase());
+        const routeIdOf=r=>String(r?.id??r?.docId);
 
+        // Normaliza rutas de usuarios como texto para evitar que 123 y "123"
+        // sean tratados como rutas distintas por Firestore Rules.
         const usersSnap=await getDocs(query(collection(fs,'users'),where('orgId','==',orgId)));
         for(const d of usersSnap.docs){
           const u=d.data();
           if(!Array.isArray(u.routeIds))continue;
-          const fixed=[...new Set(u.routeIds.map(x=>routeFor(x)?.id??x))];
-          if(JSON.stringify(fixed)!==JSON.stringify(u.routeIds))await setDoc(doc(fs,'users',d.id),{routeIds:fixed},{merge:true});
+          const fixed=[...new Set(u.routeIds.map(x=>routeIdOf(routeFor(x))||String(x)))];
+          if(JSON.stringify(fixed)!==JSON.stringify(u.routeIds)){
+            await setDoc(doc(fs,'users',d.id),{routeIds:fixed},{merge:true});
+          }
         }
 
         const repairCollection=async name=>{
-          const snap=await getDocs(query(collection(fs,`orgs/${orgId}/${name}`),where('orgId','==',orgId)));
+          const snap=await readOrgCollection(name);
           for(const d of snap.docs){
             const x=d.data();
             const r=routeFor(x.routeId);
-            if(r&&String(x.routeId)!==String(r.id)){
-              await setDoc(doc(fs,`orgs/${orgId}/${name}`,d.id),{routeId:r.id},{merge:true});
-            }
+            const fixedRoute=r?routeIdOf(r):(x.routeId==null?null:String(x.routeId));
+            const patch={orgId};
+            if(fixedRoute!==null&&String(x.routeId)!==String(fixedRoute))patch.routeId=fixedRoute;
+            if(x.routeId!=null&&typeof x.routeId!=='string'&&!patch.routeId)patch.routeId=String(x.routeId);
+            await setDoc(doc(fs,`orgs/${orgId}/${name}`,d.id),patch,{merge:true});
           }
         };
 
+        await repairCollection('routes');
         await repairCollection('clients');
         await repairCollection('credits');
+        window.__prestamoYaRepairDone=true;
         if(typeof window.cloudSyncNow==='function')await window.cloudSyncNow();
-        console.log('Préstamo Ya: reparación de asignaciones Cloud completada');
-      }catch(e){console.error('Préstamo Ya: reparación Cloud:',e);}
+        console.log('Préstamo Ya: reparación Cloud completada');
+      }catch(e){
+        console.error('Préstamo Ya: reparación Cloud:',e);
+        window.__prestamoYaRepairDone=false;
+      }
     });
   }catch(e){console.error('Préstamo Ya: no se pudo iniciar reparación Cloud',e);}
 })();
