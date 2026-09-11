@@ -1,7 +1,7 @@
 // Arranque seguro de Préstamo Ya.
 (async()=>{
   try{
-    const cleanKey='prestamo_ya_cache_clean_v22';
+    const cleanKey='prestamo_ya_cache_clean_v23';
     if(!sessionStorage.getItem(cleanKey)){
       sessionStorage.setItem(cleanKey,'1');
       if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));}
@@ -13,6 +13,7 @@
     const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=45';document.head.appendChild(core);
     await new Promise(resolve=>{const started=Date.now();const tick=()=>{try{const ready=typeof window.cloudSyncNow==='function'&&!!window.db?.currentUserId;if(ready||Date.now()-started>15000)return resolve()}catch(_){}setTimeout(tick,200)};tick()});
     await loadScript('./cloud-repair-v2.js?v=2','module');
+    await loadScript('./ownership-model.js?v=1','module');
     await loadScript('./session-switch.js?v=1');
     await loadScript('./data-integrity.js?v=2');
     await loadScript('./field-collection-sync.js?v=1','module');
