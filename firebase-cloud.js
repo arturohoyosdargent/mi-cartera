@@ -1,16 +1,18 @@
 // Arranque seguro de Préstamo Ya.
-// El núcleo principal ya se ejecuta desde index.html. Este archivo solo
-// limpia una vez la caché antigua, carga Firebase y centraliza la sincronización.
+// El núcleo principal ya se ejecuta desde index.html. Este archivo limpia caché antigua,
+// carga los módulos Cloud/backup y centraliza la sincronización.
 (async()=>{
   try{
-    const cleanKey='prestamo_ya_cache_clean_v2';
+    const cleanKey='prestamo_ya_cache_clean_v3';
     if(!sessionStorage.getItem(cleanKey)){
       sessionStorage.setItem(cleanKey,'1');
       if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));}
       if('caches' in window){const keys=await caches.keys();await Promise.all(keys.map(k=>caches.delete(k)));}
       location.reload();return;
     }
-    const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=33';document.head.appendChild(core);
+    const loadScript=(src,type='text/javascript')=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.type=type;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
+    await loadScript('./backup.js?v=3');
+    const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=34';document.head.appendChild(core);
     const installGuards=()=>{
       if(typeof window.currentUser!=='function'||typeof window.go!=='function'){setTimeout(installGuards,300);return;}
       if(window.__prestamoYaGuards)return;window.__prestamoYaGuards=true;
@@ -31,9 +33,8 @@
       return pending.filter(x=>types.includes(x.type));
     };
     const markSynced=(items)=>{
-      if(!Array.isArray(items)||!items.length)return;
       const stamp=new Date().toISOString();
-      items.forEach(x=>{x.status='SINCRONIZADO';x.syncedAt=stamp;x.error='';});
+      if(Array.isArray(items))items.forEach(x=>{x.status='SINCRONIZADO';x.syncedAt=stamp;x.error='';});
       db.settings=db.settings||{};db.settings.lastOnline=stamp;
       try{persist();updateSyncUI();renderAll()}catch(e){console.warn(e)}
     };
@@ -51,11 +52,7 @@
         }
         window.syncNow=async()=>{
           if(!navigator.onLine)return toast('Sin internet: la información sigue guardada localmente.');
-          const pending=(db.syncQueue||[]).filter(x=>x.status==='PENDIENTE'||x.status==='ERROR');
-          if(!pending.length)return toast('No hay operaciones pendientes.');
-          const ok=await window.cloudSyncNow();
-          if(ok===true){const left=(db.syncQueue||[]).filter(x=>x.status==='PENDIENTE'||x.status==='ERROR').length;toast(left?'Sincronización completada. Pendientes restantes: '+left:'Sincronización completada.');}
-          return ok;
+          return window.cloudSyncNow();
         };
         if(!window.__prestamoYaAutoSync){window.__prestamoYaAutoSync=true;window.addEventListener('online',()=>setTimeout(()=>window.syncNow().catch(()=>{}),900));}
         return;
