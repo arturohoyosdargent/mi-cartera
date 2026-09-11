@@ -74,10 +74,10 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc, deleteDoc
         const localCredits=Array.isArray(window.db?.credits)?window.db.credits:[];
         for(const c of localCredits){if(c?.id==null)continue;const r=routeFor(c.routeId);const routeId=r?routeIdOf(r):(c.routeId==null?null:String(c.routeId));if(routeId==null)continue;await setDoc(doc(fs,`orgs/${orgId}/credits`,String(c.id)),{...c,orgId,routeId},{merge:true});}
 
-        // Consolidación segura: cuando hay rutas con el mismo nombre, solo se consolida
-        // si existe exactamente una ruta de ese nombre asignada a un cobrador y las demás
-        // no tienen cobrador. Toda la cartera pasa al ID canónico; las rutas vacías sobrantes
-        // se eliminan. Si hay ambigüedad, no se toca nada.
+        // Consolidación segura de rutas con el mismo nombre.
+        // Si exactamente una está asignada a un cobrador, esa ruta es la canónica.
+        // Toda la cartera de las copias pasa a ella y las copias quedan eliminadas
+        // únicamente después de confirmar que ya no tienen clientes ni créditos.
         const freshRoutes=(await readOrgCollection('routes')).docs.map(d=>({docId:d.id,...d.data()}));
         const freshClients=(await readOrgCollection('clients')).docs.map(d=>({docId:d.id,...d.data()}));
         const freshCredits=(await readOrgCollection('credits')).docs.map(d=>({docId:d.id,...d.data()}));
@@ -95,10 +95,10 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc, deleteDoc
             const movingCredits=freshCredits.filter(c=>String(c.routeId)===sourceId);
             for(const c of movingClients){await setDoc(doc(fs,`orgs/${orgId}/clients`,c.docId),{orgId,routeId:canonicalId},{merge:true});}
             for(const c of movingCredits){await setDoc(doc(fs,`orgs/${orgId}/credits`,c.docId),{orgId,routeId:canonicalId},{merge:true});}
-            // Solo eliminamos la ruta duplicada cuando ya quedó sin cartera.
-            if(!freshClients.some(c=>String(c.routeId)===sourceId)&&!freshCredits.some(c=>String(c.routeId)===sourceId)){
-              await deleteDoc(doc(fs,`orgs/${orgId}/routes`,sourceId));
-            }
+            // La comprobación usa el estado previsto después del movimiento, no el snapshot antiguo.
+            const remainingClients=freshClients.some(c=>String(c.routeId)===sourceId&&!movingClients.some(m=>m.docId===c.docId));
+            const remainingCredits=freshCredits.some(c=>String(c.routeId)===sourceId&&!movingCredits.some(m=>m.docId===c.docId));
+            if(!remainingClients&&!remainingCredits)await deleteDoc(doc(fs,`orgs/${orgId}/routes`,sourceId));
           }
           console.log('Préstamo Ya: ruta duplicada consolidada',{name,canonicalRoute:canonicalId,removed:extras.map(routeIdOf)});
         }
