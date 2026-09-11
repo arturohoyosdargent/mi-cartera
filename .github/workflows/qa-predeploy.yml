@@ -24,7 +24,7 @@ jobs:
           node --check cloud-repair-v2.js
           node --check ownership-model.js
           node --check field-collection-sync.js
-          node --check credit-share.js
+          node --check credit-proposal.js
           node --check session-switch.js
           node --check data-integrity.js
 
@@ -75,7 +75,7 @@ jobs:
           test -f cloud-repair-v2.js
           test -f ownership-model.js
           test -f field-collection-sync.js
-          test -f credit-share.js
+          test -f credit-proposal.js
           test -f session-switch.js
           test -f data-integrity.js
           test -f firestore.rules
