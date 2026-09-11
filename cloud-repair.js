@@ -22,7 +22,9 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
         const routesSnap=await readOrgCollection('routes');
         const routes=routesSnap.docs.map(d=>({docId:d.id,...d.data()}));
         const localRoutes=Array.isArray(window.db?.routes)?window.db.routes:[];
-        const routeFor=value=>routes.find(r=>String(r.id??r.docId)===String(value)||String(r.name||'').trim().toLowerCase()===String(value||'').trim().toLowerCase())||localRoutes.find(r=>String(r.id)===String(value)||String(r.name||'').trim().toLowerCase()===String(value||'').trim().toLowerCase());
+        const allRoutes=[...routes];
+        for(const lr of localRoutes){if(!allRoutes.some(r=>String(r.id??r.docId)===String(lr.id)))allRoutes.push(lr);}
+        const routeFor=value=>allRoutes.find(r=>String(r.id??r.docId)===String(value)||String(r.name||'').trim().toLowerCase()===String(value||'').trim().toLowerCase());
         const routeIdOf=r=>String(r?.id??r?.docId);
         for(const r of localRoutes){
           if(r?.id==null)continue;
@@ -40,8 +42,10 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
             const cname=String(r.collectorName||r.cobrador||r.collector||'').trim().toLowerCase();
             return (cid&&cid===String(u.uid||d.id))||(cname&&uname&&cname===uname);
           };
-          for(const r of routes){if(matchesUser(r))fixed.add(routeIdOf(r));}
-          for(const r of localRoutes){if(matchesUser(r))fixed.add(routeIdOf(r));}
+          for(const r of allRoutes){if(matchesUser(r))fixed.add(routeIdOf(r));}
+          // Si existe una sola ruta en la organización y el cobrador aún no tiene ruta,
+          // esa es la asignación inequívoca para el escenario inicial de Préstamo Ya.
+          if(fixed.size===0 && allRoutes.length===1 && u.role==='cobrador')fixed.add(routeIdOf(allRoutes[0]));
           const next=[...fixed].filter(Boolean);
           if(JSON.stringify(next)!==JSON.stringify(u.routeIds||[]))await setDoc(doc(fs,'users',d.id),{routeIds:next},{merge:true});
         }
@@ -78,7 +82,7 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
         }
         window.__prestamoYaRepairDone=true;
         if(typeof window.cloudSyncNow==='function')await window.cloudSyncNow();
-        console.log('Préstamo Ya: reparación Cloud completada',{routes:localRoutes.length,clients:localClients.length,credits:localCredits.length});
+        console.log('Préstamo Ya: reparación Cloud completada',{routes:allRoutes.length,clients:localClients.length,credits:localCredits.length});
       }catch(e){console.error('Préstamo Ya: reparación Cloud:',e);window.__prestamoYaRepairDone=false;}
     });
   }catch(e){console.error('Préstamo Ya: no se pudo iniciar reparación Cloud',e);}
