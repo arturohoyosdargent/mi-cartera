@@ -3,7 +3,7 @@
 // carga los módulos Cloud/backup/reparación y centraliza la sincronización.
 (async()=>{
   try{
-    const cleanKey='prestamo_ya_cache_clean_v8';
+    const cleanKey='prestamo_ya_cache_clean_v9';
     if(!sessionStorage.getItem(cleanKey)){
       sessionStorage.setItem(cleanKey,'1');
       if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));}
@@ -11,16 +11,16 @@
       location.reload();return;
     }
     const loadScript=(src,type='text/javascript')=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.type=type;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
-    await loadScript('./backup.js?v=8');
-    const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=37';document.head.appendChild(core);
-    await loadScript('./cloud-repair.js?v=6','module');
+    await loadScript('./backup.js?v=9');
+    const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=38';document.head.appendChild(core);
+    await loadScript('./cloud-repair.js?v=7','module');
     const installGuards=()=>{
       if(typeof window.currentUser!=='function'||typeof window.go!=='function'){setTimeout(installGuards,300);return;}
       if(window.__prestamoYaGuards)return;window.__prestamoYaGuards=true;
       const restricted=['users','investors','settings','audit','profile'];
       const originalGo=window.go;window.go=(id)=>{const role=window.currentUser()?.role||'consulta';if(!['admin','supervisor'].includes(role)&&restricted.includes(id))return toast('Acceso restringido a administración');return originalGo(id)};
       const manager=['admin','supervisor'];
-      for(const name of ['openCapitalForm','addRoute','assignCollector','openUserForm','saveUser','toggleUser','saveSettings','saveProfile']){const fn=window[name];if(typeof fn==='function')window[name]=(...args)=>{if(!manager.includes(window.currentUser()?.role))return toast('Acceso restringido a administración');return fn(...args)};}
+      for(const name of ['openCapitalForm','addRoute','assignCollector','openUserForm','saveUser','toggleUser','saveSettings','saveProfile']){const fn=window[name];if(typeof fn==='function')window[name]=(...args)=>{if(!manager.includes(window.currentUser()?.role))return toast('Acceso restringido a administración');return fn(...args)}}
       const payment=window.registerPayment;if(typeof payment==='function')window.registerPayment=(id,...args)=>{const cr=(db.credits||[]).find(x=>String(x.id)===String(id));const u=window.currentUser?.();const ids=Array.isArray(u?.routeIds)?u.routeIds:[];if(!manager.includes(u?.role)&&cr&&!ids.includes(cr.routeId)&&!ids.includes(String(cr.routeId)))return toast('No autorizado para esta ruta');return payment(id,...args)};
     };
     installGuards();
