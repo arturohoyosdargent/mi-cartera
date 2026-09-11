@@ -21,6 +21,8 @@ jobs:
           node --check firebase-cloud.js
           node --check firebase-cloud-core.js
           node --check cloud-repair.js
+          node --check cloud-repair-v2.js
+          node --check field-collection-sync.js
           node --check session-switch.js
           node --check data-integrity.js
 
@@ -68,6 +70,8 @@ jobs:
           test -f firebase-cloud.js
           test -f firebase-cloud-core.js
           test -f cloud-repair.js
+          test -f cloud-repair-v2.js
+          test -f field-collection-sync.js
           test -f session-switch.js
           test -f data-integrity.js
           test -f firestore.rules
