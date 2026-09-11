@@ -3,7 +3,7 @@
 // carga los módulos Cloud/backup/reparación y centraliza la sincronización.
 (async()=>{
   try{
-    const cleanKey='prestamo_ya_cache_clean_v15';
+    const cleanKey='prestamo_ya_cache_clean_v16';
     if(!sessionStorage.getItem(cleanKey)){
       sessionStorage.setItem(cleanKey,'1');
       if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));}
@@ -13,7 +13,7 @@
     const loadScript=(src,type='text/javascript')=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.type=type;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
     await loadScript('./backup.js?v=13');
     const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=42';document.head.appendChild(core);
-    await loadScript('./cloud-repair.js?v=13','module');
+    await loadScript('./cloud-repair.js?v=14','module');
     await loadScript('./session-switch.js?v=1');
     await loadScript('./data-integrity.js?v=2');
     const installGuards=()=>{
