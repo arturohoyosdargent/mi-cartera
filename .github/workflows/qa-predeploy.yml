@@ -20,6 +20,7 @@ jobs:
           node --check sw.js
           node --check firebase-cloud.js
           node --check firebase-cloud-core.js
+          node --check cloud-repair.js
 
       - name: Validar index y PWA
         run: |
@@ -64,6 +65,7 @@ jobs:
           test -f firebase-config.js
           test -f firebase-cloud.js
           test -f firebase-cloud-core.js
+          test -f cloud-repair.js
           test -f firestore.rules
           test -f firebase.json
           test -f functions/index.js
