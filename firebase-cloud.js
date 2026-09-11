@@ -3,7 +3,7 @@
 // carga los módulos Cloud/backup/reparación y centraliza la sincronización.
 (async()=>{
   try{
-    const cleanKey='prestamo_ya_cache_clean_v6';
+    const cleanKey='prestamo_ya_cache_clean_v7';
     if(!sessionStorage.getItem(cleanKey)){
       sessionStorage.setItem(cleanKey,'1');
       if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));}
@@ -11,9 +11,9 @@
       location.reload();return;
     }
     const loadScript=(src,type='text/javascript')=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.type=type;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
-    await loadScript('./backup.js?v=6');
-    const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=36';document.head.appendChild(core);
-    await loadScript('./cloud-repair.js?v=4','module');
+    await loadScript('./backup.js?v=7');
+    const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=37';document.head.appendChild(core);
+    await loadScript('./cloud-repair.js?v=5','module');
     const installGuards=()=>{
       if(typeof window.currentUser!=='function'||typeof window.go!=='function'){setTimeout(installGuards,300);return;}
       if(window.__prestamoYaGuards)return;window.__prestamoYaGuards=true;
