@@ -1,9 +1,7 @@
 // Arranque seguro de Préstamo Ya.
-// El núcleo principal ya se ejecuta desde index.html. Este archivo limpia caché antigua,
-// carga los módulos Cloud/backup/rutas/reparación y centraliza la sincronización.
 (async()=>{
   try{
-    const cleanKey='prestamo_ya_cache_clean_v18';
+    const cleanKey='prestamo_ya_cache_clean_v19';
     if(!sessionStorage.getItem(cleanKey)){
       sessionStorage.setItem(cleanKey,'1');
       if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));}
@@ -12,9 +10,8 @@
     }
     const loadScript=(src,type='text/javascript')=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.type=type;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
     await loadScript('./backup.js?v=13');
-    await loadScript('./route-ui.js?v=1');
     const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=43';document.head.appendChild(core);
-    await loadScript('./cloud-repair.js?v=16','module');
+    await loadScript('./cloud-repair.js?v=17','module');
     await loadScript('./session-switch.js?v=1');
     await loadScript('./data-integrity.js?v=2');
     const installGuards=()=>{
