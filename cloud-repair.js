@@ -29,55 +29,23 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc, deleteDoc
         const byName=new Map();
         for(const r of allRoutes){const n=String(r.name||'').trim().toLowerCase();if(!n)continue;const list=byName.get(n)||[];list.push(r);byName.set(n,list);}
         const routeFor=value=>{const raw=String(value??'').trim();if(!raw)return null;if(byId.has(raw))return byId.get(raw);const matches=byName.get(raw.toLowerCase())||[];return matches.length===1?matches[0]:null;};
-
-        for(const r of localRoutes){
-          if(r?.id==null)continue;
-          const payload={...r,orgId,routeId:String(r.id)};
-          if(payload.collectorId)payload.collectorId=String(payload.collectorId);
-          if(payload.collectorUid)payload.collectorUid=String(payload.collectorUid);
-          await setDoc(doc(fs,`orgs/${orgId}/routes`,String(r.id)),payload,{merge:true});
-        }
-
+        for(const r of localRoutes){if(r?.id==null)continue;const payload={...r,orgId,routeId:String(r.id)};if(payload.collectorId)payload.collectorId=String(payload.collectorId);if(payload.collectorUid)payload.collectorUid=String(payload.collectorUid);await setDoc(doc(fs,`orgs/${orgId}/routes`,String(r.id)),payload,{merge:true});}
         const usersSnap=await getDocs(query(collection(fs,'users'),where('orgId','==',orgId)));
         const users=usersSnap.docs.map(d=>({docId:d.id,...d.data()}));
         const norm=s=>String(s||'').trim().toLowerCase();
         for(const u of users){
-          const uname=norm(u.name),uemail=norm(u.email),uuid=String(u.uid||u.docId);
-          const fixed=new Set();
-          const current=Array.isArray(u.routeIds)?u.routeIds:[];
+          const uname=norm(u.name),uemail=norm(u.email),uuid=String(u.uid||u.docId),fixed=new Set(),current=Array.isArray(u.routeIds)?u.routeIds:[];
           for(const value of current){const r=routeFor(value);if(r)fixed.add(routeIdOf(r));}
-          for(const r of allRoutes){
-            const refs=[r.collectorId,r.collectorUid,r.collectorUserId].map(x=>String(x||'').trim()).filter(Boolean);
-            const names=[r.collectorName,r.cobrador,r.collector].map(norm).filter(Boolean);
-            if(refs.some(x=>x===uuid||norm(x)===uname||norm(x)===uemail)||names.some(x=>x===uname||x===uemail))fixed.add(routeIdOf(r));
-          }
+          for(const r of allRoutes){const refs=[r.collectorId,r.collectorUid,r.collectorUserId].map(x=>String(x||'').trim()).filter(Boolean);const names=[r.collectorName,r.cobrador,r.collector].map(norm).filter(Boolean);if(refs.some(x=>x===uuid||norm(x)===uname||norm(x)===uemail)||names.some(x=>x===uname||x===uemail))fixed.add(routeIdOf(r));}
           if(fixed.size===0&&allRoutes.length===1&&u.role==='cobrador')fixed.add(routeIdOf(allRoutes[0]));
-          const next=[...fixed].filter(Boolean);
-          if(JSON.stringify(next)!==JSON.stringify(current))await setDoc(doc(fs,'users',u.docId),{routeIds:next},{merge:true});
+          const next=[...fixed].filter(Boolean);if(JSON.stringify(next)!==JSON.stringify(current))await setDoc(doc(fs,'users',u.docId),{routeIds:next},{merge:true});
         }
-
-        const repairCollection=async name=>{
-          const snap=await readOrgCollection(name);
-          for(const d of snap.docs){
-            const x=d.data();const r=routeFor(x.routeId);const fixedRoute=r?routeIdOf(r):(x.routeId==null?null:String(x.routeId));const patch={orgId};
-            if(fixedRoute!==null&&String(x.routeId)!==String(fixedRoute))patch.routeId=fixedRoute;
-            if(x.routeId!=null&&typeof x.routeId!=='string'&&!patch.routeId)patch.routeId=String(x.routeId);
-            await setDoc(doc(fs,`orgs/${orgId}/${name}`,d.id),patch,{merge:true});
-          }
-        };
-        await repairCollection('routes');
-        await repairCollection('clients');
-        await repairCollection('credits');
-
+        const repairCollection=async name=>{const snap=await readOrgCollection(name);for(const d of snap.docs){const x=d.data(),r=routeFor(x.routeId),fixedRoute=r?routeIdOf(r):(x.routeId==null?null:String(x.routeId)),patch={orgId};if(fixedRoute!==null&&String(x.routeId)!==String(fixedRoute))patch.routeId=fixedRoute;if(x.routeId!=null&&typeof x.routeId!=='string'&&!patch.routeId)patch.routeId=String(x.routeId);await setDoc(doc(fs,`orgs/${orgId}/${name}`,d.id),patch,{merge:true});}};
+        await repairCollection('routes');await repairCollection('clients');await repairCollection('credits');
         const localClients=Array.isArray(window.db?.clients)?window.db.clients:[];
-        for(const c of localClients){if(c?.id==null)continue;const r=routeFor(c.routeId);const routeId=r?routeIdOf(r):(c.routeId==null?null:String(c.routeId));if(routeId==null)continue;await setDoc(doc(fs,`orgs/${orgId}/clients`,String(c.id)),{...c,orgId,routeId},{merge:true});}
+        for(const c of localClients){if(c?.id==null)continue;const r=routeFor(c.routeId),routeId=r?routeIdOf(r):(c.routeId==null?null:String(c.routeId));if(routeId==null)continue;await setDoc(doc(fs,`orgs/${orgId}/clients`,String(c.id)),{...c,orgId,routeId},{merge:true});}
         const localCredits=Array.isArray(window.db?.credits)?window.db.credits:[];
-        for(const c of localCredits){if(c?.id==null)continue;const r=routeFor(c.routeId);const routeId=r?routeIdOf(r):(c.routeId==null?null:String(c.routeId));if(routeId==null)continue;await setDoc(doc(fs,`orgs/${orgId}/credits`,String(c.id)),{...c,orgId,routeId},{merge:true});}
-
-        // Consolidación segura de rutas con el mismo nombre.
-        // Si exactamente una está asignada a un cobrador, esa ruta es la canónica.
-        // Toda la cartera de las copias pasa a ella y las copias quedan eliminadas
-        // únicamente después de confirmar que ya no tienen clientes ni créditos.
+        for(const c of localCredits){if(c?.id==null)continue;const r=routeFor(c.routeId),routeId=r?routeIdOf(r):(c.routeId==null?null:String(c.routeId));if(routeId==null)continue;await setDoc(doc(fs,`orgs/${orgId}/credits`,String(c.id)),{...c,orgId,routeId},{merge:true});}
         const freshRoutes=(await readOrgCollection('routes')).docs.map(d=>({docId:d.id,...d.data()}));
         const freshClients=(await readOrgCollection('clients')).docs.map(d=>({docId:d.id,...d.data()}));
         const freshCredits=(await readOrgCollection('credits')).docs.map(d=>({docId:d.id,...d.data()}));
@@ -87,22 +55,21 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc, deleteDoc
           if(list.length<2)continue;
           const assigned=list.filter(r=>String(r.collectorId||r.collectorUid||r.collectorUserId||r.collectorName||r.cobrador||r.collector||'').trim());
           if(assigned.length!==1)continue;
-          const canonical=assigned[0],canonicalId=routeIdOf(canonical);
-          const extras=list.filter(r=>routeIdOf(r)!==canonicalId);
+          const canonical=assigned[0],canonicalId=routeIdOf(canonical),extras=list.filter(r=>routeIdOf(r)!==canonicalId);
           for(const r of extras){
             const sourceId=routeIdOf(r);
             const movingClients=freshClients.filter(c=>String(c.routeId)===sourceId);
             const movingCredits=freshCredits.filter(c=>String(c.routeId)===sourceId);
-            for(const c of movingClients){await setDoc(doc(fs,`orgs/${orgId}/clients`,c.docId),{orgId,routeId:canonicalId},{merge:true});}
-            for(const c of movingCredits){await setDoc(doc(fs,`orgs/${orgId}/credits`,c.docId),{orgId,routeId:canonicalId},{merge:true});}
-            // La comprobación usa el estado previsto después del movimiento, no el snapshot antiguo.
-            const remainingClients=freshClients.some(c=>String(c.routeId)===sourceId&&!movingClients.some(m=>m.docId===c.docId));
-            const remainingCredits=freshCredits.some(c=>String(c.routeId)===sourceId&&!movingCredits.some(m=>m.docId===c.docId));
-            if(!remainingClients&&!remainingCredits)await deleteDoc(doc(fs,`orgs/${orgId}/routes`,sourceId));
+            for(const c of movingClients)await setDoc(doc(fs,`orgs/${orgId}/clients`,c.docId),{orgId,routeId:canonicalId},{merge:true});
+            for(const c of movingCredits)await setDoc(doc(fs,`orgs/${orgId}/credits`,c.docId),{orgId,routeId:canonicalId},{merge:true});
+            // Los snapshots anteriores siguen conteniendo la cartera antigua; por eso verificamos Cloud otra vez.
+            const verifyClients=(await readOrgCollection('clients')).docs.map(d=>d.data());
+            const verifyCredits=(await readOrgCollection('credits')).docs.map(d=>d.data());
+            const stillUsed=verifyClients.some(c=>String(c.routeId)===sourceId)||verifyCredits.some(c=>String(c.routeId)===sourceId);
+            if(!stillUsed)await deleteDoc(doc(fs,`orgs/${orgId}/routes`,sourceId));
           }
           console.log('Préstamo Ya: ruta duplicada consolidada',{name,canonicalRoute:canonicalId,removed:extras.map(routeIdOf)});
         }
-
         window.__prestamoYaRepairDone=true;
         if(typeof window.cloudSyncNow==='function')await window.cloudSyncNow();
         console.log('Préstamo Ya: reparación Cloud completada',{routes:allRoutes.length,clients:localClients.length,credits:localCredits.length});
