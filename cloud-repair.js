@@ -1,6 +1,6 @@
 import { getApp, getApps } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
-import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
+import { getFirestore, collection, getDocs, query, where, doc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
 
 (async()=>{
   try{
@@ -28,7 +28,6 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
         const byId=new Map(allRoutes.map(r=>[routeIdOf(r),r]));
         const byName=new Map();
         for(const r of allRoutes){const n=String(r.name||'').trim().toLowerCase();if(!n)continue;const list=byName.get(n)||[];list.push(r);byName.set(n,list);}
-        // Un nombre de ruta solo es válido como referencia si es único. Los IDs siempre tienen prioridad.
         const routeFor=value=>{const raw=String(value??'').trim();if(!raw)return null;if(byId.has(raw))return byId.get(raw);const matches=byName.get(raw.toLowerCase())||[];return matches.length===1?matches[0]:null;};
 
         for(const r of localRoutes){
@@ -41,15 +40,16 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
 
         const usersSnap=await getDocs(query(collection(fs,'users'),where('orgId','==',orgId)));
         const users=usersSnap.docs.map(d=>({docId:d.id,...d.data()}));
+        const norm=s=>String(s||'').trim().toLowerCase();
         for(const u of users){
-          const uname=String(u.name||'').trim().toLowerCase();
+          const uname=norm(u.name),uemail=norm(u.email),uuid=String(u.uid||u.docId);
           const fixed=new Set();
           const current=Array.isArray(u.routeIds)?u.routeIds:[];
           for(const value of current){const r=routeFor(value);if(r)fixed.add(routeIdOf(r));}
           for(const r of allRoutes){
-            const cid=String(r.collectorId||r.collectorUid||'').trim();
-            const cname=String(r.collectorName||r.cobrador||r.collector||'').trim().toLowerCase();
-            if((cid&&cid===String(u.uid||u.docId))||(cname&&uname&&cname===uname))fixed.add(routeIdOf(r));
+            const refs=[r.collectorId,r.collectorUid,r.collectorUserId].map(x=>String(x||'').trim()).filter(Boolean);
+            const names=[r.collectorName,r.cobrador,r.collector].map(norm).filter(Boolean);
+            if(refs.some(x=>x===uuid||norm(x)===uname||norm(x)===uemail)||names.some(x=>x===uname||x===uemail))fixed.add(routeIdOf(r));
           }
           if(fixed.size===0&&allRoutes.length===1&&u.role==='cobrador')fixed.add(routeIdOf(allRoutes[0]));
           const next=[...fixed].filter(Boolean);
@@ -74,28 +74,35 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
         const localCredits=Array.isArray(window.db?.credits)?window.db.credits:[];
         for(const c of localCredits){if(c?.id==null)continue;const r=routeFor(c.routeId);const routeId=r?routeIdOf(r):(c.routeId==null?null:String(c.routeId));if(routeId==null)continue;await setDoc(doc(fs,`orgs/${orgId}/credits`,String(c.id)),{...c,orgId,routeId},{merge:true});}
 
-        // Migración segura del caso observado: si un cobrador tiene una ruta vacía y existe
-        // exactamente una ruta con el mismo nombre que contiene clientes, mueve esa cartera.
-        const clientsSnap=await readOrgCollection('clients');
-        const cloudClients=clientsSnap.docs.map(d=>({docId:d.id,...d.data()}));
-        for(const u of users){
-          if(u.role!=='cobrador')continue;
-          const assigned=(Array.isArray(u.routeIds)?u.routeIds:[]).map(String).filter(x=>byId.has(x));
-          for(const rid of assigned){
-            const target=byId.get(rid);if(!target)continue;
-            if(cloudClients.some(c=>String(c.routeId)===rid))continue;
-            const name=String(target.name||'').trim().toLowerCase();if(!name)continue;
-            const siblings=(byName.get(name)||[]).filter(r=>routeIdOf(r)!==rid);
-            const populated=siblings.filter(r=>cloudClients.some(c=>String(c.routeId)===routeIdOf(r)));
-            if(populated.length!==1)continue;
-            const sourceId=routeIdOf(populated[0]);
-            const moving=cloudClients.filter(c=>String(c.routeId)===sourceId);
-            for(const c of moving){await setDoc(doc(fs,`orgs/${orgId}/clients`,c.docId),{orgId,routeId:rid},{merge:true});c.routeId=rid;}
-            const creditsSnap=await readOrgCollection('credits');
-            for(const d of creditsSnap.docs){const cr=d.data();if(String(cr.routeId)===sourceId)await setDoc(doc(fs,`orgs/${orgId}/credits`,d.id),{orgId,routeId:rid},{merge:true});}
-            console.log('Préstamo Ya: cartera migrada a ruta del cobrador',{user:u.name,sourceRoute:sourceId,targetRoute:rid,clients:moving.length});
+        // Consolidación segura: cuando hay rutas con el mismo nombre, solo se consolida
+        // si existe exactamente una ruta de ese nombre asignada a un cobrador y las demás
+        // no tienen cobrador. Toda la cartera pasa al ID canónico; las rutas vacías sobrantes
+        // se eliminan. Si hay ambigüedad, no se toca nada.
+        const freshRoutes=(await readOrgCollection('routes')).docs.map(d=>({docId:d.id,...d.data()}));
+        const freshClients=(await readOrgCollection('clients')).docs.map(d=>({docId:d.id,...d.data()}));
+        const freshCredits=(await readOrgCollection('credits')).docs.map(d=>({docId:d.id,...d.data()}));
+        const groups=new Map();
+        for(const r of freshRoutes){const n=norm(r.name);if(!n)continue;const list=groups.get(n)||[];list.push(r);groups.set(n,list);}
+        for(const [name,list] of groups){
+          if(list.length<2)continue;
+          const assigned=list.filter(r=>String(r.collectorId||r.collectorUid||r.collectorUserId||r.collectorName||r.cobrador||r.collector||'').trim());
+          if(assigned.length!==1)continue;
+          const canonical=assigned[0],canonicalId=routeIdOf(canonical);
+          const extras=list.filter(r=>routeIdOf(r)!==canonicalId);
+          for(const r of extras){
+            const sourceId=routeIdOf(r);
+            const movingClients=freshClients.filter(c=>String(c.routeId)===sourceId);
+            const movingCredits=freshCredits.filter(c=>String(c.routeId)===sourceId);
+            for(const c of movingClients){await setDoc(doc(fs,`orgs/${orgId}/clients`,c.docId),{orgId,routeId:canonicalId},{merge:true});}
+            for(const c of movingCredits){await setDoc(doc(fs,`orgs/${orgId}/credits`,c.docId),{orgId,routeId:canonicalId},{merge:true});}
+            // Solo eliminamos la ruta duplicada cuando ya quedó sin cartera.
+            if(!freshClients.some(c=>String(c.routeId)===sourceId)&&!freshCredits.some(c=>String(c.routeId)===sourceId)){
+              await deleteDoc(doc(fs,`orgs/${orgId}/routes`,sourceId));
+            }
           }
+          console.log('Préstamo Ya: ruta duplicada consolidada',{name,canonicalRoute:canonicalId,removed:extras.map(routeIdOf)});
         }
+
         window.__prestamoYaRepairDone=true;
         if(typeof window.cloudSyncNow==='function')await window.cloudSyncNow();
         console.log('Préstamo Ya: reparación Cloud completada',{routes:allRoutes.length,clients:localClients.length,credits:localCredits.length});
