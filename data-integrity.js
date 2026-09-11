@@ -18,8 +18,11 @@
       const routes=Array.isArray(db.routes)?db.routes:[];
       const clients=Array.isArray(db.clients)?db.clients:[];
       const credits=Array.isArray(db.credits)?db.credits:[];
+      const payments=Array.isArray(db.payments)?db.payments:[];
       const issues=[];
       const byId=new Map(routes.map(r=>[String(r.id),r]));
+      const clientById=new Map(clients.map(c=>[String(c.id),c]));
+      const creditById=new Map(credits.map(c=>[String(c.id),c]));
       const byName=new Map();
       for(const r of routes){
         const n=String(r.name||'').trim().toLowerCase();
@@ -28,7 +31,17 @@
       }
       for(const [name,list] of byName){if(list.length>1)issues.push({type:'RUTAS_DUPLICADAS',name,count:list.length,ids:list.map(r=>String(r.id))});}
       for(const c of clients){if(c.routeId!=null&&c.routeId!==''&&!byId.has(String(c.routeId)))issues.push({type:'CLIENTE_SIN_RUTA_VALIDA',id:c.id,name:c.name,routeId:c.routeId});}
-      for(const c of credits){if(c.routeId!=null&&c.routeId!==''&&!byId.has(String(c.routeId)))issues.push({type:'CREDITO_SIN_RUTA_VALIDA',id:c.id,routeId:c.routeId});}
+      for(const c of credits){
+        if(c.routeId!=null&&c.routeId!==''&&!byId.has(String(c.routeId)))issues.push({type:'CREDITO_SIN_RUTA_VALIDA',id:c.id,routeId:c.routeId});
+        if(c.clientId!=null&&c.clientId!==''&&!clientById.has(String(c.clientId)))issues.push({type:'CREDITO_SIN_CLIENTE',id:c.id,clientId:c.clientId});
+        const client=c.clientId!=null&&c.clientId!==''?clientById.get(String(c.clientId)):null;
+        if(client&&c.routeId!=null&&c.routeId!==''&&client.routeId!=null&&client.routeId!==''&&String(c.routeId)!==String(client.routeId))issues.push({type:'CREDITO_RUTA_DIFERENTE_CLIENTE',id:c.id,creditRouteId:c.routeId,clientRouteId:client.routeId});
+      }
+      for(const p of payments){
+        if(p.creditId!=null&&p.creditId!==''&&!creditById.has(String(p.creditId)))issues.push({type:'PAGO_SIN_CREDITO',id:p.id,creditId:p.creditId});
+        const credit=p.creditId!=null&&p.creditId!==''?creditById.get(String(p.creditId)):null;
+        if(credit&&p.routeId!=null&&p.routeId!==''&&credit.routeId!=null&&credit.routeId!==''&&String(p.routeId)!==String(credit.routeId))issues.push({type:'PAGO_RUTA_DIFERENTE_CREDITO',id:p.id,paymentRouteId:p.routeId,creditRouteId:credit.routeId});
+      }
       // Una ruta vacía y sin cobrador puede ser intencional; solo alertamos si ya contiene cartera.
       const collectorless=routes.filter(r=>!r.collectorId&&String(r.name||'').trim()&&(
         clients.some(c=>String(c.routeId)===String(r.id))||credits.some(c=>String(c.routeId)===String(r.id))
