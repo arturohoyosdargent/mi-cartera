@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
+import { getApp, getApps } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
 import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
 
@@ -7,7 +7,8 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
     const cfg=window.MI_CARTERA_FIREBASE||{};
     const cloud=window.MI_CARTERA_CLOUD||{};
     if(!cloud.cloudEnabled||!cfg.projectId)return;
-    const app=getApps().find(a=>a.name==='prestamoYaRepair')||initializeApp(cfg,'prestamoYaRepair');
+    if(!getApps().length)return;
+    const app=getApp();
     const auth=getAuth(app);
     const fs=getFirestore(app);
     onAuthStateChanged(auth,async user=>{
@@ -18,9 +19,11 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
         const me=meSnap.docs[0]?.data();
         if(!me||!['admin','supervisor'].includes(me.role))return;
         window.__prestamoYaRepairDone=true;
+
         const routesSnap=await getDocs(query(collection(fs,`orgs/${orgId}/routes`),where('orgId','==',orgId)));
         const routes=routesSnap.docs.map(d=>d.data());
         const routeFor=value=>routes.find(r=>String(r.id)===String(value)||String(r.name||'').trim().toLowerCase()===String(value||'').trim().toLowerCase());
+
         const usersSnap=await getDocs(query(collection(fs,'users'),where('orgId','==',orgId)));
         for(const d of usersSnap.docs){
           const u=d.data();
@@ -28,6 +31,7 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
           const fixed=[...new Set(u.routeIds.map(x=>routeFor(x)?.id??x))];
           if(JSON.stringify(fixed)!==JSON.stringify(u.routeIds))await setDoc(doc(fs,'users',d.id),{routeIds:fixed},{merge:true});
         }
+
         const repairCollection=async name=>{
           const snap=await getDocs(query(collection(fs,`orgs/${orgId}/${name}`),where('orgId','==',orgId)));
           for(const d of snap.docs){
@@ -38,6 +42,7 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
             }
           }
         };
+
         await repairCollection('clients');
         await repairCollection('credits');
         if(typeof window.cloudSyncNow==='function')await window.cloudSyncNow();
