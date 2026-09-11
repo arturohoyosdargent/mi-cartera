@@ -1,7 +1,7 @@
 // Arranque seguro de Préstamo Ya.
 (async()=>{
   try{
-    const cleanKey='prestamo_ya_cache_clean_v20';
+    const cleanKey='prestamo_ya_cache_clean_v21';
     if(!sessionStorage.getItem(cleanKey)){
       sessionStorage.setItem(cleanKey,'1');
       if('serviceWorker' in navigator){const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));}
@@ -10,9 +10,8 @@
     }
     const loadScript=(src,type='text/javascript')=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.type=type;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
     await loadScript('./backup.js?v=13');
-    const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=44';document.head.appendChild(core);
-    // Esperar a que el core termine de resolver la sesión Cloud antes de cargar
-    // la migración de rutas. Así la reparación no compite con el primer pull.
+    const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=45';document.head.appendChild(core);
+    // Esperar a que el core termine de resolver la sesión Cloud antes de reparar rutas.
     await new Promise(resolve=>{
       const started=Date.now();
       const tick=()=>{
@@ -24,7 +23,7 @@
       };
       tick();
     });
-    await loadScript('./cloud-repair.js?v=18','module');
+    await loadScript('./cloud-repair-v2.js?v=1','module');
     await loadScript('./session-switch.js?v=1');
     await loadScript('./data-integrity.js?v=2');
     const installGuards=()=>{
