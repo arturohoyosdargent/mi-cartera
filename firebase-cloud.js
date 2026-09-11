@@ -13,7 +13,7 @@
     const loadScript=(src,type='text/javascript')=>new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.type=type;s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
     await loadScript('./backup.js?v=4');
     const core=document.createElement('script');core.type='module';core.src='./firebase-cloud-core.js?v=35';document.head.appendChild(core);
-    await loadScript('./cloud-repair.js?v=1','module');
+    await loadScript('./cloud-repair.js?v=2','module');
     const installGuards=()=>{
       if(typeof window.currentUser!=='function'||typeof window.go!=='function'){setTimeout(installGuards,300);return;}
       if(window.__prestamoYaGuards)return;window.__prestamoYaGuards=true;
