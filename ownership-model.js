@@ -52,4 +52,5 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
       }catch(e){window.__prestamoYaOwnershipModelDone=false;console.error('Préstamo Ya: error separando cartera administrativa',e)}
     });
   }catch(e){console.error('Préstamo Ya: no se pudo iniciar ownership-model',e)}
+  try{await import('./credit-share.js?v=1')}catch(e){console.warn('Módulo compartir crédito:',e)}
 })();
