@@ -21,6 +21,8 @@ jobs:
           node --check ownership-model.js
           node --check field-collection-sync.js
           node --check credit-planner.js
+          node --check credit-share.js
+          node --check cloud-ui-fixes.js
           node --check session-switch.js
           node --check data-integrity.js
       - name: Validar index y PWA
@@ -66,6 +68,8 @@ jobs:
           test -f ownership-model.js
           test -f field-collection-sync.js
           test -f credit-planner.js
+          test -f credit-share.js
+          test -f cloud-ui-fixes.js
           test -f session-switch.js
           test -f data-integrity.js
           test -f firestore.rules
