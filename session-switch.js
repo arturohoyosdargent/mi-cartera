@@ -14,6 +14,13 @@
     const original=window.openCloudLogin;
     if(typeof original!=='function'||window.__prestamoYaSessionSwitch)return;
     window.__prestamoYaSessionSwitch=true;
+    const clearLocalSession=()=>{
+      try{
+        if(window.db){window.db.currentUserId=null;}
+        if(typeof window.persist==='function')window.persist();
+        if(typeof window.updateSyncUI==='function')window.updateSyncUI();
+      }catch(e){console.warn('Limpieza de sesión local:',e);}
+    };
     window.openCloudLogin=async()=>{
       const btn=document.getElementById('cloudUserBtn');
       const logged=btn&&btn.textContent&&!/Entrar/i.test(btn.textContent);
@@ -21,6 +28,7 @@
         const name=(btn.textContent||'').replace(/^☁️\s*/,'').trim()||'usuario actual';
         if(!confirm('Sesión Cloud activa como '+name+'.\n\n¿Cerrar sesión para ingresar con otro usuario?'))return;
         try{await window.cloudLogout();}catch(e){console.error('Cambio de cuenta:',e);}
+        clearLocalSession();
         setTimeout(()=>original(),250);
         return;
       }
