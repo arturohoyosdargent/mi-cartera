@@ -7,10 +7,21 @@ import { getFirestore, collection, getDocs, query, where, doc, setDoc } from 'ht
     const cfg=window.MI_CARTERA_FIREBASE||{};
     const cloud=window.MI_CARTERA_CLOUD||{};
     if(!cloud.cloudEnabled||!cfg.projectId)return;
-    if(!getApps().length)return;
-    const app=getApp();
+
+    const waitForFirebase=()=>new Promise((resolve,reject)=>{
+      const started=Date.now();
+      const tick=()=>{
+        if(getApps().length)return resolve(getApp());
+        if(Date.now()-started>15000)return reject(new Error('Firebase no se inicializó a tiempo'));
+        setTimeout(tick,150);
+      };
+      tick();
+    });
+
+    const app=await waitForFirebase();
     const auth=getAuth(app);
     const fs=getFirestore(app);
+
     onAuthStateChanged(auth,async user=>{
       if(!user||window.__prestamoYaRepairDone)return;
       try{
