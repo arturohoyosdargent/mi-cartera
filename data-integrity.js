@@ -29,11 +29,16 @@
       for(const [name,list] of byName){if(list.length>1)issues.push({type:'RUTAS_DUPLICADAS',name,count:list.length,ids:list.map(r=>String(r.id))});}
       for(const c of clients){if(c.routeId!=null&&c.routeId!==''&&!byId.has(String(c.routeId)))issues.push({type:'CLIENTE_SIN_RUTA_VALIDA',id:c.id,name:c.name,routeId:c.routeId});}
       for(const c of credits){if(c.routeId!=null&&c.routeId!==''&&!byId.has(String(c.routeId)))issues.push({type:'CREDITO_SIN_RUTA_VALIDA',id:c.id,routeId:c.routeId});}
-      const collectorless=routes.filter(r=>!r.collectorId&&String(r.name||'').trim());
-      if(collectorless.length)issues.push({type:'RUTAS_SIN_COBRADOR',count:collectorless.length});
+      // Una ruta vacía y sin cobrador puede ser intencional; solo alertamos si ya contiene cartera.
+      const collectorless=routes.filter(r=>!r.collectorId&&String(r.name||'').trim()&&(
+        clients.some(c=>String(c.routeId)===String(r.id))||credits.some(c=>String(c.routeId)===String(r.id))
+      ));
+      if(collectorless.length)issues.push({type:'RUTAS_SIN_COBRADOR',count:collectorless.length,ids:collectorless.map(r=>String(r.id))});
       window.__prestamoYaIntegrity={checkedAt:new Date().toISOString(),ok:issues.length===0,issues};
-      if(issues.length){console.warn('Préstamo Ya · diagnóstico de integridad',issues);if(typeof window.toast==='function'&&!window.__prestamoYaIntegrityToast){window.__prestamoYaIntegrityToast=true;window.toast('⚠️ Se detectaron '+issues.length+' observación(es) de integridad. Revisar Rutas/Usuarios.');}}
-      else console.log('Préstamo Ya · integridad: OK');
+      if(issues.length){
+        console.warn('Préstamo Ya · diagnóstico de integridad',issues);
+        if(typeof window.toast==='function'&&!window.__prestamoYaIntegrityToast){window.__prestamoYaIntegrityToast=true;window.toast('⚠️ Se detectaron '+issues.length+' observación(es) de integridad. Revisar Rutas/Usuarios.');}
+      }else console.log('Préstamo Ya · integridad: OK');
       return window.__prestamoYaIntegrity;
     };
     window.checkRouteIntegrity=run;
