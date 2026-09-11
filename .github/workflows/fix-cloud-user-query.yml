@@ -1,4 +1,4 @@
-name: Fix Cloud user query
+name: Fix Cloud scoped queries
 
 on:
   push:
@@ -12,23 +12,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch pullUsers query
+      - name: Scope Firestore pulls by organization
         run: |
           python - <<'PY'
           from pathlib import Path
           p=Path('firebase-cloud-core.js')
           s=p.read_text(encoding='utf-8')
-          old="async function pullUsers(){const snap=await getDocs(collection(fs,'users'));return snap.docs.map(d=>d.data());}"
-          new="async function pullUsers(){const q=query(collection(fs,'users'),where('orgId','==',orgId));const snap=await getDocs(q);return snap.docs.map(d=>d.data());}"
+          old="async function pullCollection(name,constraints=[]){let q=collection(fs,`orgs/${orgId}/${name}`);let qq=constraints.length?query(q,...constraints):q;const snap=await getDocs(qq);return snap.docs.map(d=>d.data());}"
+          new="async function pullCollection(name,constraints=[]){let q=collection(fs,`orgs/${orgId}/${name}`);const all=[where('orgId','==',orgId),...(constraints||[])];let qq=query(q,...all);const snap=await getDocs(qq);return snap.docs.map(d=>d.data());}"
           if old not in s:
-              raise SystemExit('pullUsers pattern not found')
+              raise SystemExit('pullCollection pattern not found')
           p.write_text(s.replace(old,new,1),encoding='utf-8')
-          print('patched pullUsers')
+          print('patched pullCollection')
           PY
-      - name: Commit
+      - name: Commit patch
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add firebase-cloud-core.js
-          git commit -m 'Fix Cloud user query by organization' || exit 0
+          git commit -m 'Scope Cloud pulls by organization' || exit 0
           git push
