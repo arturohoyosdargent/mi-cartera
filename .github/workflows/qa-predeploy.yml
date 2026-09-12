@@ -50,31 +50,33 @@ jobs:
           json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
           print('QA HTML/PWA OK')
           PY
-      - name: Validar registro real del Service Worker
+      - name: Validar Service Worker y cache bust
         run: |
           python - <<'PY'
           from pathlib import Path
           s=Path('firebase-cloud.js').read_text(encoding='utf-8')
           sw=Path('sw.js').read_text(encoding='utf-8')
-          assert 'navigator.serviceWorker.register' in s, 'El PWA no registra el Service Worker al arrancar'
-          assert 'prestamo_ya_cache_clean_v29' in s, 'Falta el control de caché v29'
-          assert "sync-queue-v3.js?v=7" in s, 'No se está cargando la cola v7'
-          assert "CACHE='prestamo-ya-v11'" in sw, 'Falta el cache v11 del Service Worker'
-          print('QA Service Worker/sync bootstrap OK')
+          assert 'navigator.serviceWorker.register' in s
+          assert 'prestamo_ya_cache_clean_v30' in s
+          assert "sync-queue-v3.js?v=8" in s
+          assert "sw.js?v=12" in s
+          assert "CACHE='prestamo-ya-v12'" in sw
+          print('QA Service Worker/cache bust OK')
           PY
       - name: Validar contrato de sincronización offline
         run: |
           python - <<'PY'
           from pathlib import Path
           q=Path('sync-queue-v3.js').read_text(encoding='utf-8')
-          c=Path('firebase-cloud-core.js').read_text(encoding='utf-8')
           f=Path('firebase-cloud.js').read_text(encoding='utf-8')
           r=Path('client-sync-repair.js').read_text(encoding='utf-8')
-          required_q=['window.ackQueueAfterCloudSync','window.syncQueueV3',"item.status='SINCRONIZADO'","item.status='ERROR'",'item.error=','window.__prestamoYaQueueProfile']
+          required_q=['window.syncQueueV3',"item.status='SINCRONIZADO'","item.status='ERROR'",'item.error=','waitForPendingWrites','window.waitForCloudWrites']
           for x in required_q: assert x in q, f'Falta contrato de cola: {x}'
-          assert 'return true;' in c and "toast('Cloud sincronizado.')" in c
-          assert "if(ok&&typeof window.ackQueueAfterCloudSync==='function')window.ackQueueAfterCloudSync();" in f
-          assert "if(typeof window.syncQueueV3==='function')await window.syncQueueV3();" in f
+          assert "const ok=await raw();" in f
+          assert "if(!ok)return false;" in f
+          assert "if(typeof window.syncQueueV3==='function')q=await window.syncQueueV3();" in f
+          assert "if(typeof window.waitForCloudWrites==='function')await window.waitForCloudWrites();" in f
+          assert "window.ackQueueAfterCloudSync=()=>" in q
           assert 'no se mezcla' in r.lower() or 'fuente de verdad' in r.lower()
           print('QA contrato offline/Cloud OK')
           PY
