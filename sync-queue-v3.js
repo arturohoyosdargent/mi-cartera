@@ -1,29 +1,136 @@
-// Motor definitivo de cola local -> Cloud Firestore.
-// v7: la confirmación usa el perfil real de Firebase y no deja operaciones autorizadas eternamente en PENDIENTE.
+// Préstamo Ya — cola offline/Cloud v8.
+// Regla: una operación solo pasa a SINCRONIZADO después de que Firestore confirme la escritura.
+// No se usa un segundo "ack" basado únicamente en que el pull de Cloud terminó.
 import { getApp, getApps } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
 import { getAuth } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
-import { getFirestore, doc, setDoc, deleteDoc, getDoc } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
+import { getFirestore, doc, setDoc, deleteDoc, getDoc, waitForPendingWrites } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
+
 (()=>{
- const wait=()=>new Promise((resolve,reject)=>{const started=Date.now();const tick=()=>{if(getApps().length)return resolve(getApp());if(Date.now()-started>20000)return reject(new Error('Firebase no se inicializó'));setTimeout(tick,200)};tick()});
- const collectionFor=t=>({CLIENTE_CREADO:'clients',CLIENTE_MODIFICADO:'clients',CLIENTE_ELIMINADO:'clients',CREDITO_CREADO:'credits',CREDITO_MODIFICADO:'credits',CREDITO_ELIMINADO:'credits',PAGO_CREADO:'payments',PAGO_MODIFICADO:'payments',PAGO_ELIMINADO:'payments',RECAUDO:'payments',RECAUDO_CREADO:'payments',RUTA_CREADA:'routes',RUTA_MODIFICADA:'routes',RUTA_ELIMINADA:'routes',CAPITAL_INGRESADO:'capital',CAPITAL_MODIFICADO:'capital',CAPITAL_ELIMINADO:'capital',ENTRADA:'entries',ENTRADA_CREADA:'entries',ENTRADA_MODIFICADA:'entries',ENTRADA_ELIMINADA:'entries',GASTO:'expenses',GASTO_CREADO:'expenses',GASTO_MODIFICADO:'expenses',GASTO_ELIMINADO:'expenses',CIERRE_CAJA:'cashClosures',CIERRE_CAJA_MODIFICADO:'cashClosures',AUTORIZACION_APROBADA:'approvals',AUTORIZACION_RECHAZADA:'approvals',SOLICITUD_AUTORIZACION:'approvals'})[t]||null;
- const isDelete=t=>/(_ELIMINADO|_ELIMINADA)$/.test(t);
- const findLocal=(type,payload)=>{const name=collectionFor(type),list=Array.isArray(window.db?.[name])?window.db[name]:[];if(payload?.id!=null)return list.find(x=>String(x.id)===String(payload.id))||null;if(!list.length)return null;const candidates=list.filter(x=>type.startsWith('CREDITO_')?String(x.clientId??'')===String(payload?.clientId??'')&&String(x.date??'')===String(payload?.date??'')&&Number(x.capital??0)===Number(payload?.capital??0):type.startsWith('CLIENTE_')?String(x.name??'')===String(payload?.name??'')&&String(x.phone??'')===String(payload?.phone??''):false);return candidates.length?candidates[candidates.length-1]:null};
- const clean=v=>{if(Array.isArray(v))return v.map(clean);if(v&&typeof v==='object'){const o={};for(const[k,x]of Object.entries(v))if(x!==undefined)o[k]=clean(x);return o}return v};
- const roleFromDb=()=>{const p=window.__prestamoYaQueueProfile;if(p?.role)return p.role;const db=window.db||{};const uid=db.currentUserId;const u=Array.isArray(db.users)?db.users.find(x=>String(x.id||x.uid)===String(uid)):null;return u?.role||'consulta'};
- const profileFromDb=()=>window.__prestamoYaQueueProfile||(()=>{const db=window.db||{},uid=db.currentUserId;return Array.isArray(db.users)?db.users.find(x=>String(x.id||x.uid)===String(uid))||null:null})();
- const canAckItem=item=>{const p=profileFromDb(),manager=['admin','supervisor'].includes(p?.role);if(manager)return true;const col=collectionFor(item.type);if(['clients','payments','cashClosures','approvals'].includes(col))return true;if(col==='credits'){const local=findLocal(item.type,item.payload||{})||item.payload||{};const routes=Array.isArray(p?.routeIds)?p.routeIds.map(String):[];return local?.routeId!=null&&routes.includes(String(local.routeId));}return false};
- const persistQueue=()=>{try{const db=window.db;if(!db)return;db.settings=db.settings||{};db.settings.lastOnline=new Date().toISOString();localStorage.setItem('mi_cartera_pro_v21',JSON.stringify(db));localStorage.setItem('mi_cartera_pro_v19',JSON.stringify(db));window.persist?.()}catch(e){console.warn('Cola: persistencia final',e)}};
- const reconcileConfirmedCloud=()=>{const db=window.db;if(!db||!Array.isArray(db.syncQueue))return 0;let n=0;for(const item of db.syncQueue){if(!item||!['PENDIENTE','ERROR'].includes(item.status)||!canAckItem(item))continue;item.status='SINCRONIZADO';item.syncedAt=new Date().toISOString();delete item.error;n++;}persistQueue();try{window.updateSyncUI?.()}catch(_){}window.__prestamoYaQueueLast={processed:n,remaining:db.syncQueue.filter(x=>x&&x.status==='PENDIENTE').length,at:new Date().toISOString(),cloudAck:true,role:roleFromDb()};return n};
- window.ackQueueAfterCloudSync=reconcileConfirmedCloud;
- const wireCloudAck=()=>{if(typeof window.cloudSyncNow!=='function')return setTimeout(wireCloudAck,300);if(window.__prestamoYaQueueCloudWrapped)return;const raw=window.cloudSyncNow;window.cloudSyncNow=async()=>{const ok=await raw();if(ok)reconcileConfirmedCloud();return ok};window.__prestamoYaQueueCloudWrapped=true};
- wireCloudAck();
- const process=async()=>{
-  const db=window.db;if(!navigator.onLine||!db)return {ok:false,processed:0,remaining:db?.syncQueue?.length||0};
-  const cfg=window.MI_CARTERA_FIREBASE||{},cloud=window.MI_CARTERA_CLOUD||{};if(!cloud.cloudEnabled||!cfg.projectId)return {ok:false,processed:0,remaining:db.syncQueue?.length||0};
-  const app=await wait(),auth=getAuth(app),fs=getFirestore(app),u=auth.currentUser;if(!u)return {ok:false,processed:0,remaining:db.syncQueue?.length||0};
-  const orgId=cloud.orgId||'mi-cartera';let profile=null;try{const snap=await getDoc(doc(fs,'users',u.uid));profile=snap.exists()?snap.data():null}catch(e){console.warn('Cola: perfil',e)}if(!profile&&typeof window.currentUser==='function')profile=window.currentUser()||null;window.__prestamoYaQueueProfile=profile||window.__prestamoYaQueueProfile||null;
-  const queue=Array.isArray(db.syncQueue)?db.syncQueue:[];let processed=0;
-  for(const item of queue.slice()){if(!item||!['PENDIENTE','ERROR'].includes(item.status))continue;const col=collectionFor(item.type);if(!col){item.status='ERROR';item.error='Tipo no soportado';continue;}const payload=item.payload&&typeof item.payload==='object'?item.payload:{};const local=findLocal(item.type,payload);const merged=local?{...local,...payload}:payload;const id=merged?.id!=null?String(merged.id):null;const manager=profile?.role==='admin'||profile?.role==='supervisor';const routeOk=Array.isArray(profile?.routeIds)&&merged?.routeId!=null&&profile.routeIds.map(String).includes(String(merged.routeId));if(!manager&&!routeOk&&!['clients','payments','cashClosures','approvals'].includes(col)){item.attempts=(item.attempts||0)+1;item.status='ERROR';item.error='Sin permiso para la ruta';continue;}if(id==null){item.attempts=(item.attempts||0)+1;item.status='ERROR';item.error='No se pudo determinar el ID';continue;}try{item.attempts=(item.attempts||0)+1;const ref=doc(fs,`orgs/${orgId}/${col}`,id);if(isDelete(item.type))await deleteDoc(ref);else await setDoc(ref,clean({...merged,id,orgId,userId:u.uid,updatedAt:new Date().toISOString()}),{merge:true});item.status='SINCRONIZADO';item.syncedAt=new Date().toISOString();delete item.error;processed++;}catch(e){item.status='ERROR';item.error=String(e?.code||e?.message||e)}}
-  persistQueue();try{window.updateSyncUI?.()}catch(_){}const remaining=queue.filter(x=>x&&(['PENDIENTE','ERROR'].includes(x.status))).length;window.__prestamoYaQueueLast={processed,remaining,at:new Date().toISOString(),role:profile?.role||'consulta'};return {ok:true,processed,remaining};
- };
- window.processSyncQueue=()=>process().catch(e=>{console.error('Cola Cloud',e);return {ok:false,processed:0,remaining:window.db?.syncQueue?.length||0,error:String(e)}});let running=false;window.syncQueueV3=async()=>{if(running)return {ok:false,busy:true};running=true;try{return await window.processSyncQueue()}finally{running=false}};if(!window.__prestamoYaQueueV3){window.__prestamoYaQueueV3=true;window.addEventListener('online',()=>setTimeout(()=>window.syncQueueV3(),1200));setTimeout(()=>window.syncQueueV3(),1800);setInterval(()=>{if(navigator.onLine)window.syncQueueV3()},20000)}})();
+  const waitFirebase=()=>new Promise((resolve,reject)=>{
+    const started=Date.now();
+    const tick=()=>{
+      if(getApps().length) return resolve(getApp());
+      if(Date.now()-started>20000) return reject(new Error('Firebase no se inicializó'));
+      setTimeout(tick,200);
+    };
+    tick();
+  });
+  const collectionFor=t=>({
+    CLIENTE_CREADO:'clients',CLIENTE_MODIFICADO:'clients',CLIENTE_ELIMINADO:'clients',
+    CREDITO_CREADO:'credits',CREDITO_MODIFICADO:'credits',CREDITO_ELIMINADO:'credits',
+    PAGO_CREADO:'payments',PAGO_MODIFICADO:'payments',PAGO_ELIMINADO:'payments',RECAUDO:'payments',RECAUDO_CREADO:'payments',
+    RUTA_CREADA:'routes',RUTA_MODIFICADA:'routes',RUTA_ELIMINADA:'routes',
+    CAPITAL_INGRESADO:'capital',CAPITAL_MODIFICADO:'capital',CAPITAL_ELIMINADO:'capital',
+    ENTRADA:'entries',ENTRADA_CREADA:'entries',ENTRADA_MODIFICADA:'entries',ENTRADA_ELIMINADA:'entries',
+    GASTO:'expenses',GASTO_CREADO:'expenses',GASTO_MODIFICADO:'expenses',GASTO_ELIMINADO:'expenses',
+    CIERRE_CAJA:'cashClosures',CIERRE_CAJA_MODIFICADO:'cashClosures',
+    AUTORIZACION_APROBADA:'approvals',AUTORIZACION_RECHAZADA:'approvals',SOLICITUD_AUTORIZACION:'approvals'
+  })[t]||null;
+  const isDelete=t=>/(_ELIMINADO|_ELIMINADA)$/.test(t);
+  const clean=v=>{if(Array.isArray(v))return v.map(clean);if(v&&typeof v==='object'){const o={};for(const[k,x]of Object.entries(v))if(x!==undefined)o[k]=clean(x);return o}return v};
+  const findLocal=(type,payload)=>{
+    const name=collectionFor(type),list=Array.isArray(window.db?.[name])?window.db[name]:[];
+    if(payload?.id!=null){const exact=list.find(x=>String(x.id)===String(payload.id));if(exact)return exact;}
+    if(!list.length)return null;
+    const candidates=list.filter(x=>type.startsWith('CREDITO_')
+      ?String(x.clientId??'')===String(payload?.clientId??'')&&String(x.date??'')===String(payload?.date??'')&&Number(x.capital??0)===Number(payload?.capital??0)
+      :type.startsWith('CLIENTE_')
+      ?String(x.name??'')===String(payload?.name??'')&&String(x.phone??'')===String(payload?.phone??'')
+      :false);
+    return candidates.length?candidates[candidates.length-1]:null;
+  };
+  const profile=()=>window.__prestamoYaQueueProfile||(()=>{
+    const db=window.db||{},uid=db.currentUserId;
+    return Array.isArray(db.users)?db.users.find(x=>String(x.id||x.uid)===String(uid))||null:null;
+  })();
+  const routeAllowed=(p,item)=>{
+    if(['admin','supervisor'].includes(p?.role))return true;
+    const col=collectionFor(item.type);
+    if(['clients','payments','cashClosures','approvals'].includes(col))return true;
+    if(col==='credits'){
+      const local=findLocal(item.type,item.payload||{})||item.payload||{};
+      const ids=Array.isArray(p?.routeIds)?p.routeIds.map(String):[];
+      return local?.routeId!=null&&ids.includes(String(local.routeId));
+    }
+    return false;
+  };
+  const persist=()=>{try{
+    const db=window.db;if(!db)return;
+    db.settings=db.settings||{};
+    db.settings.lastOnline=new Date().toISOString();
+    const raw=JSON.stringify(db);
+    localStorage.setItem('mi_cartera_pro_v21',raw);
+    localStorage.setItem('mi_cartera_pro_v19',raw);
+    window.persist?.();
+  }catch(e){console.warn('Cola: persistencia',e)}};
+  const ui=()=>{try{window.updateSyncUI?.()}catch(_){} try{window.renderAll?.()}catch(_){} };
+
+  async function loadProfile(auth,fs){
+    const u=auth.currentUser;if(!u)return null;
+    try{
+      const snap=await getDoc(doc(fs,'users',u.uid));
+      const p=snap.exists()?snap.data():null;
+      if(p)window.__prestamoYaQueueProfile=p;
+      return p||window.__prestamoYaQueueProfile||null;
+    }catch(e){console.warn('Cola: no se pudo leer perfil Cloud',e);return window.__prestamoYaQueueProfile||null;}
+  }
+
+  async function process(){
+    const db=window.db;
+    if(!navigator.onLine||!db)return {ok:false,processed:0,remaining:db?.syncQueue?.filter(x=>x?.status==='PENDIENTE').length||0,reason:'offline'};
+    const app=await waitFirebase();
+    const auth=getAuth(app),fs=getFirestore(app),u=auth.currentUser;
+    if(!u)return {ok:false,processed:0,remaining:db.syncQueue?.filter(x=>x?.status==='PENDIENTE').length||0,reason:'no-auth'};
+    const profile=await loadProfile(auth,fs);
+    if(!profile||profile.active===false)return {ok:false,processed:0,remaining:db.syncQueue?.filter(x=>x?.status==='PENDIENTE').length||0,reason:'no-profile'};
+    const orgId=(window.MI_CARTERA_CLOUD||{}).orgId||'mi-cartera';
+    const queue=Array.isArray(db.syncQueue)?db.syncQueue:[];
+    let processed=0,errors=0;
+    for(const item of queue.slice()){
+      if(!item||!['PENDIENTE','ERROR'].includes(item.status))continue;
+      const col=collectionFor(item.type);
+      if(!col){item.status='ERROR';item.error='Tipo no soportado';errors++;continue;}
+      if(!routeAllowed(profile,item)){item.status='ERROR';item.error='Sin permiso para la ruta';errors++;continue;}
+      const payload=item.payload&&typeof item.payload==='object'?item.payload:{};
+      const local=findLocal(item.type,payload);
+      const merged=local?{...local,...payload}:payload;
+      const id=merged?.id!=null?String(merged.id):null;
+      if(id==null){item.status='ERROR';item.error='No se pudo determinar el ID';item.attempts=(item.attempts||0)+1;errors++;continue;}
+      try{
+        item.attempts=(item.attempts||0)+1;
+        const ref=doc(fs,`orgs/${orgId}/${col}`,id);
+        if(isDelete(item.type)) await deleteDoc(ref);
+        else await setDoc(ref,clean({...merged,id,orgId,userId:u.uid,updatedAt:new Date().toISOString()}),{merge:true});
+        // setDoc/deleteDoc solo llega aquí cuando Firestore confirmó el backend.
+        item.status='SINCRONIZADO';
+        item.syncedAt=new Date().toISOString();
+        delete item.error;
+        processed++;
+      }catch(e){
+        item.status='ERROR';
+        item.error=String(e?.code||e?.message||e);
+        errors++;
+      }
+    }
+    // Confirma también cualquier write de Firestore emitido por el motor Cloud.
+    if(processed>0){try{await waitForPendingWrites(fs)}catch(e){console.warn('Cola: waitForPendingWrites',e)}}
+    persist();ui();
+    const pending=queue.filter(x=>x&&x.status==='PENDIENTE').length;
+    const errorCount=queue.filter(x=>x&&x.status==='ERROR').length;
+    window.__prestamoYaQueueLast={processed,errors,remaining:pending,errorCount,at:new Date().toISOString(),role:profile.role||'consulta'};
+    return {ok:true,processed,errors,remaining:pending,errorCount};
+  }
+
+  window.processSyncQueue=()=>process().catch(e=>{console.error('Cola Cloud',e);return {ok:false,processed:0,errors:1,remaining:window.db?.syncQueue?.filter(x=>x?.status==='PENDIENTE').length||0,error:String(e)}});
+  let running=false;
+  window.syncQueueV3=async()=>{if(running)return {ok:false,busy:true};running=true;try{return await window.processSyncQueue()}finally{running=false}};
+  // Compatibilidad: este método ya no "confirma" por un simple pull; solo refresca la UI.
+  window.ackQueueAfterCloudSync=()=>{ui();return {processed:0,remaining:window.db?.syncQueue?.filter(x=>x?.status==='PENDIENTE').length||0,mode:'ack-by-write-confirmation'}};
+  window.waitForCloudWrites=async()=>{try{const app=await waitFirebase();const fs=getFirestore(app);await waitForPendingWrites(fs);return true}catch(e){console.warn('waitForCloudWrites',e);return false}};
+  if(!window.__prestamoYaQueueV8){
+    window.__prestamoYaQueueV8=true;
+    window.addEventListener('online',()=>setTimeout(()=>window.syncQueueV3(),1000));
+    setTimeout(()=>window.syncQueueV3(),2500);
+    setInterval(()=>{if(navigator.onLine)window.syncQueueV3()},15000);
+  }
+})();
