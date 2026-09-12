@@ -1,96 +1,17 @@
-const CACHE="prestamo-ya-v6";
+const CACHE="prestamo-ya-v7";
 const CORE=[
-  "./",
-  "./index.html",
-  "./manifest.webmanifest",
-  "./icon.svg",
-  "./backup.js",
-  "./firebase-config.js",
-  "./firebase-cloud.js",
-  "./firebase-cloud-core.js",
-  "./cloud-repair-v2.js",
-  "./ownership-model.js",
-  "./session-switch.js",
-  "./data-integrity.js",
-  "./field-collection-sync.js",
-  "./credit-proposal.js",
-  "./payment-schedule-fix.js",
-  "./history-detail.js",
-  "./credit-rules-v3.js",
-  "./credit-renewal-v3.js",
-  "./renewal-balance-field.js",
-  "./cloud-ui-fixes.js",
-  "./credit-workflow-v4.js",
-  "./credit-share-v2.js",
-  "./sync-ui-fix.js",
-  "./renewal-buttons-fix.js",
-  "./renewal-final-fix.js",
-  "./renewal-form-v2.js"
+  "./","./index.html","./manifest.webmanifest","./icon.svg","./backup.js","./firebase-config.js","./firebase-cloud.js","./firebase-cloud-core.js",
+  "./cloud-repair-v2.js","./ownership-model.js","./session-switch.js","./data-integrity.js","./field-collection-sync.js","./credit-proposal.js","./client-sync-repair.js",
+  "./history-detail.js","./cloud-ui-fixes.js","./credit-share-v2.js","./sync-ui-fix.js","./renewal-buttons-fix.js","./address-navigation.js"
 ];
-
-self.addEventListener("install", event => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then(cache => cache.addAll(CORE))
-      .then(() => self.skipWaiting())
-  );
-});
-
-self.addEventListener("activate", event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
-      .then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") return;
-  const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return;
-
-  // HTML siempre se valida contra red primero.
-  if (url.pathname.endsWith("/index.html") || url.pathname.endsWith("/")) {
-    event.respondWith(
-      fetch(event.request, { cache: "no-store" })
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE).then(cache => cache.put(event.request, copy)).catch(() => {});
-          return response;
-        })
-        .catch(() => caches.match(event.request).then(cached => cached || caches.match("./index.html")))
-    );
-    return;
-  }
-
-  // JavaScript: red primero para evitar que una versión rota quede atrapada en caché.
-  if (url.pathname.endsWith(".js")) {
-    event.respondWith(
-      fetch(event.request, { cache: "no-store" })
-        .then(response => {
-          if (response && response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE).then(cache => cache.put(event.request, copy)).catch(() => {});
-          }
-          return response;
-        })
-        .catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then(response => {
-          if (response && response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE).then(cache => cache.put(event.request, copy)).catch(() => {});
-          }
-          return response;
-        })
-        .catch(() => caches.match("./index.html"));
-    })
-  );
+self.addEventListener("install",e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting())));
+self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+self.addEventListener("fetch",e=>{
+ if(e.request.method!=="GET")return;
+ const u=new URL(e.request.url);if(u.origin!==self.location.origin)return;
+ if(u.pathname.endsWith("/index.html")||u.pathname.endsWith("/" )||u.pathname.endsWith(".js")){
+  e.respondWith(fetch(e.request,{cache:"no-store"}).then(r=>{if(r?.ok)caches.open(CACHE).then(c=>c.put(e.request,r.clone())).catch(()=>{});return r}).catch(()=>caches.match(e.request).then(r=>r||caches.match("./index.html")));
+  return;
+ }
+ e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(x=>{if(x?.ok)caches.open(CACHE).then(c=>c.put(e.request,x.clone())).catch(()=>{});return x}).catch(()=>caches.match("./index.html"))));
 });
