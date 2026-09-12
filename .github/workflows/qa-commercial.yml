@@ -14,7 +14,9 @@ jobs:
         run: |
           set -e
           node --check tenant-context.js
+          node --check commercial-admin.js
           node tests/tenant-context.test.js
+          node tests/commercial-admin.test.js
       - name: Validar contrato multiempresa
         run: |
           python - <<'PY'
@@ -29,7 +31,8 @@ jobs:
           assert 'orgs/{orgId}/payments/{id}' in rules
           assert 'Ningún usuario de una empresa A' in Path('docs/COMMERCIAL_V1.md').read_text(encoding='utf-8')
           assert 'Platform Admin' in arch and 'Org Admin' in arch
-          print('QA multiempresa OK')
+          assert 'commercial-admin.js' in Path('README.md').read_text(encoding='utf-8')
+          print('QA multiempresa/comercial OK')
           PY
       - name: Validar producción intacta
         run: |
