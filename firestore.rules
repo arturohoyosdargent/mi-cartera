@@ -43,7 +43,11 @@ service cloud.firestore {
 
     match /orgs/{orgId}/credits/{id} {
       allow read: if sameOrg(orgId) && (manager() || assignedRoute(resource.data.routeId));
-      allow create, update, delete: if sameOrg(orgId) && manager();
+      // Un cobrador puede crear o modificar créditos únicamente dentro de una ruta que tiene asignada.
+      // La eliminación continúa reservada a administración/supervisión.
+      allow create: if sameOrg(orgId) && (manager() || assignedRoute(request.resource.data.routeId));
+      allow update: if sameOrg(orgId) && (manager() || (assignedRoute(resource.data.routeId) && request.resource.data.routeId == resource.data.routeId));
+      allow delete: if sameOrg(orgId) && manager();
     }
 
     match /orgs/{orgId}/payments/{id} {
