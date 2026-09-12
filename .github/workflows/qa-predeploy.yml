@@ -10,35 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validar archivos JavaScript
+      - name: Validar todos los archivos JavaScript
         run: |
-          node --check backup.js
-          node --check sw.js
-          node --check firebase-cloud.js
-          node --check firebase-cloud-core.js
-          node --check cloud-repair.js
-          node --check cloud-repair-v2.js
-          node --check ownership-model.js
-          node --check field-collection-sync.js
-          node --check credit-proposal.js
-          node --check credit-proposal-ui.js
-          node --check payment-schedule-fix.js
-          node --check history-detail.js
-          node --check credit-rules-v3.js
-          node --check credit-renewal-v3.js
-          node --check renewal-balance-field.js
-          node --check renewal-form-v2.js
-          node --check credit-workflow-v4.js
-          node --check credit-share-v2.js
-          node --check sync-ui-fix.js
-          node --check renewal-buttons-fix.js
-          node --check renewal-final-fix.js
-          node --check renewal-schedule-correction.js
-          node --check address-navigation.js
-          node --check credit-final-fix.js
-          node --check cloud-ui-fixes.js
-          node --check session-switch.js
-          node --check data-integrity.js
+          set -e
+          find . -type f -name '*.js' -not -path './node_modules/*' -print0 | while IFS= read -r -d '' f; do
+            echo "Comprobando $f"
+            node --check "$f"
+          done
       - name: Validar JavaScript embebido en index.html
         run: |
           python - <<'PY'
@@ -69,7 +47,32 @@ jobs:
           start=html.find('<script>');marker=re.search(r'</script>\s*<script src="firebase-config\.js(?:\?[^\"]*)?"></script>',html[start:])
           assert start>=0 and marker
           end=start+marker.start();assert '</script>' not in html[start+len('<script>'):end]
-          json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'));print('QA HTML/PWA OK')
+          json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
+          print('QA HTML/PWA OK')
+          PY
+      - name: Validar registro real del Service Worker
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('firebase-cloud.js').read_text(encoding='utf-8')
+          assert 'navigator.serviceWorker.register' in s, 'El PWA no registra el Service Worker al arrancar'
+          assert 'prestamo_ya_cache_clean_v27' in s, 'Falta el control de caché v27'
+          assert "sync-queue-v3.js?v=6" in s, 'No se está cargando la cola v6'
+          print('QA Service Worker/sync bootstrap OK')
+          PY
+      - name: Validar contrato de sincronización offline
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          q=Path('sync-queue-v3.js').read_text(encoding='utf-8')
+          c=Path('firebase-cloud-core.js').read_text(encoding='utf-8')
+          f=Path('firebase-cloud.js').read_text(encoding='utf-8')
+          required_q=['window.ackQueueAfterCloudSync','window.syncQueueV3',"item.status='SINCRONIZADO'","item.status='ERROR'",'item.error=']
+          for x in required_q: assert x in q, f'Falta contrato de cola: {x}'
+          assert 'return true;' in c and "toast('Cloud sincronizado.')" in c
+          assert "if(ok&&typeof window.ackQueueAfterCloudSync==='function')window.ackQueueAfterCloudSync();" in f
+          assert "if(typeof window.syncQueueV3==='function')await window.syncQueueV3();" in f
+          print('QA contrato offline/Cloud OK')
           PY
       - name: Validar reglas Firestore
         run: |
@@ -85,5 +88,5 @@ jobs:
           PY
       - name: Verificar estructura Cloud
         run: |
-          for f in firebase-config.js firebase-cloud.js firebase-cloud-core.js cloud-repair.js cloud-repair-v2.js ownership-model.js field-collection-sync.js credit-proposal.js credit-proposal-ui.js payment-schedule-fix.js history-detail.js credit-rules-v3.js credit-renewal-v3.js renewal-balance-field.js renewal-form-v2.js credit-workflow-v4.js credit-share-v2.js sync-ui-fix.js renewal-buttons-fix.js renewal-final-fix.js renewal-schedule-correction.js address-navigation.js credit-final-fix.js cloud-ui-fixes.js session-switch.js data-integrity.js firestore.rules firebase.json functions/index.js; do test -f "$f"; done
+          for f in firebase-config.js firebase-cloud.js firebase-cloud-core.js sync-queue-v3.js cloud-repair.js cloud-repair-v2.js ownership-model.js field-collection-sync.js credit-proposal.js credit-proposal-ui.js payment-schedule-fix.js history-detail.js credit-rules-v3.js credit-renewal-v3.js renewal-balance-field.js renewal-form-v2.js credit-workflow-v4.js credit-share-v2.js sync-ui-fix.js renewal-buttons-fix.js renewal-final-fix.js renewal-schedule-correction.js address-navigation.js credit-final-fix.js cloud-ui-fixes.js session-switch.js data-integrity.js firestore.rules firebase.json functions/index.js; do test -f "$f"; done
           echo 'QA Cloud OK'
