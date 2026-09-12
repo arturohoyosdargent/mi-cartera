@@ -43,8 +43,6 @@ service cloud.firestore {
 
     match /orgs/{orgId}/credits/{id} {
       allow read: if sameOrg(orgId) && (manager() || assignedRoute(resource.data.routeId));
-      // Un cobrador puede crear o modificar créditos únicamente dentro de una ruta que tiene asignada.
-      // La eliminación continúa reservada a administración/supervisión.
       allow create: if sameOrg(orgId) && (manager() || assignedRoute(request.resource.data.routeId));
       allow update: if sameOrg(orgId) && (manager() || (assignedRoute(resource.data.routeId) && request.resource.data.routeId == resource.data.routeId));
       allow delete: if sameOrg(orgId) && manager();
@@ -53,19 +51,21 @@ service cloud.firestore {
     match /orgs/{orgId}/payments/{id} {
       allow read: if sameOrg(orgId) && (manager() || request.auth.uid == resource.data.userId);
       allow create: if sameOrg(orgId) && (manager() || (request.resource.data.userId == request.auth.uid && assignedRoute(request.resource.data.routeId)));
-      allow update, delete: if sameOrg(orgId) && manager();
+      allow update: if sameOrg(orgId) && (manager() || (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid && assignedRoute(resource.data.routeId) && request.resource.data.routeId == resource.data.routeId));
+      allow delete: if sameOrg(orgId) && manager();
     }
 
     match /orgs/{orgId}/cashClosures/{id} {
       allow read: if sameOrg(orgId) && (manager() || resource.data.userId == request.auth.uid);
       allow create: if sameOrg(orgId) && (manager() || request.resource.data.userId == request.auth.uid);
-      allow update, delete: if sameOrg(orgId) && manager();
+      allow update: if sameOrg(orgId) && (manager() || (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid));
+      allow delete: if sameOrg(orgId) && manager();
     }
 
     match /orgs/{orgId}/approvals/{id} {
       allow read: if sameOrg(orgId) && (manager() || resource.data.requestedByUid == request.auth.uid);
       allow create: if sameOrg(orgId) && request.resource.data.requestedByUid == request.auth.uid;
-      allow update: if sameOrg(orgId) && manager();
+      allow update: if sameOrg(orgId) && (manager() || (resource.data.requestedByUid == request.auth.uid && request.resource.data.requestedByUid == resource.data.requestedByUid && request.resource.data.status == resource.data.status));
       allow delete: if sameOrg(orgId) && admin();
     }
 
