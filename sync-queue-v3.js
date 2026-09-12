@@ -1,11 +1,12 @@
-// Préstamo Ya — cola offline/Cloud v13.
-// La cola nunca deja una operación congelada por una precondición o una promesa Cloud sin límite.
+// Préstamo Ya — cola offline/Cloud v14.
+// La cola confirma las escrituras mediante waitForPendingWrites y no depende de una lectura
+// inmediata getDocFromServer, que puede bloquear/rechazar una escritura ya aceptada por Firestore.
 import { getApp, getApps } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
-import { getFirestore, doc, setDoc, deleteDoc, getDocFromServer } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
+import { getFirestore, doc, setDoc, deleteDoc, waitForPendingWrites } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
 
 (()=>{
-  const VERSION='sync-queue-v13';
+  const VERSION='sync-queue-v14';
   const waitFirebase=()=>new Promise((resolve,reject)=>{const started=Date.now();const tick=()=>{if(getApps().length)return resolve(getApp());if(Date.now()-started>15000)return reject(new Error('FIREBASE_NO_INICIALIZADO'));setTimeout(tick,150)};tick()});
   const collectionFor=t=>({CLIENTE_CREADO:'clients',CLIENTE_MODIFICADO:'clients',CLIENTE_ELIMINADO:'clients',CREDITO_CREADO:'credits',CREDITO_MODIFICADO:'credits',CREDITO_ELIMINADO:'credits',PAGO_CREADO:'payments',PAGO_MODIFICADO:'payments',PAGO_ELIMINADO:'payments',RECAUDO:'payments',RECAUDO_CREADO:'payments',RUTA_CREADA:'routes',RUTA_MODIFICADA:'routes',RUTA_ELIMINADA:'routes',CAPITAL_INGRESADO:'capital',CAPITAL_MODIFICADO:'capital',CAPITAL_ELIMINADO:'capital',ENTRADA:'entries',ENTRADA_CREADA:'entries',ENTRADA_MODIFICADA:'entries',ENTRADA_ELIMINADA:'entries',GASTO:'expenses',GASTO_CREADO:'expenses',GASTO_MODIFICADO:'expenses',GASTO_ELIMINADO:'expenses',CIERRE_CAJA:'cashClosures',CIERRE_CAJA_MODIFICADO:'cashClosures',AUTORIZACION_APROBADA:'approvals',AUTORIZACION_RECHAZADA:'approvals',SOLICITUD_AUTORIZACION:'approvals'})[t]||null;
   const isDelete=t=>/(_ELIMINADO|_ELIMINADA)$/.test(t);
@@ -31,8 +32,16 @@ import { getFirestore, doc, setDoc, deleteDoc, getDocFromServer } from 'https://
       if(id==null){setError(item,'ID_NO_DETERMINADO');errors++;persist();ui();continue}
       if(col==='credits'&&merged.routeId!=null)merged.routeId=String(merged.routeId);
       if(col==='credits'&&merged.clientId!=null)merged.clientId=String(merged.clientId);
+      if(col==='payments'&&merged.creditId!=null)merged.creditId=String(merged.creditId);
       item.attempts=(item.attempts||0)+1;item.status='ENVIANDO';delete item.error;persist();ui();
-      try{const ref=doc(fs,`orgs/${orgId}/${col}`,id);if(isDelete(item.type)){await timeout(deleteDoc(ref),12000,'FIRESTORE_DELETE_TIMEOUT');const check=await timeout(getDocFromServer(ref),10000,'FIRESTORE_DELETE_VERIFY_TIMEOUT');if(check.exists())throw new Error('FIRESTORE_DELETE_NO_CONFIRMADO');}else{await timeout(setDoc(ref,clean({...merged,id,orgId,userId:u.uid,updatedAt:new Date().toISOString()}),{merge:true}),12000,'FIRESTORE_WRITE_TIMEOUT');const check=await timeout(getDocFromServer(ref),10000,'FIRESTORE_WRITE_VERIFY_TIMEOUT');if(!check.exists())throw new Error('FIRESTORE_WRITE_NO_CONFIRMADO')}item.status='SINCRONIZADO';item.syncedAt=new Date().toISOString();delete item.error;processed++}catch(e){setError(item,e);errors++}persist();ui();
+      try{
+        const ref=doc(fs,`orgs/${orgId}/${col}`,id);
+        if(isDelete(item.type)) await timeout(deleteDoc(ref),12000,'FIRESTORE_DELETE_TIMEOUT');
+        else await timeout(setDoc(ref,clean({...merged,id,orgId,userId:u.uid,updatedAt:new Date().toISOString()}),{merge:true}),12000,'FIRESTORE_WRITE_TIMEOUT');
+        await timeout(waitForPendingWrites(fs),12000,'FIRESTORE_PENDING_WRITES_TIMEOUT');
+        item.status='SINCRONIZADO';item.syncedAt=new Date().toISOString();delete item.error;processed++;
+      }catch(e){setError(item,e);errors++}
+      persist();ui();
     }
     const remaining=pendingCount(),errorCount=queue.filter(x=>x&&x.status==='ERROR').length,sending=queue.filter(x=>x&&x.status==='ENVIANDO').length;window.__prestamoYaQueueLast={processed,errors,remaining,sending,errorCount,at:new Date().toISOString(),role:profile.role||'consulta',version:VERSION};return {ok:true,processed,errors,remaining,sending,errorCount,version:VERSION};
   }
@@ -40,5 +49,5 @@ import { getFirestore, doc, setDoc, deleteDoc, getDocFromServer } from 'https://
   let running=false;window.syncQueueV3=async()=>{if(running)return {ok:false,busy:true,version:VERSION};running=true;try{return await window.processSyncQueue()}finally{running=false}};
   window.ackQueueAfterCloudSync=()=>{ui();return {processed:0,remaining:pendingCount(),mode:'ack-by-write-confirmation',version:VERSION}};window.waitForCloudWrites=async()=>true;
   window.prestamoYaSyncDiagnostics=async()=>{const q=Array.isArray(window.db?.syncQueue)?window.db.syncQueue:[];let firebase={auth:false,uid:null,profile:null,profileReadError:null},sw=[];try{sw=await navigator.serviceWorker?.getRegistrations?.()||[]}catch(e){}try{const app=await waitFirebase(),auth=getAuth(app);firebase.auth=!!auth.currentUser;firebase.uid=auth.currentUser?.uid||null;firebase.profile=window.__prestamoYaQueueProfile?{role:window.__prestamoYaQueueProfile.role,active:window.__prestamoYaQueueProfile.active,orgId:window.__prestamoYaQueueProfile.orgId,routeIds:window.__prestamoYaQueueProfile.routeIds}:null}catch(e){firebase.profileReadError=String(e?.code||e?.message||e)}const result={timestamp:new Date().toISOString(),online:navigator.onLine,appVersion:VERSION,queue:q.map((x,i)=>({index:i,id:x?.id,type:x?.type,status:x?.status,attempts:x?.attempts||0,error:x?.error||null,payloadId:x?.payload?.id??null,clientId:x?.payload?.clientId??null,routeId:x?.payload?.routeId??null,createdAt:x?.createdAt||null,syncedAt:x?.syncedAt||null})),firebase,serviceWorkers:sw.map(r=>({scope:r.scope,state:r.active?.state||null,script:r.active?.scriptURL||null})),last:window.__prestamoYaQueueLast||null,localKeys:Object.keys(localStorage).filter(k=>/mi_cartera|prestamo/i.test(k))};console.table(result.queue);console.log('Préstamo Ya diagnóstico completo:',result);return result};
-  const start=()=>{if(window.__prestamoYaQueueV13)return;window.__prestamoYaQueueV13=true;window.__prestamoYaQueueVersion=VERSION;window.addEventListener('online',()=>setTimeout(()=>window.syncQueueV3(),500));setTimeout(()=>window.syncQueueV3(),1000);setInterval(()=>{if(navigator.onLine)window.syncQueueV3()},10000);try{const app=getApps().length?getApp():null;if(app){const auth=getAuth(app);onAuthStateChanged(auth,()=>setTimeout(()=>window.syncQueueV3(),250))}}catch(e){console.warn('Cola Auth listener',e)}};start();
+  const start=()=>{if(window.__prestamoYaQueueV14)return;window.__prestamoYaQueueV14=true;window.__prestamoYaQueueVersion=VERSION;window.addEventListener('online',()=>setTimeout(()=>window.syncQueueV3(),500));setTimeout(()=>window.syncQueueV3(),1000);setInterval(()=>{if(navigator.onLine)window.syncQueueV3()},10000);try{const app=getApps().length?getApp():null;if(app){const auth=getAuth(app);onAuthStateChanged(auth,()=>setTimeout(()=>window.syncQueueV3(),250))}}catch(e){console.warn('Cola Auth listener',e)}};start();
 })();
