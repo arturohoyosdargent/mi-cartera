@@ -54,10 +54,10 @@ jobs:
           queue_match=re.search(r'sync-queue-v3\.js\?v=(\d+)',s); assert queue_match
           sw_match=re.search(r'sw\.js\?v=(\d+)',s); assert sw_match
           sw_cache=re.search(r"CACHE='prestamo-ya-v(\d+)'",sw); assert sw_cache
-          assert int(cache_match.group(1)) >= 38
-          assert int(queue_match.group(1)) >= 14
-          assert int(sw_match.group(1)) >= 19
-          assert int(sw_cache.group(1)) >= 19
+          assert int(cache_match.group(1)) >= 40
+          assert int(queue_match.group(1)) >= 15
+          assert int(sw_match.group(1)) >= 20
+          assert int(sw_cache.group(1)) >= 20
           print('QA Service Worker/cache bust OK')
           PY
       - name: Validar contrato de sincronización offline
@@ -65,7 +65,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           q=Path('sync-queue-v3.js').read_text(encoding='utf-8');f=Path('firebase-cloud.js').read_text(encoding='utf-8');r=Path('client-sync-repair.js').read_text(encoding='utf-8')
-          for x in ['window.syncQueueV3',"item.status='ENVIANDO'","item.status='SINCRONIZADO'","item.status='ERROR'",'item.error=','window.waitForCloudWrites','window.prestamoYaSyncDiagnostics','AUTH_REQUIRED','FIRESTORE_WRITE_TIMEOUT','FIRESTORE_PENDING_WRITES_TIMEOUT']:
+          for x in ['window.syncQueueV3',"item.status='ENVIANDO'","item.status='SINCRONIZADO'","item.status='ERROR'",'item.error=','window.waitForCloudWrites','window.prestamoYaSyncDiagnostics','AUTH_NOT_READY','FIRESTORE_WRITE_TIMEOUT','FIRESTORE_PENDING_WRITES_TIMEOUT','windowDb']:
               assert x in q, f'Falta contrato de cola: {x}'
           assert "firstQ=await window.syncQueueV3()" in f
           assert "rawOk=await raw()" in f
