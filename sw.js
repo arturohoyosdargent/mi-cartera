@@ -1,4 +1,4 @@
-const CACHE="prestamo-ya-v5";
+const CACHE="prestamo-ya-v6";
 const CORE=[
   "./",
   "./index.html",
@@ -49,7 +49,7 @@ self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  // HTML: red primero; si no hay red, usar la versión local.
+  // HTML siempre se valida contra red primero.
   if (url.pathname.endsWith("/index.html") || url.pathname.endsWith("/")) {
     event.respondWith(
       fetch(event.request, { cache: "no-store" })
@@ -63,7 +63,22 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // JS, CSS, imágenes y manifest: caché primero; si falta, red y guardar copia.
+  // JavaScript: red primero para evitar que una versión rota quede atrapada en caché.
+  if (url.pathname.endsWith(".js")) {
+    event.respondWith(
+      fetch(event.request, { cache: "no-store" })
+        .then(response => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then(cache => cache.put(event.request, copy)).catch(() => {});
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
