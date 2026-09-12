@@ -55,9 +55,11 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           s=Path('firebase-cloud.js').read_text(encoding='utf-8')
+          sw=Path('sw.js').read_text(encoding='utf-8')
           assert 'navigator.serviceWorker.register' in s, 'El PWA no registra el Service Worker al arrancar'
-          assert 'prestamo_ya_cache_clean_v27' in s, 'Falta el control de caché v27'
+          assert 'prestamo_ya_cache_clean_v28' in s, 'Falta el control de caché v28'
           assert "sync-queue-v3.js?v=6" in s, 'No se está cargando la cola v6'
+          assert "CACHE='prestamo-ya-v10'" in sw, 'Falta el cache v10 del Service Worker'
           print('QA Service Worker/sync bootstrap OK')
           PY
       - name: Validar contrato de sincronización offline
