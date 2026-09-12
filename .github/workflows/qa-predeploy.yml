@@ -26,6 +26,7 @@ jobs:
           node --check credit-rules-v3.js
           node --check credit-renewal-v3.js
           node --check renewal-balance-field.js
+          node --check renewal-form-v2.js
           node --check credit-workflow-v4.js
           node --check credit-share-v2.js
           node --check sync-ui-fix.js
@@ -34,6 +35,24 @@ jobs:
           node --check cloud-ui-fixes.js
           node --check session-switch.js
           node --check data-integrity.js
+      - name: Validar JavaScript embebido en index.html
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess
+          html=Path('index.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>', html, flags=re.I)
+          assert blocks, 'No se encontraron scripts inline'
+          for i,code in enumerate(blocks,1):
+              p=Path(f'/tmp/index-inline-{i}.js')
+              p.write_text(code,encoding='utf-8')
+              r=subprocess.run(['node','--check',str(p)],capture_output=True,text=True)
+              if r.returncode:
+                  print(r.stdout)
+                  print(r.stderr)
+                  raise SystemExit(f'JavaScript inline inválido: bloque {i}')
+          print(f'QA inline JS OK: {len(blocks)} bloques')
+          PY
       - name: Validar index y PWA
         run: |
           python - <<'PY'
@@ -69,5 +88,5 @@ jobs:
           PY
       - name: Verificar estructura Cloud
         run: |
-          for f in firebase-config.js firebase-cloud.js firebase-cloud-core.js cloud-repair.js cloud-repair-v2.js ownership-model.js field-collection-sync.js credit-proposal.js payment-schedule-fix.js history-detail.js credit-rules-v3.js credit-renewal-v3.js renewal-balance-field.js credit-workflow-v4.js credit-share-v2.js sync-ui-fix.js renewal-buttons-fix.js renewal-final-fix.js cloud-ui-fixes.js session-switch.js data-integrity.js firestore.rules firebase.json functions/index.js; do test -f "$f"; done
+          for f in firebase-config.js firebase-cloud.js firebase-cloud-core.js cloud-repair.js cloud-repair-v2.js ownership-model.js field-collection-sync.js credit-proposal.js payment-schedule-fix.js history-detail.js credit-rules-v3.js credit-renewal-v3.js renewal-balance-field.js renewal-form-v2.js credit-workflow-v4.js credit-share-v2.js sync-ui-fix.js renewal-buttons-fix.js renewal-final-fix.js cloud-ui-fixes.js session-switch.js data-integrity.js firestore.rules firebase.json functions/index.js; do test -f "$f"; done
           echo 'QA Cloud OK'
