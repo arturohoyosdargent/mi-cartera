@@ -11,3 +11,17 @@ window.MI_CARTERA_CLOUD = {
   orgId: "mi-cartera",
   cloudEnabled: true
 };
+
+// Arranque offline-first: registrar el Service Worker desde el primer arranque
+// y evitar que el adaptador Cloud limpie la caché local.
+try {
+  sessionStorage.setItem('prestamo_ya_cache_clean_v31', '1');
+} catch (_) {}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js?v=5', { updateViaCache: 'none' })
+      .then(reg => reg.update().catch(() => {}))
+      .catch(err => console.warn('Préstamo Ya: Service Worker no disponible', err));
+  }, { once: true });
+}
