@@ -1,0 +1,41 @@
+name: QA Comercial Préstamo Ya
+on:
+  push:
+    branches: [commercial-v1]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  commercial-qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar JavaScript comercial
+        run: |
+          set -e
+          node --check tenant-context.js
+          node tests/tenant-context.test.js
+      - name: Validar contrato multiempresa
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          rules=Path('firestore.rules').read_text(encoding='utf-8')
+          arch=Path('docs/TENANT_ARCHITECTURE.md').read_text(encoding='utf-8')
+          assert 'function sameOrg(org)' in rules
+          assert 'me().orgId == org' in rules
+          assert 'function assignedRoute(rid)' in rules
+          assert 'orgs/{orgId}/clients/{id}' in rules
+          assert 'orgs/{orgId}/credits/{id}' in rules
+          assert 'orgs/{orgId}/payments/{id}' in rules
+          assert 'Ningún usuario de una empresa A' in Path('docs/COMMERCIAL_V1.md').read_text(encoding='utf-8')
+          assert 'Platform Admin' in arch and 'Org Admin' in arch
+          print('QA multiempresa OK')
+          PY
+      - name: Validar producción intacta
+        run: |
+          test -f index.html
+          test -f firebase-cloud.js
+          test -f firebase-cloud-core.js
+          test -f sync-queue-v3.js
+          test -f firestore.rules
+          echo 'Base operativa presente'
