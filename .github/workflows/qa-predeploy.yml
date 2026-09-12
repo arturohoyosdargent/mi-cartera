@@ -49,9 +49,9 @@ jobs:
           from pathlib import Path
           s=Path('firebase-cloud.js').read_text(encoding='utf-8');sw=Path('sw.js').read_text(encoding='utf-8')
           assert 'navigator.serviceWorker.register' in s
-          assert 'prestamo_ya_cache_clean_v32' in s
-          assert "sync-queue-v3.js?v=11" in s and "sw.js?v=14" in s
-          assert "CACHE='prestamo-ya-v14'" in sw
+          assert 'prestamo_ya_cache_clean_v33' in s
+          assert "sync-queue-v3.js?v=12" in s and "sw.js?v=15" in s
+          assert "CACHE='prestamo-ya-v15'" in sw
           print('QA Service Worker/cache bust OK')
           PY
       - name: Validar contrato de sincronización offline
@@ -59,7 +59,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           q=Path('sync-queue-v3.js').read_text(encoding='utf-8');f=Path('firebase-cloud.js').read_text(encoding='utf-8');r=Path('client-sync-repair.js').read_text(encoding='utf-8')
-          for x in ['window.syncQueueV3',"item.status='ENVIANDO'","item.status='SINCRONIZADO'","item.status='ERROR'",'item.error=','waitForPendingWrites','getDocFromServer','window.waitForCloudWrites','window.prestamoYaSyncDiagnostics']:
+          for x in ['window.syncQueueV3',"item.status='ENVIANDO'","item.status='SINCRONIZADO'","item.status='ERROR'",'item.error=','getDocFromServer','window.waitForCloudWrites','window.prestamoYaSyncDiagnostics','AUTH_REQUIRED','FIRESTORE_WRITE_TIMEOUT','FIRESTORE_WRITE_VERIFY_TIMEOUT']:
               assert x in q, f'Falta contrato de cola: {x}'
           assert "firstQ=await window.syncQueueV3()" in f
           assert "rawOk=await raw()" in f
