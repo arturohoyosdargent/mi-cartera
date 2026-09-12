@@ -17,7 +17,7 @@
      ['./data-integrity.js?v=4','text/javascript'],['./field-collection-sync.js?v=3','module'],['./history-detail.js?v=3','text/javascript'],
      ['./cloud-ui-fixes.js?v=4','text/javascript'],['./credit-share-v2.js?v=3','text/javascript'],['./sync-ui-fix.js?v=4','text/javascript'],
      ['./renewal-buttons-fix.js?v=3','text/javascript'],['./credit-proposal.js?v=8','text/javascript'],['./credit-proposal-ui.js?v=2','text/javascript'],
-     ['./client-sync-repair.js?v=3','module'],['./sync-queue-v3.js?v=8','module'],['./address-navigation.js?v=3','text/javascript'],['./renewal-schedule-correction.js?v=2','text/javascript']
+     ['./client-sync-repair.js?v=3','module'],['./sync-queue-v3.js?v=9','module'],['./address-navigation.js?v=3','text/javascript'],['./renewal-schedule-correction.js?v=2','text/javascript']
    ];
    for(const [src,type] of modules){try{await load(src,type)}catch(e){console.warn('Módulo no cargado:',src)}}
    const guards=()=>{if(typeof window.currentUser!=='function'||typeof window.go!=='function')return setTimeout(guards,300);if(window.__prestamoYaGuards)return;window.__prestamoYaGuards=true;const role=()=>window.currentUser()?.role||'consulta',manager=['admin','supervisor'],originalGo=window.go;window.go=id=>!manager.includes(role())&&['users','investors','settings','audit','profile'].includes(id)?toast('Acceso restringido a administración'):originalGo(id);for(const n of ['openCapitalForm','addRoute','assignCollector','openUserForm','saveUser','toggleUser','saveSettings','saveProfile']){const f=window[n];if(typeof f==='function')window[n]=(...a)=>manager.includes(role())?f(...a):toast('Acceso restringido a administración')}const payment=window.registerPayment;if(typeof payment==='function')window.registerPayment=(id,...a)=>{const cr=(window.db?.credits||[]).find(x=>String(x.id)===String(id)),u=window.currentUser?.(),ids=Array.isArray(u?.routeIds)?u.routeIds:[];return manager.includes(u?.role)||!cr||ids.includes(cr.routeId)||ids.includes(String(cr.routeId))?payment(id,...a):toast('No autorizado para esta ruta')}};guards();
@@ -27,16 +27,16 @@
        const raw=window.cloudSyncNow;
        window.cloudSyncNow=async()=>{
          if(!navigator.onLine){toast('Sin internet: la información sigue guardada localmente.');return false;}
-         // 1) Cloud Core confirma el push/pull principal.
+         // 1) Cloud Core ejecuta el push/pull principal.
          const ok=await raw();
          if(!ok)return false;
-         // 2) La cola local se procesa DESPUÉS del Cloud Core. Así nunca compiten dos motores.
+         // 2) La cola local procesa operaciones que necesitan ACK explícito.
          let q={};
          if(typeof window.syncQueueV3==='function')q=await window.syncQueueV3();
-         // 3) Espera a que Firestore confirme cualquier escritura pendiente.
-         if(typeof window.waitForCloudWrites==='function')await window.waitForCloudWrites();
+         // 3) Espera nuevamente cualquier write emitido por Cloud Core.
+         const confirmed=typeof window.waitForCloudWrites==='function'?await window.waitForCloudWrites():true;
          if(typeof window.updateSyncUI==='function')window.updateSyncUI();
-         return ok && q?.ok!==false;
+         return ok && confirmed && q?.ok!==false;
        };
        window.__prestamoYaCloudWrapped=true;
      }
