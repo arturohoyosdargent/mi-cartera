@@ -24,6 +24,7 @@ jobs:
           node --check credit-workflow-v4.js
           node --check credit-share-v2.js
           node --check sync-ui-fix.js
+          node --check renewal-buttons-fix.js
           node --check cloud-ui-fixes.js
           node --check session-switch.js
           node --check data-integrity.js
@@ -62,5 +63,5 @@ jobs:
           PY
       - name: Verificar estructura Cloud
         run: |
-          for f in firebase-config.js firebase-cloud.js firebase-cloud-core.js cloud-repair.js cloud-repair-v2.js ownership-model.js field-collection-sync.js credit-proposal.js credit-workflow-v4.js credit-share-v2.js sync-ui-fix.js cloud-ui-fixes.js session-switch.js data-integrity.js firestore.rules firebase.json functions/index.js; do test -f "$f"; done
+          for f in firebase-config.js firebase-cloud.js firebase-cloud-core.js cloud-repair.js cloud-repair-v2.js ownership-model.js field-collection-sync.js credit-proposal.js credit-workflow-v4.js credit-share-v2.js sync-ui-fix.js renewal-buttons-fix.js cloud-ui-fixes.js session-switch.js data-integrity.js firestore.rules firebase.json functions/index.js; do test -f "$f"; done
           echo 'QA Cloud OK'
