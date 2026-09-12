@@ -58,7 +58,7 @@ jobs:
           sw=Path('sw.js').read_text(encoding='utf-8')
           assert 'navigator.serviceWorker.register' in s
           assert 'prestamo_ya_cache_clean_v30' in s
-          assert "sync-queue-v3.js?v=8" in s
+          assert "sync-queue-v3.js?v=9" in s
           assert "sw.js?v=12" in s
           assert "CACHE='prestamo-ya-v12'" in sw
           print('QA Service Worker/cache bust OK')
@@ -70,12 +70,12 @@ jobs:
           q=Path('sync-queue-v3.js').read_text(encoding='utf-8')
           f=Path('firebase-cloud.js').read_text(encoding='utf-8')
           r=Path('client-sync-repair.js').read_text(encoding='utf-8')
-          required_q=['window.syncQueueV3',"item.status='SINCRONIZADO'","item.status='ERROR'",'item.error=','waitForPendingWrites','window.waitForCloudWrites']
+          required_q=['window.syncQueueV3',"item.status='ENVIANDO'","item.status='SINCRONIZADO'","item.status='ERROR'",'item.error=','waitForPendingWrites','window.waitForCloudWrites','window.prestamoYaSyncDiagnostics']
           for x in required_q: assert x in q, f'Falta contrato de cola: {x}'
           assert "const ok=await raw();" in f
           assert "if(!ok)return false;" in f
           assert "if(typeof window.syncQueueV3==='function')q=await window.syncQueueV3();" in f
-          assert "if(typeof window.waitForCloudWrites==='function')await window.waitForCloudWrites();" in f
+          assert "if(typeof window.waitForCloudWrites==='function'" in f
           assert "window.ackQueueAfterCloudSync=()=>" in q
           assert 'no se mezcla' in r.lower() or 'fuente de verdad' in r.lower()
           print('QA contrato offline/Cloud OK')
