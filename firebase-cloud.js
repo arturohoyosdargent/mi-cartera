@@ -1,6 +1,8 @@
 // Arranque seguro de Préstamo Ya: local-first, Cloud opcional y un solo motor de crédito.
 (()=>{try{
- if(!sessionStorage.getItem('prestamo_ya_cache_clean_v27')){sessionStorage.setItem('prestamo_ya_cache_clean_v27','1');if('serviceWorker' in navigator)navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister().catch(()=>false))));if('caches' in window)caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k))));location.reload();return;}
+ if(!sessionStorage.getItem('prestamo_ya_cache_clean_v28')){sessionStorage.setItem('prestamo_ya_cache_clean_v28','1');if('serviceWorker' in navigator)navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister().catch(()=>false))));if('caches' in window)caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k))));location.reload();return;}
+ const registerSW=()=>{if(!('serviceWorker' in navigator))return;window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=10').then(r=>console.log('Préstamo Ya: Service Worker activo',r.scope)).catch(e=>console.warn('Préstamo Ya: Service Worker no disponible',e)),{once:true})};
+ registerSW();
  (async()=>{try{
  const load=(src,type='text/javascript')=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.type=type;s.onload=ok;s.onerror=()=>no(new Error(src));document.head.appendChild(s)});
  await load('./backup.js?v=15');
