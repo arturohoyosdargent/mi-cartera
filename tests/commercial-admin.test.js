@@ -1,0 +1,14 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const store=new Map();
+const sandbox={window:{},localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,String(v))},Date};
+vm.createContext(sandbox);vm.runInContext(fs.readFileSync('commercial-admin.js','utf8'),sandbox);
+const api=sandbox.window.PrestamoYaCommercialAdmin;
+assert(api&&api.version==='commercial-v1');
+let o=api.create({id:'org-demo',name:'Empresa Demo',ownerEmail:'admin@demo.pe',plan:'profesional'});
+assert.equal(o.status,'trial');assert.equal(o.users,1);assert.equal(api.summary().companies,1);assert.equal(api.summary().mrr,249);
+o=api.setPlan(o.id,'empresarial');assert.equal(o.plan,'empresarial');
+o=api.setStatus(o.id,'active');assert.equal(o.status,'active');
+assert.throws(()=>api.setStatus(o.id,'invalid'),/COMMERCIAL_STATUS_INVALID/);
+assert.throws(()=>api.create({name:'X',ownerEmail:'bad',plan:'basico'}),/COMMERCIAL_ORG_FIELDS_INVALID/);
+assert.throws(()=>api.create({id:'org-demo',name:'Otra',ownerEmail:'otra@demo.pe',plan:'basico'}),/COMMERCIAL_ORG_EXISTS/);
+console.log('QA commercial-admin OK');
