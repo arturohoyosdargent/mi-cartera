@@ -47,11 +47,17 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           s=Path('firebase-cloud.js').read_text(encoding='utf-8');sw=Path('sw.js').read_text(encoding='utf-8')
           assert 'navigator.serviceWorker.register' in s
-          assert 'prestamo_ya_cache_clean_v35' in s
-          assert "sync-queue-v3.js?v=12" in s and "sw.js?v=16" in s
-          assert "CACHE='prestamo-ya-v16'" in sw
+          cache_match=re.search(r'prestamo_ya_cache_clean_v(\d+)',s); assert cache_match
+          queue_match=re.search(r'sync-queue-v3\.js\?v=(\d+)',s); assert queue_match
+          sw_match=re.search(r'sw\.js\?v=(\d+)',s); assert sw_match
+          sw_cache=re.search(r"CACHE='prestamo-ya-v(\d+)'",sw); assert sw_cache
+          assert int(cache_match.group(1)) >= 36
+          assert int(queue_match.group(1)) >= 12
+          assert int(sw_match.group(1)) >= 18
+          assert int(sw_cache.group(1)) >= 18
           print('QA Service Worker/cache bust OK')
           PY
       - name: Validar contrato de sincronización offline
