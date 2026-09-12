@@ -1,0 +1,2 @@
+// La acción "Intentar sincronizar" debe usar Firebase Cloud cuando existe sesión, no el endpoint antiguo.
+(()=>{const wait=()=>{if(typeof window.cloudSyncNow!=='function'||typeof window.syncNow!=='function')return setTimeout(wait,300);if(window.__prestamoYaSyncUIFix)return;window.__prestamoYaSyncUIFix=true;window.syncNow=async()=>{if(!navigator.onLine)return toast('Sin internet: la información sigue guardada localmente.');try{return await window.cloudSyncNow()}catch(e){console.error(e);toast('No se pudo sincronizar con Cloud')}}};wait()})();
