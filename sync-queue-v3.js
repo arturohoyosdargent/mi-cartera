@@ -1,6 +1,6 @@
-// Préstamo Ya — cola offline/Cloud v8.
-// Regla: una operación solo pasa a SINCRONIZADO después de que Firestore confirme la escritura.
-// No se usa un segundo "ack" basado únicamente en que el pull de Cloud terminó.
+// Préstamo Ya — cola offline/Cloud v9.
+// Una operación solo pasa a SINCRONIZADO después de que Firestore confirme
+// que las escrituras pendientes fueron aceptadas por el backend.
 import { getApp, getApps } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
 import { getAuth } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
 import { getFirestore, doc, setDoc, deleteDoc, getDoc, waitForPendingWrites } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
@@ -90,7 +90,9 @@ import { getFirestore, doc, setDoc, deleteDoc, getDoc, waitForPendingWrites } fr
       if(!item||!['PENDIENTE','ERROR'].includes(item.status))continue;
       const col=collectionFor(item.type);
       if(!col){item.status='ERROR';item.error='Tipo no soportado';errors++;continue;}
-      if(!routeAllowed(profile,item)){item.status='ERROR';item.error='Sin permiso para la ruta';errors++;continue;}
+      if(!routeAllowed(profile,item)){
+        item.status='ERROR';item.error='Sin permiso para la ruta o función';errors++;continue;
+      }
       const payload=item.payload&&typeof item.payload==='object'?item.payload:{};
       const local=findLocal(item.type,payload);
       const merged=local?{...local,...payload}:payload;
@@ -98,10 +100,14 @@ import { getFirestore, doc, setDoc, deleteDoc, getDoc, waitForPendingWrites } fr
       if(id==null){item.status='ERROR';item.error='No se pudo determinar el ID';item.attempts=(item.attempts||0)+1;errors++;continue;}
       try{
         item.attempts=(item.attempts||0)+1;
+        item.status='ENVIANDO';
+        delete item.error;
         const ref=doc(fs,`orgs/${orgId}/${col}`,id);
         if(isDelete(item.type)) await deleteDoc(ref);
         else await setDoc(ref,clean({...merged,id,orgId,userId:u.uid,updatedAt:new Date().toISOString()}),{merge:true});
-        // setDoc/deleteDoc solo llega aquí cuando Firestore confirmó el backend.
+        // IMPORTANTE: el write puede quedar pendiente en la cola offline de Firestore.
+        // No marcamos SINCRONIZADO hasta esperar el ACK remoto.
+        await waitForPendingWrites(fs);
         item.status='SINCRONIZADO';
         item.syncedAt=new Date().toISOString();
         delete item.error;
@@ -109,26 +115,40 @@ import { getFirestore, doc, setDoc, deleteDoc, getDoc, waitForPendingWrites } fr
       }catch(e){
         item.status='ERROR';
         item.error=String(e?.code||e?.message||e);
+        item.lastErrorAt=new Date().toISOString();
         errors++;
       }
     }
-    // Confirma también cualquier write de Firestore emitido por el motor Cloud.
-    if(processed>0){try{await waitForPendingWrites(fs)}catch(e){console.warn('Cola: waitForPendingWrites',e)}}
     persist();ui();
     const pending=queue.filter(x=>x&&x.status==='PENDIENTE').length;
+    const sending=queue.filter(x=>x&&x.status==='ENVIANDO').length;
     const errorCount=queue.filter(x=>x&&x.status==='ERROR').length;
-    window.__prestamoYaQueueLast={processed,errors,remaining:pending,errorCount,at:new Date().toISOString(),role:profile.role||'consulta'};
-    return {ok:true,processed,errors,remaining:pending,errorCount};
+    window.__prestamoYaQueueLast={processed,errors,remaining:pending,sending,errorCount,at:new Date().toISOString(),role:profile.role||'consulta'};
+    return {ok:true,processed,errors,remaining:pending,sending,errorCount};
   }
 
   window.processSyncQueue=()=>process().catch(e=>{console.error('Cola Cloud',e);return {ok:false,processed:0,errors:1,remaining:window.db?.syncQueue?.filter(x=>x?.status==='PENDIENTE').length||0,error:String(e)}});
   let running=false;
   window.syncQueueV3=async()=>{if(running)return {ok:false,busy:true};running=true;try{return await window.processSyncQueue()}finally{running=false}};
-  // Compatibilidad: este método ya no "confirma" por un simple pull; solo refresca la UI.
   window.ackQueueAfterCloudSync=()=>{ui();return {processed:0,remaining:window.db?.syncQueue?.filter(x=>x?.status==='PENDIENTE').length||0,mode:'ack-by-write-confirmation'}};
   window.waitForCloudWrites=async()=>{try{const app=await waitFirebase();const fs=getFirestore(app);await waitForPendingWrites(fs);return true}catch(e){console.warn('waitForCloudWrites',e);return false}};
-  if(!window.__prestamoYaQueueV8){
-    window.__prestamoYaQueueV8=true;
+
+  // Diagnóstico no destructivo: permite conocer el estado real del outbox desde la consola.
+  window.prestamoYaSyncDiagnostics=async()=>{
+    const q=Array.isArray(window.db?.syncQueue)?window.db.syncQueue:[];
+    let firebase={auth:false,uid:null,profile:null,profileReadError:null};
+    let sw=[];
+    try{sw=await navigator.serviceWorker?.getRegistrations?.()||[]}catch(e){}
+    try{
+      const app=await waitFirebase();const auth=getAuth(app),fs=getFirestore(app);firebase.auth=!!auth.currentUser;firebase.uid=auth.currentUser?.uid||null;
+      const p=auth.currentUser?await loadProfile(auth,fs):null;firebase.profile=p?{role:p.role,active:p.active,orgId:p.orgId,routeIds:p.routeIds}:null;
+    }catch(e){firebase.profileReadError=String(e?.code||e?.message||e)}
+    const result={timestamp:new Date().toISOString(),online:navigator.onLine,appVersion:'sync-queue-v9',queue:q.map((x,i)=>({index:i,id:x?.id,type:x?.type,status:x?.status,attempts:x?.attempts||0,error:x?.error||null,payloadId:x?.payload?.id??null,clientId:x?.payload?.clientId??null,routeId:x?.payload?.routeId??null,createdAt:x?.createdAt||null,syncedAt:x?.syncedAt||null})),firebase,serviceWorkers:sw.map(r=>({scope:r.scope,state:r.active?.state||null,script:r.active?.scriptURL||null})),last:window.__prestamoYaQueueLast||null,localKeys:Object.keys(localStorage).filter(k=>/mi_cartera|prestamo/i.test(k))};
+    console.table(result.queue);console.log('Préstamo Ya diagnóstico completo:',result);return result;
+  };
+
+  if(!window.__prestamoYaQueueV9){
+    window.__prestamoYaQueueV9=true;
     window.addEventListener('online',()=>setTimeout(()=>window.syncQueueV3(),1000));
     setTimeout(()=>window.syncQueueV3(),2500);
     setInterval(()=>{if(navigator.onLine)window.syncQueueV3()},15000);
