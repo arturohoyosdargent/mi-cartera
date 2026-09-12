@@ -14,11 +14,8 @@
       document.head.appendChild(s);
     });
 
-    // El respaldo/local siempre se carga. Nunca depende de Firebase.
     await loadScript('./backup.js?v=14');
 
-    // Firebase es una capa opcional de sincronización. Si no hay conexión,
-    // no se intenta cargar el módulo remoto ni se bloquea el arranque local.
     if(navigator.onLine){
       const core=document.createElement('script');
       core.type='module';
@@ -27,9 +24,7 @@
       core.onerror=()=>console.warn('Préstamo Ya: Cloud no disponible; continúa en modo local');
       document.head.appendChild(core);
       setTimeout(()=>{
-        if(typeof window.cloudSyncNow!=='function'){
-          window.cloudSyncNow=async()=>false;
-        }
+        if(typeof window.cloudSyncNow!=='function')window.cloudSyncNow=async()=>false;
       },5000);
     }else{
       window.cloudSyncNow=async()=>false;
@@ -38,7 +33,6 @@
       console.log('Préstamo Ya: sin internet; modo local activo');
     }
 
-    // Módulos funcionales locales. Se cargan sin esperar a Firebase.
     const localModules=[
       ['./cloud-repair-v2.js?v=3','module'],
       ['./ownership-model.js?v=2','module'],
@@ -46,7 +40,7 @@
       ['./data-integrity.js?v=3','text/javascript'],
       ['./field-collection-sync.js?v=2','module'],
       ['./credit-proposal.js?v=4','text/javascript'],
-      ['./payment-schedule-fix.js?v=2','text/javascript'],
+      ['./payment-schedule-fix.js?v=3','text/javascript'],
       ['./history-detail.js?v=2','text/javascript'],
       ['./credit-rules-v3.js?v=2','text/javascript'],
       ['./credit-renewal-v3.js?v=2','text/javascript'],
@@ -56,8 +50,10 @@
       ['./credit-share-v2.js?v=2','text/javascript'],
       ['./sync-ui-fix.js?v=2','text/javascript'],
       ['./renewal-buttons-fix.js?v=2','text/javascript'],
-      ['./renewal-final-fix.js?v=2','text/javascript'],
-      ['./renewal-form-v2.js?v=2','text/javascript']
+      ['./renewal-final-fix.js?v=3','text/javascript'],
+      ['./renewal-form-v2.js?v=2','text/javascript'],
+      ['./address-navigation.js?v=1','text/javascript'],
+      ['./credit-final-fix.js?v=1','text/javascript']
     ];
     for(const [src,type] of localModules){
       try{await loadScript(src,type)}catch(e){console.warn('Módulo opcional no cargado:',src,e)}
