@@ -49,9 +49,9 @@ jobs:
           from pathlib import Path
           s=Path('firebase-cloud.js').read_text(encoding='utf-8');sw=Path('sw.js').read_text(encoding='utf-8')
           assert 'navigator.serviceWorker.register' in s
-          assert 'prestamo_ya_cache_clean_v31' in s
-          assert "sync-queue-v3.js?v=10" in s and "sw.js?v=13" in s
-          assert "CACHE='prestamo-ya-v13'" in sw
+          assert 'prestamo_ya_cache_clean_v32' in s
+          assert "sync-queue-v3.js?v=11" in s and "sw.js?v=14" in s
+          assert "CACHE='prestamo-ya-v14'" in sw
           print('QA Service Worker/cache bust OK')
           PY
       - name: Validar contrato de sincronización offline
@@ -65,6 +65,8 @@ jobs:
           assert "rawOk=await raw()" in f
           assert "secondQ=await window.syncQueueV3()" in f
           assert "window.ackQueueAfterCloudSync=()=>" in q
+          assert "const routeAllowed=(p,item)=>" in q and "if(col==='credits')return true" in q
+          assert "for(const item of queue){if(item?.status==='ENVIANDO')item.status='PENDIENTE'}" in q
           assert 'no se mezcla' in r.lower() or 'fuente de verdad' in r.lower()
           print('QA contrato offline/Cloud OK')
           PY
