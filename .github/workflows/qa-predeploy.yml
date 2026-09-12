@@ -57,9 +57,9 @@ jobs:
           s=Path('firebase-cloud.js').read_text(encoding='utf-8')
           sw=Path('sw.js').read_text(encoding='utf-8')
           assert 'navigator.serviceWorker.register' in s, 'El PWA no registra el Service Worker al arrancar'
-          assert 'prestamo_ya_cache_clean_v28' in s, 'Falta el control de caché v28'
-          assert "sync-queue-v3.js?v=6" in s, 'No se está cargando la cola v6'
-          assert "CACHE='prestamo-ya-v10'" in sw, 'Falta el cache v10 del Service Worker'
+          assert 'prestamo_ya_cache_clean_v29' in s, 'Falta el control de caché v29'
+          assert "sync-queue-v3.js?v=7" in s, 'No se está cargando la cola v7'
+          assert "CACHE='prestamo-ya-v11'" in sw, 'Falta el cache v11 del Service Worker'
           print('QA Service Worker/sync bootstrap OK')
           PY
       - name: Validar contrato de sincronización offline
@@ -69,11 +69,13 @@ jobs:
           q=Path('sync-queue-v3.js').read_text(encoding='utf-8')
           c=Path('firebase-cloud-core.js').read_text(encoding='utf-8')
           f=Path('firebase-cloud.js').read_text(encoding='utf-8')
-          required_q=['window.ackQueueAfterCloudSync','window.syncQueueV3',"item.status='SINCRONIZADO'","item.status='ERROR'",'item.error=']
+          r=Path('client-sync-repair.js').read_text(encoding='utf-8')
+          required_q=['window.ackQueueAfterCloudSync','window.syncQueueV3',"item.status='SINCRONIZADO'","item.status='ERROR'",'item.error=','window.__prestamoYaQueueProfile']
           for x in required_q: assert x in q, f'Falta contrato de cola: {x}'
           assert 'return true;' in c and "toast('Cloud sincronizado.')" in c
           assert "if(ok&&typeof window.ackQueueAfterCloudSync==='function')window.ackQueueAfterCloudSync();" in f
           assert "if(typeof window.syncQueueV3==='function')await window.syncQueueV3();" in f
+          assert 'no se mezcla' in r.lower() or 'fuente de verdad' in r.lower()
           print('QA contrato offline/Cloud OK')
           PY
       - name: Validar reglas Firestore
