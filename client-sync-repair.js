@@ -1,8 +1,8 @@
-// Reparación de clientes v4 + vínculo seguro del cliente en créditos.
+// Reparación de clientes v5 + sincronización automática entre dispositivos.
 (()=>{
 'use strict';
-const wait=()=>{if(typeof window.db!=='object'||typeof window.cloudSyncNow!=='function')return setTimeout(wait,300);if(window.__prestamoYaClientRepairV4)return;window.__prestamoYaClientRepairV4=true;
-window.syncClientsNow=async()=>{try{window.updateSyncUI?.();return true}catch(_){return false}};
+const wait=()=>{if(typeof window.db!=='object'||typeof window.cloudSyncNow!=='function')return setTimeout(wait,300);if(window.__prestamoYaClientRepairV5)return;window.__prestamoYaClientRepairV5=true;
+window.syncClientsNow=async()=>{try{return await window.cloudSyncNow()}catch(_){try{window.updateSyncUI?.()}catch(__){}return false}};
 
 const dbx=()=>window.db||null;
 const clients=()=>dbx()?.clients||[];
@@ -33,9 +33,19 @@ function patch(){
  if(typeof window.saveClient==='function'&&!window.saveClient.__clientBindingFix){const raw=window.saveClient;const f=function(...a){const before=new Set(clients().map(c=>String(c.id)));const r=raw.apply(this,a);setTimeout(()=>captureNew(before),0);return r};f.__clientBindingFix=true;window.saveClient=f}
  const form=document.getElementById('creditForm');
  if(form&&!form.__clientBindingListeners){form.__clientBindingListeners=true;form.addEventListener('change',e=>{const t=e.target;if(t&&(t.closest('#creditClientBox')||String(t.id||'').toLowerCase().includes('client')||String(t.name||'').toLowerCase().includes('client'))){const id=domClientId();if(id)remember(id)}},true)}
- if(typeof window.saveCredit==='function'&&!window.saveCredit.__clientBindingFix){const raw=window.saveCredit;const f=function(...a){const id=resolve();if(!id){try{toast('Seleccione cliente o abra el crédito desde el cliente')}catch(_){}return}remember(id);try{if(typeof selectedClient!=='undefined')selectedClient=id}catch(_){}try{window.selectedClient=id}catch(_){}try{window.__selectedClientForProposal=id}catch(_){}return raw.apply(this,a)};f.__clientBindingFix=true;window.saveCredit=f}
+ if(typeof window.saveCredit==='function'&&!window.saveCredit.__clientBindingFix){const raw=window.saveCredit;const f=function(...a){const id=resolve();if(!id){try{toast('Seleccione cliente o abra el crédito desde el cliente')}catch(_){}return}remember(id);const r=raw.apply(this,a);setTimeout(()=>{try{window.cloudSyncNow?.()}catch(_){}} ,250);return r};f.__clientBindingFix=true;window.saveCredit=f}
 }
-const boot=()=>{patch();setTimeout(patch,250);setTimeout(patch,800);setTimeout(patch,1600);setTimeout(patch,3000)};
+async function refreshCloud(reason){if(!navigator.onLine)return false;try{const r=await window.cloudSyncNow();console.log('Préstamo Ya: sincronización automática',reason,r);return r}catch(e){console.warn('Préstamo Ya: sincronización automática',reason,e);return false}}
+let timer=0;
+function startAutoSync(){
+ if(window.__prestamoYaAutoCrossDevice)return;
+ window.__prestamoYaAutoCrossDevice=true;
+ refreshCloud('inicio');
+ timer=setInterval(()=>refreshCloud('cada-15s'),15000);
+ window.addEventListener('online',()=>setTimeout(()=>refreshCloud('online'),800));
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(()=>refreshCloud('regreso'),300)});
+}
+const boot=()=>{patch();setTimeout(patch,250);setTimeout(patch,800);setTimeout(patch,1600);setTimeout(patch,3000);startAutoSync()};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 new MutationObserver(()=>patch()).observe(document.documentElement,{childList:true,subtree:true});
 };
