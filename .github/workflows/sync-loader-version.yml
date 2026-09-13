@@ -1,0 +1,54 @@
+name: Sincronizar loader de Préstamo Ya
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  sync-loader:
+    if: ${{ !contains(github.event.head_commit.message, '[skip loader-sync]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Alinear versión publicada de firebase-cloud
+        run: |
+          set -e
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='firebase-cloud.js?v=21'
+          new='firebase-cloud.js?v=45'
+          if old in s:
+              s=s.replace(old,new)
+              p.write_text(s,encoding='utf-8')
+              print('Loader actualizado: ?v=21 -> ?v=45')
+          else:
+              m=re.search(r'firebase-cloud\.js\?v=(\d+)',s)
+              if not m:
+                  raise SystemExit('No se encontró firebase-cloud.js en index.html')
+              print('Loader ya está versionado como ?v='+m.group(1))
+          PY
+      - name: Verificar cambio
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('index.html').read_text(encoding='utf-8')
+          m=re.search(r'firebase-cloud\.js\?v=(\d+)',s)
+          assert m and int(m.group(1)) >= 45, 'El loader publicado sigue por debajo de v45'
+          assert s.count('firebase-cloud.js') == 1
+          print('Distribución PC/móvil alineada con loader v'+m.group(1))
+          PY
+      - name: Publicar alineación
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'No hay cambios que publicar.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'fix: alinear loader publicado en PC y móvil [skip loader-sync]'
+          git push
