@@ -3,156 +3,31 @@
 (()=>{
   'use strict';
   if(window.__prestamoYaCreditActionsSafety==='v3')return;
-
-  const wait=()=>{
-    if(!window.db||!Array.isArray(window.db.credits))return setTimeout(wait,300);
-    install();
-  };
-  const idOf=v=>{
-    if(v==null||v==='')return null;
-    if(typeof v==='object')return v.id??v.creditId??v.value??null;
-    return v;
-  };
-  const findById=(list,id)=>{
-    const k=idOf(id);
-    if(k==null)return null;
-    return (list||[]).find(x=>x!=null&&String(x.id)===String(k))||null;
-  };
-  const credit=id=>findById(window.db.credits,id);
-  const client=id=>findById(window.db.clients,id);
+  const wait=()=>{if(!window.db||!Array.isArray(window.db.credits))return setTimeout(wait,300);install()};
+  const idOf=v=>{if(v==null||v==='')return null;if(typeof v==='object')return v.id??v.creditId??v.value??null;return v};
+  const findById=(list,id)=>{const k=idOf(id);if(k==null)return null;return(list||[]).find(x=>x!=null&&String(x.id)===String(k))||null};
+  const credit=id=>findById(window.db.credits,id),client=id=>findById(window.db.clients,id);
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const money=v=>'S/ '+Number(v||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmt=d=>d?new Date(d+'T12:00:00').toLocaleDateString('es-PE'):'-';
   const notify=msg=>{try{if(typeof window.toast==='function')window.toast(msg);else console.warn(msg)}catch(_){} };
-
-  // Busca automáticamente un cliente cuando el ID quedó desfasado.
-  const recoverClient=(cr)=>{
-    if(!cr)return null;
-    const exact=client(cr.clientId);
-    if(exact)return exact;
-    const norm=v=>String(v??'').trim().toLowerCase();
-    const digits=v=>String(v??'').replace(/\D/g,'');
-    const name=norm(cr.clientName||cr.customerName||cr.name||cr.client?.name);
-    const phone=digits(cr.clientPhone||cr.customerPhone||cr.phone||cr.client?.phone);
-    const dni=digits(cr.clientDni||cr.customerDni||cr.dni||cr.client?.dni);
-    const ref=norm(cr.clientReference||cr.reference||cr.client?.reference);
-    const candidates=(window.db.clients||[]).filter(c=>{
-      const cn=norm(c.name),cp=digits(c.phone),cd=digits(c.dni),cf=norm(c.reference);
-      if(dni&&cd&&dni===cd)return true;
-      if(phone&&cp&&phone===cp)return true;
-      if(name&&cn&&name===cn)return true;
-      if(ref&&cf&&ref===cf)return true;
-      return false;
-    });
+  const recoverClient=cr=>{
+    if(!cr)return null;const exact=client(cr.clientId);if(exact)return exact;
+    const norm=v=>String(v??'').trim().toLowerCase(),digits=v=>String(v??'').replace(/\D/g,'');
+    const name=norm(cr.clientName||cr.customerName||cr.name||cr.client?.name),phone=digits(cr.clientPhone||cr.customerPhone||cr.phone||cr.client?.phone),dni=digits(cr.clientDni||cr.customerDni||cr.dni||cr.client?.dni),ref=norm(cr.clientReference||cr.reference||cr.client?.reference);
+    const candidates=(window.db.clients||[]).filter(c=>{const cn=norm(c.name),cp=digits(c.phone),cd=digits(c.dni),cf=norm(c.reference);return(dni&&cd&&dni===cd)||(phone&&cp&&phone===cp)||(name&&cn&&name===cn)||(ref&&cf&&ref===cf)});
     return candidates.length===1?candidates[0]:null;
   };
-
-  const repairLink=(cr,c)=>{
-    if(!cr||!c)return false;
-    cr.clientId=c.id;
-    if(!cr.routeId&&c.routeId)cr.routeId=c.routeId;
-    try{
-      if(typeof window.audit==='function')window.audit('CREDITO_CLIENTE_RECUPERADO','#'+cr.id+' → '+c.name);
-      if(typeof window.persist==='function')window.persist();
-      if(typeof window.enqueueSync==='function')window.enqueueSync('CREDITO_MODIFICADO',{...cr,id:cr.id,clientId:c.id});
-    }catch(e){console.warn('Préstamo Ya · reparación de cliente',e)}
-    return true;
-  };
-
-  const missingClientHtml=(cr)=>{
-    const candidates=(window.db.clients||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));
-    return `<div class="card kpiDanger"><b>⚠️ Crédito sin cliente vinculado</b><br>Crédito #${esc(cr.id)} · ID de cliente guardado: ${esc(cr.clientId??'-')}<br>Capital: ${money(cr.capital)} · Total: ${money(cr.total)} · Saldo: ${money(typeof window.status==='function'?window.status(cr).remain:cr.total)}<p class="small muted">El crédito y sus cuotas siguen intactos. Seleccione el cliente correcto para volver a vincularlo; no se elimina ningún dato.</p><div class="field"><label>Cliente correcto</label><select class="select" id="orphanClientSelect"><option value="">Seleccione un cliente…</option>${candidates.map(c=>`<option value="${esc(c.id)}">${esc(c.name)} · ${esc(c.phone||'-')} · DNI ${esc(c.dni||'-')}</option>`).join('')}</select></div><div class="actionbar"><button class="btn green" type="button" onclick="window.__prestamoYaLinkOrphan('${esc(cr.id)}')">🔗 Vincular cliente</button><button class="btn" type="button" onclick="go('credits')">← Volver</button></div></div>`;
-  };
-
-  const showOrphan=(cr)=>{
-    selectedCredit=cr.id;
-    const s=typeof window.status==='function'?window.status(cr):{remain:Number(cr.total||0),paid:Number(cr.paid||0),overdue:0,maturity:cr.maturity};
-    const rows=(cr.schedule||[]).map(q=>`<tr><td>${esc(q.n)}</td><td>${fmt(q.date)}</td><td>${money(q.amount)}</td><td>${money(q.paid)}</td><td>${money(Math.max(0,Number(q.amount||0)-Number(q.paid||0)))}</td></tr>`).join('');
-    $('creditDetailBody').innerHTML=missingClientHtml(cr)+`<div class="card"><b>Detalle del crédito #${esc(cr.id)}</b><br>Fecha: ${fmt(cr.date)} · Vencimiento: ${fmt(s.maturity)}<br>Frecuencia: ${esc(cr.freq||'-')} · ${esc(cr.term||0)} cuotas<br>Capital: ${money(cr.capital)} · Interés: ${esc(cr.rate||0)}% · Total: ${money(cr.total)}<br>Pagado: ${money(s.paid)} · Saldo: <b>${money(s.remain)}</b> · Mora: ${money(s.overdue)}</div><div class="card"><b>📅 Cronograma</b><table class="table"><tr><th>#</th><th>Fecha</th><th>Cuota</th><th>Pagado</th><th>Saldo</th></tr>${rows}</table></div><div class="actionbar"><button class="btn blue" onclick="openCollect(${JSON.stringify(cr.id)})">💵 Recaudar</button><button class="btn" onclick="window.__prestamoYaRepairOrphan('${esc(cr.id)}')">🔧 Recuperar vínculo</button></div>`;
-    go('creditDetail');
-  };
-
-  const openOrphanCollect=(cr)=>{
-    selectedCredit=cr.id;
-    const due=typeof window.currentDue==='function'?window.currentDue(cr):0;
-    const next=typeof window.firstPendingAmount==='function'?window.firstPendingAmount(cr):Number(cr.installment||0);
-    const suggested=due>0?due:next;
-    $('collectBody').innerHTML=`<div class="card kpiDanger"><b>⚠️ Cliente no vinculado</b><br>Crédito #${esc(cr.id)} · ID cliente ${esc(cr.clientId??'-')}<br>Capital ${money(cr.capital)} · Saldo ${money(typeof window.status==='function'?window.status(cr).remain:cr.total)}</div><div class="card"><div class="field"><label>Valor a registrar S/</label><input class="input" id="payAmount" type="number" step="0.01" value="${Math.max(0,suggested||cr.installment||0).toFixed(2)}"></div><div class="field"><label>N° cuotas</label><input class="input" id="payCount" type="number" min="1" value="1" oninput="syncPayAmount()"></div><div class="field"><label>Tipo</label><select class="select" id="payType"><option value="normal">Recaudo</option><option value="partial">Abono parcial</option><option value="penalty">Multa</option><option value="discount">Descuento</option></select></div><div class="field"><label>Método</label><select class="select" id="payMethod"><option>Efectivo</option><option>Yape</option><option>Plin</option><option>Transferencia</option></select></div><div class="field"><label>Observación</label><input class="input" id="payNote" value="Crédito sin cliente vinculado"></div><div class="actionbar"><button class="btn green" onclick="registerPayment(${JSON.stringify(cr.id)})">💵 Abonar</button><button class="btn" onclick="showCredit(${JSON.stringify(cr.id)})">Salir</button></div></div>`;
-    go('collect');
-  };
-
-  const repairOrphan=(id)=>{
-    const cr=credit(id);if(!cr)return notify('Crédito no encontrado.');
-    const auto=recoverClient(cr);
-    if(auto){repairLink(cr,auto);notify('Cliente recuperado automáticamente: '+auto.name);renderAll();showCredit(cr.id);return;}
-    if(typeof window.openForm==='function'){
-      openForm('Recuperar cliente del crédito',missingClientHtml(cr));
-      setTimeout(()=>{const b=$('formSheet')?.querySelector('[onclick*="__prestamoYaLinkOrphan"]');if(b)b.style.display='none';},0);
-      return;
-    }
-    showOrphan(cr);
-  };
-
-  window.__prestamoYaLinkOrphan=id=>{
-    const cr=credit(id),v=$('orphanClientSelect')?.value,c=client(v);
-    if(!cr||!c)return notify('Seleccione el cliente correcto.');
-    repairLink(cr,c);notify('Crédito vinculado correctamente a '+c.name);if(typeof window.renderAll==='function')window.renderAll();showCredit(cr.id);
-  };
+  const repairLink=(cr,c)=>{if(!cr||!c)return false;cr.clientId=c.id;if(!cr.routeId&&c.routeId)cr.routeId=c.routeId;try{if(typeof window.audit==='function')window.audit('CREDITO_CLIENTE_RECUPERADO','#'+cr.id+' → '+c.name);if(typeof window.persist==='function')window.persist();if(typeof window.enqueueSync==='function')window.enqueueSync('CREDITO_MODIFICADO',{...cr,id:cr.id,clientId:c.id})}catch(e){console.warn('Préstamo Ya · reparación de cliente',e)}return true};
+  const missingClientHtml=cr=>{const candidates=(window.db.clients||[]).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'es'));return `<div class="card kpiDanger"><b>⚠️ Crédito sin cliente vinculado</b><br>Crédito #${esc(cr.id)} · ID de cliente guardado: ${esc(cr.clientId??'-')}<br>Capital: ${money(cr.capital)} · Total: ${money(cr.total)} · Saldo: ${money(typeof window.status==='function'?window.status(cr).remain:cr.total)}<p class="small muted">El crédito y sus cuotas siguen intactos. Seleccione el cliente correcto para volver a vincularlo; no se elimina ningún dato.</p><div class="field"><label>Cliente correcto</label><select class="select" id="orphanClientSelect"><option value="">Seleccione un cliente…</option>${candidates.map(c=>`<option value="${esc(c.id)}">${esc(c.name)} · ${esc(c.phone||'-')} · DNI ${esc(c.dni||'-')}</option>`).join('')}</select></div><div class="actionbar"><button class="btn green" type="button" onclick="window.__prestamoYaLinkOrphan('${esc(cr.id)}')">🔗 Vincular cliente</button><button class="btn" type="button" onclick="go('credits')">← Volver</button></div></div>`};
+  const showOrphan=cr=>{selectedCredit=cr.id;const s=typeof window.status==='function'?window.status(cr):{remain:Number(cr.total||0),paid:Number(cr.paid||0),overdue:0,maturity:cr.maturity};const rows=(cr.schedule||[]).map(q=>`<tr><td>${esc(q.n)}</td><td>${fmt(q.date)}</td><td>${money(q.amount)}</td><td>${money(q.paid)}</td><td>${money(Math.max(0,Number(q.amount||0)-Number(q.paid||0)))}</td></tr>`).join('');$('creditDetailBody').innerHTML=missingClientHtml(cr)+`<div class="card"><b>Detalle del crédito #${esc(cr.id)}</b><br>Fecha: ${fmt(cr.date)} · Vencimiento: ${fmt(s.maturity)}<br>Frecuencia: ${esc(cr.freq||'-')} · ${esc(cr.term||0)} cuotas<br>Capital: ${money(cr.capital)} · Interés: ${esc(cr.rate||0)}% · Total: ${money(cr.total)}<br>Pagado: ${money(s.paid)} · Saldo: <b>${money(s.remain)}</b> · Mora: ${money(s.overdue)}</div><div class="card"><b>📅 Cronograma</b><table class="table"><tr><th>#</th><th>Fecha</th><th>Cuota</th><th>Pagado</th><th>Saldo</th></tr>${rows}</table></div><div class="actionbar"><button class="btn blue" onclick="openCollect(${JSON.stringify(cr.id)})">💵 Recaudar</button><button class="btn" onclick="window.__prestamoYaRepairOrphan('${esc(cr.id)}')">🔧 Recuperar vínculo</button></div>`;go('creditDetail')};
+  const openOrphanCollect=cr=>{selectedCredit=cr.id;const due=typeof window.currentDue==='function'?window.currentDue(cr):0,next=typeof window.firstPendingAmount==='function'?window.firstPendingAmount(cr):Number(cr.installment||0),suggested=due>0?due:next;$('collectBody').innerHTML=`<div class="card kpiDanger"><b>⚠️ Cliente no vinculado</b><br>Crédito #${esc(cr.id)} · ID cliente ${esc(cr.clientId??'-')}<br>Capital ${money(cr.capital)} · Saldo ${money(typeof window.status==='function'?window.status(cr).remain:cr.total)}</div><div class="card"><div class="field"><label>Valor a registrar S/</label><input class="input" id="payAmount" type="number" step="0.01" value="${Math.max(0,suggested||cr.installment||0).toFixed(2)}"></div><div class="field"><label>N° cuotas</label><input class="input" id="payCount" type="number" min="1" value="1" oninput="syncPayAmount()"></div><div class="field"><label>Tipo</label><select class="select" id="payType"><option value="normal">Recaudo</option><option value="partial">Abono parcial</option><option value="penalty">Multa</option><option value="discount">Descuento</option></select></div><div class="field"><label>Método</label><select class="select" id="payMethod"><option>Efectivo</option><option>Yape</option><option>Plin</option><option>Transferencia</option></select></div><div class="field"><label>Observación</label><input class="input" id="payNote" value="Crédito sin cliente vinculado"></div><div class="actionbar"><button class="btn green" onclick="registerPayment(${JSON.stringify(cr.id)})">💵 Abonar</button><button class="btn" onclick="showCredit(${JSON.stringify(cr.id)})">Salir</button></div></div>`;go('collect')};
+  const repairOrphan=id=>{const cr=credit(id);if(!cr)return notify('Crédito no encontrado.');const auto=recoverClient(cr);if(auto){repairLink(cr,auto);notify('Cliente recuperado automáticamente: '+auto.name);if(typeof window.renderAll==='function')window.renderAll();showCredit(cr.id);return}showOrphan(cr)};
+  window.__prestamoYaLinkOrphan=id=>{const cr=credit(id),v=$('orphanClientSelect')?.value,c=client(v);if(!cr||!c)return notify('Seleccione el cliente correcto.');repairLink(cr,c);notify('Crédito vinculado correctamente a '+c.name);if(typeof window.renderAll==='function')window.renderAll();showCredit(cr.id)};
   window.__prestamoYaRepairOrphan=repairOrphan;
-
-  const wrapCredit=(name)=>{
-    const raw=window[name];
-    if(typeof raw!=='function'||raw.__prestamoYaSafeV3)return;
-    const safe=function(arg,...rest){
-      const cr=credit(arg)||credit(window.selectedCredit);
-      if(!cr){notify('El crédito seleccionado ya no existe en los datos locales.');return;}
-      const c=recoverClient(cr);
-      if(c&&!client(cr.clientId)){repairLink(cr,c);}
-      if(!c){
-        if(name==='showCredit'){showOrphan(cr);return;}
-        if(name==='openCollect'){openOrphanCollect(cr);return;}
-        if(name==='editCredit'||name==='refinance'){notify('Primero vincule el cliente de este crédito.');repairOrphan(cr.id);return;}
-      }
-      try{return raw.call(this,cr.id,...rest)}catch(e){
-        console.error('Préstamo Ya '+name+':',e);
-        if(name==='showCredit')return showOrphan(cr);
-        if(name==='openCollect')return openOrphanCollect(cr);
-        notify('No se pudo ejecutar la acción.');
-      }
-    };
-    safe.__prestamoYaSafeV3=true;
-    window[name]=safe;
-  };
-
-  const wrapNewCredit=()=>{
-    const raw=window.newCredit;
-    if(typeof raw!=='function'||raw.__prestamoYaSafeNewV3)return;
-    const safe=function(arg,...rest){
-      let cid=idOf(arg);
-      if(cid!=null){const c=client(cid);if(!c)return notify('El cliente seleccionado ya no existe en los datos locales.');cid=c.id}
-      else if(window.selectedClient!=null){const c=client(window.selectedClient);if(c)cid=c.id}
-      try{return raw.call(this,cid,...rest)}catch(e){console.error('Préstamo Ya newCredit:',e);notify('No se pudo abrir Nuevo crédito.');}
-    };
-    safe.__prestamoYaSafeNewV3=true;window.newCredit=safe;
-  };
-
-  const patchRender=()=>{
-    const raw=window.renderCredits;
-    if(typeof raw!=='function'||raw.__prestamoYaRenderV3)return;
-    const wrapped=function(...args){const r=raw.apply(this,args);try{
-      (window.db.credits||[]).forEach(cr=>{if(!client(cr.clientId)){const card=[...document.querySelectorAll('#creditsList .card')].find(x=>x.textContent.includes('Capital: '+money(cr.capital))&&x.textContent.includes('Total: '+money(cr.total)));if(card){const b=card.querySelector('b');if(b&&b.textContent==='Cliente no encontrado')b.textContent='⚠️ Cliente no vinculado · Crédito #'+cr.id;}}});
-    }catch(_){}return r};
-    wrapped.__prestamoYaRenderV3=true;window.renderCredits=wrapped;
-  };
-
-  function install(){
-    ['showCredit','openCollect','editCredit','refinance'].forEach(wrapCredit);
-    wrapNewCredit();patchRender();
-    window.__prestamoYaCreditActionsSafety='v3';
-    window.__prestamoYaCreditActionsSafetyVersion='v3';
-  }
-  install();
-  const observer=new MutationObserver(()=>install());
-  observer.observe(document.documentElement,{subtree:true,childList:true});
-  wait();
+  const wrapCredit=name=>{const raw=window[name];if(typeof raw!=='function'||raw.__prestamoYaSafeV3)return;const safe=function(arg,...rest){const cr=credit(arg)||credit(window.selectedCredit);if(!cr){notify('El crédito seleccionado ya no existe en los datos locales.');return}const c=recoverClient(cr);if(c&&!client(cr.clientId))repairLink(cr,c);if(!c){if(name==='showCredit'){showOrphan(cr);return}if(name==='openCollect'){openOrphanCollect(cr);return}if(name==='editCredit'||name==='refinance'){notify('Primero vincule el cliente de este crédito.');repairOrphan(cr.id);return}}try{return raw.call(this,cr.id,...rest)}catch(e){console.error('Préstamo Ya '+name+':',e);if(name==='showCredit')return showOrphan(cr);if(name==='openCollect')return openOrphanCollect(cr);notify('No se pudo ejecutar la acción.')}};safe.__prestamoYaSafeV3=true;window[name]=safe};
+  const wrapNewCredit=()=>{const raw=window.newCredit;if(typeof raw!=='function'||raw.__prestamoYaSafeNewV3)return;const safe=function(arg,...rest){let cid=idOf(arg);if(cid!=null){const c=client(cid);if(!c)return notify('El cliente seleccionado ya no existe en los datos locales.');cid=c.id}else if(window.selectedClient!=null){const c=client(window.selectedClient);if(c)cid=c.id}try{return raw.call(this,cid,...rest)}catch(e){console.error('Préstamo Ya newCredit:',e);notify('No se pudo abrir Nuevo crédito.')}};safe.__prestamoYaSafeNewV3=true;window.newCredit=safe};
+  const patchRender=()=>{const raw=window.renderCredits;if(typeof raw!=='function'||raw.__prestamoYaRenderV3)return;const wrapped=function(...args){const r=raw.apply(this,args);try{(window.db.credits||[]).forEach(cr=>{if(!client(cr.clientId)){const card=[...document.querySelectorAll('#creditsList .card')].find(x=>x.textContent.includes('Capital: '+money(cr.capital))&&x.textContent.includes('Total: '+money(cr.total)));if(card){const b=card.querySelector('b');if(b&&b.textContent==='Cliente no encontrado')b.textContent='⚠️ Cliente no vinculado · Crédito #'+cr.id}}})}catch(_){}return r};wrapped.__prestamoYaRenderV3=true;window.renderCredits=wrapped};
+  function install(){['showCredit','openCollect','editCredit','refinance'].forEach(wrapCredit);wrapNewCredit();patchRender();window.__prestamoYaCreditActionsSafety='v3';window.__prestamoYaCreditActionsSafetyVersion='v3'}
+  install();new MutationObserver(()=>install()).observe(document.documentElement,{subtree:true,childList:true});wait();
 })();
