@@ -15,46 +15,43 @@ function phone(c){
  let p=String(c?.phone||'').replace(/\D/g,'');
  if(p.startsWith('00'))p=p.slice(2);
  if(p.length===9)p='51'+p;
- return p;
+ return p
 }
 
 function paymentCaption(c){
  const x=window.__prestamoYaLastPaymentShare;
  if(!x||Date.now()-Number(x.at||0)>86400000)return null;
  if(x.clientName&&String(c?.name||'')!==String(x.clientName))return null;
-
  const qs=x.paidQuotas||[];
  const ps=x.partialQuotas||[];
-
- if(qs.length)
-   return `Préstamo Ya — Cuota${qs.length>1?'s':''} ${qs.join(', ')} pagada${qs.length>1?'s':''}`;
-
- if(ps.length)
-   return `Préstamo Ya — Abono a cuota ${ps.join(', ')} registrado`;
-
+ if(qs.length)return `Préstamo Ya — Cuota${qs.length>1?'s':''} ${qs.join(', ')} pagada${qs.length>1?'s':''}`;
+ if(ps.length)return `Préstamo Ya — Abono a cuota ${ps.join(', ')} registrado`;
  return 'Préstamo Ya — Pago registrado';
 }
 
 function captionFor(kind,c){
- if(kind==='payment')
-   return paymentCaption(c)||'Préstamo Ya — Pago registrado';
-
- if(kind==='proposal')
-   return 'Préstamo Ya — Crédito preaprobado';
-
- if(kind==='renewal')
-   return 'Préstamo Ya — Renovación preaprobada';
-
- if(kind==='approved')
-   return 'Préstamo Ya — Crédito aprobado';
-
- if(kind==='renewed')
-   return 'Préstamo Ya — Crédito renovado';
-
- if(kind==='history')
-   return 'Préstamo Ya — Historial del cliente';
-
+ if(kind==='payment')return paymentCaption(c)||'Préstamo Ya — Pago registrado';
+ if(kind==='proposal')return 'Préstamo Ya — Crédito preaprobado';
+ if(kind==='renewal')return 'Préstamo Ya — Renovación preaprobada';
+ if(kind==='approved')return 'Préstamo Ya — Crédito aprobado';
+ if(kind==='renewed')return 'Préstamo Ya — Crédito renovado';
+ if(kind==='history')return 'Préstamo Ya — Historial del cliente';
  return 'Préstamo Ya — Detalle del crédito';
+}
+
+function directWhatsApp(kind,c,text,title){
+ const caption=captionFor(kind,c);
+ const p=phone(c);
+ if(!p){
+   window.toast?.('Este cliente no tiene teléfono válido.');
+   return false
+ }
+ window.open(
+   'https://wa.me/'+p+'?text='+encodeURIComponent(caption),
+   '_blank',
+   'noopener'
+ );
+ return true;
 }
 
 function shareImage(kind,c,text,title){
@@ -64,9 +61,13 @@ function shareImage(kind,c,text,title){
 
  if(navigator.share&&engine?.imageFromText){
    engine.imageFromText(t).then(blob=>{
-     if(!blob)return fallback();
+     if(!blob)return directWhatsApp(kind,c,t,title);
 
-     const file=new File([blob],'prestamo-ya.png',{type:'image/png'});
+     const file=new File(
+       [blob],
+       'prestamo-ya.png',
+       {type:'image/png'}
+     );
 
      if(navigator.canShare?.({files:[file]})){
        return navigator.share({
@@ -76,28 +77,13 @@ function shareImage(kind,c,text,title){
        });
      }
 
-     return fallback();
-   }).catch(()=>fallback());
+     return directWhatsApp(kind,c,t,title);
+   }).catch(()=>directWhatsApp(kind,c,t,title));
 
    return true;
  }
 
- return fallback();
-
- function fallback(){
-   const p=phone(c);
-
-   if(p)
-     window.open(
-       'https://wa.me/'+p+'?text='+encodeURIComponent(caption),
-       '_blank',
-       'noopener'
-     );
-   else
-     window.toast?.('Este cliente no tiene teléfono válido.');
-
-   return !!p;
- }
+ return directWhatsApp(kind,c,t,title);
 }
 
 async function share(kind,c,title,text){
@@ -111,7 +97,11 @@ async function share(kind,c,title,text){
        const blob=await engine.imageFromText(t);
 
        if(blob){
-         const file=new File([blob],'prestamo-ya.png',{type:'image/png'});
+         const file=new File(
+           [blob],
+           'prestamo-ya.png',
+           {type:'image/png'}
+         );
 
          if(navigator.canShare?.({files:[file]})){
            await navigator.share({
@@ -119,7 +109,6 @@ async function share(kind,c,title,text){
              text:captionFor(kind,c),
              files:[file]
            });
-
            return true;
          }
        }
@@ -133,16 +122,16 @@ async function share(kind,c,title,text){
      return true;
    }
  }catch(e){
-   if(e?.name==='AbortError')return false;
+   if(e?.name==='AbortError')return false
  }
 
  try{
    await navigator.clipboard.writeText(t);
-   window.toast?.('Información copiada para compartir.');
-   return true;
+   toast?.('Información copiada para compartir.');
+   return true
  }catch(e){
-   window.toast?.('No fue posible compartir la información.');
-   return false;
+   toast?.('No fue posible compartir la información.');
+   return false
  }
 }
 
@@ -150,7 +139,6 @@ function btn(bar,id,label,cls,fn){
  if(!bar||document.getElementById(id))return;
 
  const b=document.createElement('button');
-
  b.id=id;
  b.type='button';
  b.className='btn '+cls;
@@ -168,7 +156,12 @@ function pair(bar,p){
    p.si,
    p.sl||'📤 Compartir',
    'blue',
-   ()=>share(p.kind,p.client(),p.title,p.text())
+   ()=>share(
+     p.kind,
+     p.client(),
+     p.title,
+     p.text()
+   )
  );
 
  btn(
@@ -176,7 +169,12 @@ function pair(bar,p){
    p.wi,
    p.wl||'💬 Enviar por WhatsApp',
    'green',
-   ()=>shareImage(p.kind,p.client(),p.text(),p.title)
+   ()=>directWhatsApp(
+     p.kind,
+     p.client(),
+     p.text(),
+     p.title
+   )
  );
 }
 
@@ -239,7 +237,9 @@ function installPayment(){
 
  if(!cr||!c||!body)return;
 
- const bar=body.querySelector('.actionbar');
+ const bar=
+   body.querySelector('.actionbar')||
+   document.querySelector('#creditDetailBody .actionbar');
 
  if(!bar)return;
 
@@ -249,8 +249,8 @@ function installPayment(){
    `Pago recibido: ${money(x.paidAmount)}`,
    `Concepto: ${paymentCaption(c)?.replace(/^Préstamo Ya — /,'')||'Pago registrado'}`,
    Math.max(0,Number(cr.total||0)-Number(cr.paid||0))
-     ? `Saldo pendiente: ${money(Math.max(0,Number(cr.total||0)-Number(cr.paid||0)))}`
-     : 'El crédito queda totalmente pagado.'
+     ?`Saldo pendiente: ${money(Math.max(0,Number(cr.total||0)-Number(cr.paid||0)))}`
+     :'El crédito queda totalmente pagado.'
  ].join('\n');
 
  pair(bar,{
@@ -267,7 +267,6 @@ function installPayment(){
 
 function proposal(){
  const m=document.getElementById('creditWorkflowModal');
-
  if(!m)return;
 
  const box=document.getElementById('creditClientBox');
@@ -280,7 +279,6 @@ function proposal(){
  if(!c)return;
 
  const bar=m.querySelector('.actionbar');
-
  if(!bar)return;
 
  const text=()=>[
@@ -313,15 +311,12 @@ function proposal(){
 
 function renewal(){
  const m=document.getElementById('renewalModal');
-
  if(!m)return;
 
  const c=clientOf(window.__renewingCreditId);
-
  if(!c)return;
 
  const bar=m.querySelector('.actionbar');
-
  if(!bar)return;
 
  const text=()=>[
@@ -348,7 +343,6 @@ function renewal(){
 
 function history(){
  const box=document.getElementById('reportBox');
-
  if(!box)return;
 
  const cards=[...box.querySelectorAll('.card')];
@@ -459,11 +453,11 @@ wrap('go',()=>run());
 
 new MutationObserver(()=>{
  clearTimeout(window.__pyShareTimer);
- window.__pyShareTimer=setTimeout(()=>run(),100);
-}).observe(document.body,{
- childList:true,
- subtree:true
-});
+ window.__pyShareTimer=setTimeout(()=>run(),100)
+}).observe(
+ document.body,
+ {childList:true,subtree:true}
+);
 
 if(document.readyState==='loading'){
  document.addEventListener(
@@ -479,9 +473,10 @@ setTimeout(run,500);
 setTimeout(run,1500);
 
 window.PrestamoYaShareCenter={
- version:'v5',
- whatsapp:shareImage,
- share
+ version:'v5.1',
+ whatsapp:directWhatsApp,
+ share,
+ shareImage
 };
 
 })();
