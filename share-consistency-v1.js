@@ -1,33 +1,147 @@
-// Préstamo Ya — Centro único de compartir v5.2
+// Préstamo Ya — Centro único de compartir v6.0
 (()=>{
 'use strict';
-if(window.__prestamoYaShareConsistencyV52)return;
-window.__prestamoYaShareConsistencyV52=true;
+if(window.__prestamoYaShareConsistencyV60)return;
+window.__prestamoYaShareConsistencyV60=true;
+
 const db=()=>window.db||{clients:[],credits:[]};
 const clean=s=>String(s??'').replace(/\s+/g,' ').trim();
 const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
 const clientById=id=>(db().clients||[]).find(c=>String(c.id)===String(id))||null;
 const creditById=id=>(db().credits||[]).find(c=>String(c.id)===String(id))||null;
 const clientOf=id=>{const cr=creditById(id);return cr&&clientById(cr.clientId)};
-function phone(c){let p=String(c?.phone||'').replace(/\D/g,'');if(p.startsWith('00'))p=p.slice(2);if(p.length===9)p='51'+p;return p}
-function paymentCaption(c){const x=window.__prestamoYaLastPaymentShare;if(!x||Date.now()-Number(x.at||0)>86400000)return null;if(x.clientName&&String(c?.name||'')!==String(x.clientName))return null;const qs=Array.isArray(x.paidQuotas)?x.paidQuotas:[],ps=Array.isArray(x.partialQuotas)?x.partialQuotas:[];if(qs.length)return `Préstamo Ya — Cuota${qs.length>1?'s':''} ${qs.join(', ')} pagada${qs.length>1?'s':''}`;if(ps.length)return `Préstamo Ya — Abono a cuota ${ps.join(', ')} registrado`;return 'Préstamo Ya — Pago registrado'}
-function captionFor(kind,c){if(kind==='payment')return paymentCaption(c)||'Préstamo Ya — Pago registrado';if(kind==='proposal')return 'Préstamo Ya — Crédito preaprobado';if(kind==='renewal')return 'Préstamo Ya — Renovación preaprobada';if(kind==='approved')return 'Préstamo Ya — Crédito aprobado';if(kind==='renewed')return 'Préstamo Ya — Crédito renovado';if(kind==='history')return 'Préstamo Ya — Historial del cliente';return 'Préstamo Ya — Detalle del crédito'}
-function fallbackWhatsApp(kind,c){const p=phone(c);if(!p){window.toast?.('Este cliente no tiene teléfono válido.');return false}window.open('https://wa.me/'+p+'?text='+encodeURIComponent(captionFor(kind,c)),'_blank','noopener');return true}
-async function nativeImageShare(kind,c,title,text,allowWhatsAppFallback=true){const t=String(text||''),caption=captionFor(kind,c),engine=window.PrestamoYaShareImage;try{if(navigator.share&&engine?.imageFromText){const blob=await engine.imageFromText(t);if(blob){const file=new File([blob],'prestamo-ya.png',{type:'image/png'});if(typeof navigator.canShare!=='function'||navigator.canShare({files:[file]})){await navigator.share({title:title||'Préstamo Ya',text:caption,files:[file]});return true}}}if(navigator.share){await navigator.share({title:title||'Préstamo Ya',text:caption});return true}}catch(e){if(e?.name==='AbortError')return false}if(allowWhatsAppFallback)return fallbackWhatsApp(kind,c);try{await navigator.clipboard.writeText(t);window.toast?.('Información copiada para compartir.');return true}catch(e){window.toast?.('No fue posible compartir la información.');return false}}
-async function share(kind,c,title,text){return nativeImageShare(kind,c,title,text,false)}
-async function whatsapp(kind,c,text,title){return nativeImageShare(kind,c,title,text,true)}
-async function shareImage(kind,c,text,title){return nativeImageShare(kind,c,title,text,true)}
-function btn(bar,id,label,cls,fn){if(!bar||document.getElementById(id))return;const b=document.createElement('button');b.id=id;b.type='button';b.className='btn '+cls;b.textContent=label;b.onclick=fn;bar.appendChild(b)}
-function pair(bar,p){if(!bar)return;btn(bar,p.si,p.sl||'📤 Compartir','blue',()=>share(p.kind,p.client(),p.title,p.text()));btn(bar,p.wi,p.wl||'💬 Enviar por WhatsApp','green',()=>whatsapp(p.kind,p.client(),p.text(),p.title))}
-function creditText(cr,c){const rows=(cr.schedule||[]).map(q=>`${q.n}. ${q.date||'-'} · ${q.extra?'Pago adicional':'Cuota'} · ${money(q.amount)} · Saldo ${money(Math.max(0,Number(q.amount||0)-Number(q.paid||0)))}`);return ['PRÉSTAMO YA — DETALLE DEL CRÉDITO',`Cliente: ${c.name||'-'}`,`Teléfono: ${c.phone||'-'}`,`Capital: ${money(cr.capital)}`,`Interés: ${Number(cr.rate||0)}%`,`Total: ${money(cr.total)}`,`Pagado: ${money(cr.paid)}`,`Saldo: ${money(Math.max(0,Number(cr.total||0)-Number(cr.paid||0)))}`,`Vencimiento: ${cr.maturity||'-'}`,'','CRONOGRAMA',...rows].join('\n')}
-function installCredit(id){const cr=creditById(id);if(!cr)return;const c=clientById(cr.clientId),body=document.getElementById('creditDetailBody');if(!c||!body)return;const bar=body.querySelector('.actionbar')||document.querySelector('#creditDetail .actionbar');if(!bar)return;pair(bar,{kind:'credit',si:'shareConsistencyCredit',wi:'shareConsistencyCreditWA',sl:'📤 Compartir detalle',wl:'💬 Enviar por WhatsApp',title:'Detalle del crédito · Préstamo Ya',client:()=>c,text:()=>creditText(cr,c)})}
-function installPayment(){const x=window.__prestamoYaLastPaymentShare;if(!x||Date.now()-Number(x.at||0)>86400000)return;const cr=creditById(x.creditId),c=cr&&clientById(cr.clientId),body=document.getElementById('collectBody'),detailBody=document.getElementById('creditDetailBody');if(!cr||!c)return;const bar=(body&&body.querySelector('.actionbar'))||(detailBody&&detailBody.querySelector('.actionbar'));if(!bar)return;const text=()=>['PRÉSTAMO YA — CONFIRMACIÓN DE PAGO',`Cliente: ${c.name||'-'}`,`Pago recibido: ${money(x.paidAmount)}`,`Concepto: ${paymentCaption(c)?.replace(/^Préstamo Ya — /,'')||'Pago registrado'}`,Math.max(0,Number(cr.total||0)-Number(cr.paid||0))>0?`Saldo pendiente: ${money(Math.max(0,Number(cr.total||0)-Number(cr.paid||0)))}`:'El crédito queda totalmente pagado.'].join('\n');pair(bar,{kind:'payment',si:'shareConsistencyPayment',wi:'shareConsistencyPaymentWA',sl:'📤 Compartir comprobante',wl:'💬 Confirmar por WhatsApp',title:'Confirmación de pago · Préstamo Ya',client:()=>c,text})}
-function proposal(){const m=document.getElementById('creditWorkflowModal');if(!m)return;const box=document.getElementById('creditClientBox'),t=clean(box?.innerText||''),c=(db().clients||[]).find(x=>x.name&&t.toLowerCase().includes(String(x.name).toLowerCase()));if(!c)return;const bar=m.querySelector('.actionbar');if(!bar)return;const text=()=>['PRÉSTAMO YA','PROPUESTA DE PRÉSTAMO',clean(box?.innerText||''),...[...m.querySelectorAll('.card')].map(x=>clean(x.innerText)).filter(Boolean),'','Esta propuesta es informativa. El crédito NO queda registrado hasta que el cliente acepte y se guarde.'].join('\n').replace(/📤 Enviar al cliente|💬 Enviar por WhatsApp|✅ Cliente acepta y guardar|Volver/g,'').replace(/\n{3,}/g,'\n\n');pair(bar,{kind:'proposal',si:'shareConsistencyProposal',wi:'shareConsistencyProposalWA',sl:'📤 Compartir propuesta',wl:'💬 Enviar por WhatsApp',title:'Crédito preaprobado · Préstamo Ya',client:()=>c,text})}
-function renewal(){const m=document.getElementById('renewalModal');if(!m)return;const c=clientOf(window.__renewingCreditId);if(!c)return;const bar=m.querySelector('.actionbar');if(!bar)return;const text=()=>['PRÉSTAMO YA','PROPUESTA DE RENOVACIÓN',...[...m.querySelectorAll('.card')].map(x=>clean(x.innerText)).filter(Boolean),'','La renovación queda registrada únicamente al confirmar y guardar.'].join('\n');pair(bar,{kind:'renewal',si:'renewalShareConsistency',wi:'renewalWhatsAppConsistency',sl:'📤 Compartir propuesta',wl:'💬 Enviar propuesta por WhatsApp',title:'Renovación preaprobada · Préstamo Ya',client:()=>c,text})}
-function history(){const box=document.getElementById('reportBox');if(!box)return;const cards=[...box.querySelectorAll('.card')],head=cards.find(x=>/Historial completo/i.test(x.innerText||''));if(head){const t=clean(head.innerText),c=(db().clients||[]).find(x=>x.name&&t.toLowerCase().includes(String(x.name).toLowerCase()));if(c){const bar=head.querySelector('.actionbar')||head.appendChild(Object.assign(document.createElement('div'),{className:'actionbar'}));pair(bar,{kind:'history',si:'historyShareConsistency',wi:'historyWhatsAppConsistency',sl:'📤 Compartir historial',wl:'💬 Enviar historial por WhatsApp',title:'Historial del cliente · Préstamo Ya',client:()=>c,text:()=>clean(head.innerText)})}}cards.filter(x=>/💳 Crédito #/i.test(x.innerText||'')).forEach((card,i)=>{const m=card.innerText.match(/Crédito #([A-Za-z0-9_-]+)/i),cr=m&&creditById(m[1]),c=cr&&clientById(cr.clientId);if(!cr||!c)return;const bar=card.querySelector('.actionbar')||card.appendChild(Object.assign(document.createElement('div'),{className:'actionbar'}));pair(bar,{kind:'credit',si:`historyCreditShareConsistency${i}`,wi:`historyCreditWAConsistency${i}`,sl:'📤 Compartir crédito',wl:'💬 WhatsApp',title:'Detalle del crédito · Préstamo Ya',client:()=>c,text:()=>clean(card.innerText)})})}
-let running=false;function run(id){if(running)return;running=true;try{installCredit(id||window.selectedCredit||window.__selectedCreditForProposal||window.__prestamoYaPlannerSelectedCredit);installPayment();proposal();renewal();history()}catch(e){console.error('Préstamo Ya Share Center',e)}finally{running=false}}
-function scheduleRun(id,delay=120){clearTimeout(window.__pyShareTimer);window.__pyShareTimer=setTimeout(()=>run(id),delay)}
-function boot(){if(!document.body||window.__pyShareObserverV52)return;window.__pyShareObserverV52=true;new MutationObserver(()=>scheduleRun()).observe(document.body,{childList:true,subtree:true});run();setTimeout(()=>run(),400);setTimeout(()=>run(),1200)}
+
+function paymentCaption(c){
+ const x=window.__prestamoYaLastPaymentShare;
+ if(!x||Date.now()-Number(x.at||0)>86400000)return null;
+ if(x.clientName&&String(c?.name||'')!==String(x.clientName))return null;
+ const qs=Array.isArray(x.paidQuotas)?x.paidQuotas:[];
+ const ps=Array.isArray(x.partialQuotas)?x.partialQuotas:[];
+ if(qs.length)return `Préstamo Ya — Cuota${qs.length>1?'s':''} ${qs.join(', ')} pagada${qs.length>1?'s':''}`;
+ if(ps.length)return `Préstamo Ya — Abono a cuota ${ps.join(', ')} registrado`;
+ return 'Préstamo Ya — Pago registrado';
+}
+
+function defaultCaption(kind,c){
+ if(kind==='payment')return paymentCaption(c)||'Préstamo Ya — Pago registrado';
+ if(kind==='proposal')return 'Préstamo Ya — Crédito preaprobado';
+ if(kind==='renewal')return 'Préstamo Ya — Renovación preaprobada';
+ return 'Préstamo Ya — Detalle del crédito';
+}
+
+async function imageShare(kind,c,title,text,message){
+ const engine=window.PrestamoYaShareImage;
+ const caption=clean(message)||defaultCaption(kind,c);
+ const full=String(text||'');
+ try{
+   if(navigator.share&&engine?.imageFromText){
+     const blob=await engine.imageFromText(full);
+     if(blob){
+       const file=new File([blob],'prestamo-ya.png',{type:'image/png'});
+       if(typeof navigator.canShare!=='function'||navigator.canShare({files:[file]})){
+         await navigator.share({title:title||'Préstamo Ya',text:caption,files:[file]});
+         return true;
+       }
+     }
+   }
+   if(navigator.share){
+     await navigator.share({title:title||'Préstamo Ya',text:caption});
+     return true;
+   }
+ }catch(e){
+   if(e?.name==='AbortError')return false;
+ }
+ try{
+   if(navigator.clipboard){
+     await navigator.clipboard.writeText(caption+'\n\n'+full);
+     window.toast?.('Información copiada.');
+     return true;
+   }
+ }catch(e){}
+ window.toast?.('No fue posible abrir el panel de compartir.');
+ return false;
+}
+
+function btn(bar,id,label,cls,fn){
+ if(!bar||document.getElementById(id))return;
+ const b=document.createElement('button');
+ b.id=id;b.type='button';b.className='btn '+cls;b.textContent=label;b.onclick=fn;
+ bar.appendChild(b);
+}
+
+function creditText(cr,c){
+ const rows=(cr.schedule||[]).map(q=>`${q.n}. ${q.date||'-'} · ${q.extra?'Pago adicional':'Cuota'} · ${money(q.amount)} · Saldo ${money(Math.max(0,Number(q.amount||0)-Number(q.paid||0)))}`);
+ return ['PRÉSTAMO YA — DETALLE DEL CRÉDITO',`Cliente: ${c.name||'-'}`,`Teléfono: ${c.phone||'-'}`,`Capital: ${money(cr.capital)}`,`Interés: ${Number(cr.rate||0)}%`,`Total: ${money(cr.total)}`,`Pagado: ${money(cr.paid)}`,`Saldo: ${money(Math.max(0,Number(cr.total||0)-Number(cr.paid||0)))}`,`Vencimiento: ${cr.maturity||'-'}`,'','CRONOGRAMA',...rows].join('\n');
+}
+
+function installCreditDetail(id){
+ const cr=creditById(id);
+ const body=document.getElementById('creditDetailBody');
+ if(!cr||!body)return;
+ const c=clientById(cr.clientId);
+ if(!c)return;
+ const bar=body.querySelector('.actionbar');
+ if(!bar)return;
+ const recentPayment=paymentCaption(c);
+ const label=recentPayment?'📤 Compartir comprobante':'📤 Compartir pantallazo';
+ const text=recentPayment?
+   ['PRÉSTAMO YA — CONFIRMACIÓN DE PAGO',`Cliente: ${c.name||'-'}`,`Pago recibido: ${money(window.__prestamoYaLastPaymentShare?.paidAmount)}`,`Concepto: ${recentPayment.replace(/^Préstamo Ya — /,'')}`,`Saldo: ${money(Math.max(0,Number(cr.total||0)-Number(cr.paid||0)))}`].join('\n'):
+   creditText(cr,c);
+ btn(bar,'shareConsistencyCreditDetail',label,'blue',()=>imageShare(recentPayment?'payment':'credit',c,recentPayment?'Confirmación de pago · Préstamo Ya':'Detalle del crédito · Préstamo Ya',text,recentPayment));
+}
+
+function proposalClient(modal){
+ const text=clean(modal?.innerText||'');
+ const clients=db().clients||[];
+ return clients.find(c=>c.name&&text.toLowerCase().includes(String(c.name).toLowerCase()))||null;
+}
+
+function proposalShare(){
+ const m=document.getElementById('creditProposalModal');
+ if(!m)return;
+ const c=proposalClient(m);
+ if(!c)return;
+ const source=window.__creditProposalText||clean(m.innerText);
+ let box=document.getElementById('prestamoYaProposalShareBox');
+ if(box)return;
+ box=document.createElement('div');
+ box.id='prestamoYaProposalShareBox';
+ box.className='card';
+ box.style.cssText='border-left:5px solid var(--blue2);background:#f4fbff';
+ box.innerHTML=`<b>📤 Compartir propuesta</b><div class="small muted" style="margin:6px 0">Cliente: ${clean(c.name)} · Tel: ${clean(c.phone||'Sin teléfono')}</div><div class="field"><label>Mensaje previo</label><textarea id="prestamoYaProposalMessage" class="input" rows="3">Hola ${clean(c.name)}, te compartimos la propuesta de tu nuevo crédito. Quedamos atentos a tu confirmación.</textarea></div><div class="actionbar"><button type="button" class="btn green" id="prestamoYaProposalWhatsApp">💬 WhatsApp + pantallazo</button><button type="button" class="btn blue" id="prestamoYaProposalShare">📤 Compartir pantallazo</button></div>`;
+ const action=m.querySelector('.actionbar');
+ if(action)action.insertAdjacentElement('beforebegin',box);else m.querySelector('.sheet')?.appendChild(box);
+ const send=()=>{const msg=document.getElementById('prestamoYaProposalMessage')?.value||'';return imageShare('proposal',c,'Crédito preaprobado · Préstamo Ya',source,msg)};
+ document.getElementById('prestamoYaProposalWhatsApp')?.addEventListener('click',send);
+ document.getElementById('prestamoYaProposalShare')?.addEventListener('click',send);
+}
+
+function run(){
+ try{
+   const id=window.selectedCredit||window.__selectedCreditForProposal||window.__prestamoYaPlannerSelectedCredit;
+   if(id)installCreditDetail(id);
+   const detail=document.getElementById('creditDetailBody');
+   if(detail){
+     const m=detail.closest('#creditDetail');
+     const text=clean(detail.innerText||'');
+     const match=(db().credits||[]).find(cr=>text.includes(String(cr.id)));
+     if(match)installCreditDetail(match.id);
+   }
+   proposalShare();
+ }catch(e){console.warn('Share center v6',e)}
+}
+
+let timer=0;
+function schedule(){clearTimeout(timer);timer=setTimeout(run,150)}
+function boot(){
+ if(!document.body||window.__prestamoYaShareObserverV60)return;
+ window.__prestamoYaShareObserverV60=true;
+ new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});
+ run();
+ setTimeout(run,500);
+ setTimeout(run,1500);
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-window.PrestamoYaShareCenter={version:'v5.2',whatsapp,share,shareImage};
+
+window.PrestamoYaShareCenter={version:'v6.0',share:imageShare,shareImage:imageShare};
 })();
