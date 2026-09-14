@@ -1,8 +1,8 @@
-// Préstamo Ya — Centro único de compartir v3
+// Préstamo Ya — Centro único de compartir v4
 (()=>{
 'use strict';
-if(window.__prestamoYaShareConsistencyV3)return;
-window.__prestamoYaShareConsistencyV3=true;
+if(window.__prestamoYaShareConsistencyV4)return;
+window.__prestamoYaShareConsistencyV4=true;
 const db=()=>window.db||{clients:[],credits:[]};
 const clean=s=>String(s??'').replace(/\s+/g,' ').trim();
 const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -10,7 +10,8 @@ const clientById=id=>(db().clients||[]).find(c=>String(c.id)===String(id))||null
 const creditById=id=>(db().credits||[]).find(c=>String(c.id)===String(id))||null;
 const clientOf=id=>{const cr=creditById(id);return cr&&clientById(cr.clientId)};
 function phone(c){let p=String(c?.phone||'').replace(/\D/g,'');if(p.startsWith('00'))p=p.slice(2);if(p.length===9)p='51'+p;return p}
-function wa(c,text,title){const p=phone(c);if(!p){toast?.('Este cliente no tiene teléfono válido.');return false}const t=String(text||'');try{const engine=window.PrestamoYaShareImage;if(navigator.share&&engine?.imageFromText){engine.imageFromText(t).then(blob=>{if(!blob)return fallback();const file=new File([blob],'prestamo-ya-reporte.png',{type:'image/png'});if(navigator.canShare?.({files:[file]}))return navigator.share({title:title||'Préstamo Ya',text:t,files:[file]});return fallback()}).catch(()=>fallback());return true}}catch(e){}return fallback();function fallback(){window.open('https://wa.me/'+p+'?text='+encodeURIComponent(t),'_blank','noopener');return true}}
+function paymentCaption(c){const x=window.__prestamoYaLastPaymentShare;if(!x||Date.now()-Number(x.at||0)>86400000)return null;if(x.clientName&&String(c?.name||'')!==String(x.clientName))return null;return String(x.message||'').trim()||null}
+function wa(c,text,title){const p=phone(c);if(!p){toast?.('Este cliente no tiene teléfono válido.');return false}const t=String(text||'');const caption=paymentCaption(c)||t;try{const engine=window.PrestamoYaShareImage;if(navigator.share&&engine?.imageFromText){engine.imageFromText(t).then(blob=>{if(!blob)return fallback();const file=new File([blob],'prestamo-ya-reporte.png',{type:'image/png'});if(navigator.canShare?.({files:[file]}))return navigator.share({title:title||'Préstamo Ya',text:caption,files:[file]});return fallback()}).catch(()=>fallback());return true}}catch(e){}return fallback();function fallback(){window.open('https://wa.me/'+p+'?text='+encodeURIComponent(caption),'_blank','noopener');return true}}
 async function share(title,text){try{if(navigator.share){await navigator.share({title:title||'Préstamo Ya',text:String(text||'')});return true}}catch(e){if(e?.name==='AbortError')return false}try{await navigator.clipboard.writeText(String(text||''));toast?.('Información copiada para compartir.');return true}catch(e){toast?.('No fue posible compartir la información.');return false}}
 function btn(bar,id,label,cls,fn){if(!bar||document.getElementById(id))return;const b=document.createElement('button');b.id=id;b.type='button';b.className='btn '+cls;b.textContent=label;b.onclick=fn;bar.appendChild(b)}
 function pair(bar,p){if(!bar)return;btn(bar,p.si,p.sl||'📤 Compartir','blue',()=>share(p.title,p.text()));btn(bar,p.wi,p.wl||'💬 Enviar por WhatsApp','green',()=>wa(p.client(),p.text(),p.title))}
@@ -25,5 +26,5 @@ const wrap=(name,after)=>{const old=window[name];if(typeof old!=='function'||old
 wrap('showCredit',a=>run(a[0]));wrap('renderAll',()=>run());wrap('go',()=>run());
 new MutationObserver(()=>{clearTimeout(window.__pyShareTimer);window.__pyShareTimer=setTimeout(()=>run(),100)}).observe(document.body,{childList:true,subtree:true});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>run(),{once:true});else run();setTimeout(run,500);setTimeout(run,1500);
-window.PrestamoYaShareCenter={version:'v3',whatsapp:wa,share};
+window.PrestamoYaShareCenter={version:'v4',whatsapp:wa,share};
 })();
