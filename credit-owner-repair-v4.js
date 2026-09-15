@@ -98,7 +98,10 @@
 
       return matches.length === 1 ? matches[0] : null;
     } catch (e) {
-      console.error('[OwnerRepairV5] cloud client lookup error', e);
+      console.error(
+        '[OwnerRepairV5] cloud client lookup error',
+        e
+      );
       return null;
     }
   }
@@ -119,7 +122,11 @@
         id: snap.id
       };
     } catch (e) {
-      console.error('[OwnerRepairV5] credit lookup error', creditId, e);
+      console.error(
+        '[OwnerRepairV5] credit lookup error',
+        creditId,
+        e
+      );
       return null;
     }
   }
@@ -144,7 +151,11 @@
         id: d.id
       }));
     } catch (e) {
-      console.error('[OwnerRepairV5] payment lookup error', creditId, e);
+      console.error(
+        '[OwnerRepairV5] payment lookup error',
+        creditId,
+        e
+      );
       return [];
     }
   }
@@ -168,9 +179,14 @@
       : [];
 
     return payments
-      .filter(p => String(p?.creditId) === String(creditId))
+      .filter(
+        p =>
+          String(p?.creditId) ===
+          String(creditId)
+      )
       .reduce(
-        (sum, p) => sum + paymentAmount(p),
+        (sum, p) =>
+          sum + paymentAmount(p),
         0
       );
   }
@@ -205,7 +221,10 @@
         amount - paid
       );
 
-      if (paid >= amount && amount > 0) {
+      if (
+        paid >= amount &&
+        amount > 0
+      ) {
         row.status = 'Pagada';
       } else if (paid > 0) {
         row.status = 'Parcial';
@@ -231,7 +250,9 @@
 
     const index =
       window.db.credits.findIndex(
-        c => String(c?.id) === String(credit.id)
+        c =>
+          String(c?.id) ===
+          String(credit.id)
       );
 
     if (index >= 0) {
@@ -244,14 +265,25 @@
     }
   }
 
-  async function repairOne(api, creditId, rule) {
-    const local = localClient(rule);
-    const cloud = await cloudClient(api, rule);
+  async function repairOne(
+    api,
+    creditId,
+    rule
+  ) {
+    const local =
+      localClient(rule);
+
+    const cloud =
+      await cloudClient(
+        api,
+        rule
+      );
 
     /*
-      MUY IMPORTANTE:
-      La interfaz trabaja con el ID interno del cliente.
-      No usamos automáticamente el ID del documento Firestore.
+      La interfaz utiliza el ID interno
+      del cliente cuando este existe.
+      No sustituirlo automáticamente por
+      el ID del documento Firestore.
     */
 
     const canonicalClientId =
@@ -272,7 +304,10 @@
     }
 
     const cloudCredit =
-      await getCredit(api, creditId);
+      await getCredit(
+        api,
+        creditId
+      );
 
     if (!cloudCredit) {
       console.warn(
@@ -291,9 +326,8 @@
         ) || {};
 
     /*
-      El crédito existente es la fuente.
-      No se crea uno nuevo.
-      Se conserva ID, capital, total y calendario.
+      Conservamos el crédito existente.
+      No se crea otro.
     */
 
     const credit = {
@@ -310,7 +344,8 @@
 
     if (
       !credit.routeId &&
-      (local?.routeId || cloud?.routeId)
+      (local?.routeId ||
+        cloud?.routeId)
     ) {
       credit.routeId =
         local?.routeId ||
@@ -318,8 +353,8 @@
     }
 
     /*
-      Reconciliación de pagos:
-      nunca sumamos local + nube.
+      Reconciliación de pagos.
+      Nunca sumamos local + nube.
       Tomamos el mayor valor confirmado.
     */
 
@@ -330,7 +365,10 @@
       Number(localCredit.paid) || 0;
 
     const cloudPayments =
-      await getPayments(api, creditId);
+      await getPayments(
+        api,
+        creditId
+      );
 
     const cloudPaymentTotal =
       cloudPayments.reduce(
@@ -340,7 +378,9 @@
       );
 
     const localPaymentTotalValue =
-      localPaymentTotal(creditId);
+      localPaymentTotal(
+        creditId
+      );
 
     const paidTotal =
       Math.max(
@@ -350,7 +390,8 @@
         localPaymentTotalValue
       );
 
-    credit.paid = paidTotal;
+    credit.paid =
+      paidTotal;
 
     rebuildSchedule(
       credit,
@@ -364,13 +405,15 @@
     const payload = {
       ...credit,
       id: creditId,
-      clientId: canonicalClientId,
+      clientId:
+        canonicalClientId,
       orgId: ORG_ID,
       userId:
         api.auth.currentUser.uid,
       updatedAt:
         new Date().toISOString(),
-      ownerRepairVersion: 'v5'
+      ownerRepairVersion:
+        'v5'
     };
 
     await api.F.setDoc(
@@ -383,10 +426,13 @@
     );
 
     /*
-      Actualización inmediata de la copia local.
+      Actualización inmediata de la
+      copia local utilizada por la interfaz.
     */
 
-    putLocalCredit(credit);
+    putLocalCredit(
+      credit
+    );
 
     console.log(
       '[OwnerRepairV5] repaired',
@@ -407,7 +453,9 @@
     const api =
       await firebaseApi();
 
-    if (!api?.auth?.currentUser) {
+    if (
+      !api?.auth?.currentUser
+    ) {
       console.warn(
         '[OwnerRepairV5] User not authenticated yet'
       );
@@ -417,8 +465,10 @@
     let changed = false;
 
     for (
-      const [creditId, rule]
-      of Object.entries(TARGETS)
+      const [
+        creditId,
+        rule
+      ] of Object.entries(TARGETS)
     ) {
       try {
         const repaired =
@@ -462,14 +512,15 @@
 
   /*
     EJECUCIÓN INICIAL.
-    Importante: este archivo se carga dinámicamente
-    después de window.load, por lo que NO dependemos
-    exclusivamente del evento load.
+    El archivo se carga dinámicamente,
+    por eso no dependemos solamente
+    del evento load.
   */
 
   function boot() {
     setTimeout(() => {
-      repairAll().catch(console.error);
+      repairAll()
+        .catch(console.error);
     }, 1500);
   }
 
@@ -488,8 +539,8 @@
 
   /*
     BLINDAJE:
-    cualquier cloudSyncNow posterior
-    vuelve a ejecutar la reparación.
+    después de cualquier sincronización
+    con la nube volvemos a reparar.
   */
 
   function hookCloudSync() {
