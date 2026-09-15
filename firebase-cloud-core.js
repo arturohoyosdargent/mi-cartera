@@ -1,1 +1,205 @@
-PLACEHOLDER
+import { initializeApp, getApps, getApp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, initializeAuth, inMemoryPersistence } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
+import { getFirestore, enableIndexedDbPersistence, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
+
+const cfg=window.MI_CARTERA_FIREBASE||{};
+const orgCfg=window.MI_CARTERA_CLOUD||{orgId:'mi-cartera',cloudEnabled:false};
+const ready=!!(orgCfg.cloudEnabled && cfg.apiKey && cfg.authDomain && cfg.projectId && cfg.appId);
+let app=null,auth=null,fs=null,currentProfile=null;
+const el=id=>document.getElementById(id);
+const orgId=orgCfg.orgId||'mi-cartera';
+const DB_KEY='mi_cartera_pro_v21';
+const SEED_KEY='prestamo_ya_cloud_seeded_'+orgId;
+function status(t){if(el('cloudStatus'))el('cloudStatus').textContent=t;}
+function msg(t){if(el('cloudLoginMsg'))el('cloudLoginMsg').textContent=t;}
+function saveCloudDb(){try{const raw=JSON.stringify(db);localStorage.setItem(DB_KEY,raw);localStorage.setItem('mi_cartera_pro_v19',raw)}catch(e){console.error(e)}}
+function openLogin(){el('cloudLoginModal')?.classList.add('open');}
+function closeLogin(){el('cloudLoginModal')?.classList.remove('open');}
+window.openCloudLogin=openLogin; window.closeCloudLogin=closeLogin;
+window.cloudLogin=async()=>{if(!ready)return msg('Firebase todavía no está configurado. Completa firebase-config.js.');const email=el('cloudEmail')?.value.trim(),pass=el('cloudPassword')?.value;if(!email||!pass)return msg('Ingrese correo y contraseña.');try{msg('Conectando...');await signInWithEmailAndPassword(auth,email,pass);closeLogin();}catch(e){console.error(e);msg('No se pudo iniciar sesión: '+(e.code||e.message));}};
+window.cloudLogout=async()=>{if(auth)await signOut(auth);};
+async function refreshProfile(){if(!auth?.currentUser||!fs)return false;const fresh=await getProfile(auth.currentUser.uid);if(!fresh||fresh.active===false)return false;currentProfile=fresh;db.users=db.users||[];let lu=db.users.find(x=>String(x.id||x.uid)===String(auth.currentUser.uid));const profileLocal={id:auth.currentUser.uid,uid:auth.currentUser.uid,name:fresh.name||auth.currentUser.email,role:fresh.role||'consulta',active:fresh.active!==false,routeIds:Array.isArray(fresh.routeIds)?fresh.routeIds:[],email:fresh.email||auth.currentUser.email};if(lu)Object.assign(lu,profileLocal);else db.users.push(profileLocal);db.currentUserId=auth.currentUser.uid;saveCloudDb();return true;}
+window.cloudSyncNow=async()=>{if(!ready||!auth?.currentUser){toast('Inicia sesión en Cloud primero.');return false;}try{if(!(await refreshProfile())){toast('No se pudo actualizar el perfil Cloud.');return false;}await pushLocalAllowed();const pending=(db.syncQueue||[]).filter(x=>x.status==='PENDIENTE'||x.status==='ERROR');if(canAll()){for(const item of pending){if(item.type==='CLIENTE_ELIMINADO'&&item.payload?.id!=null)await deleteDoc(doc(fs,`orgs/${orgId}/clients`,String(item.payload.id)));}}await pullCloud();localStorage.setItem(SEED_KEY,'1');db.settings=db.settings||{};db.settings.lastOnline=new Date().toISOString();saveCloudDb();try{updateSyncUI()}catch(_){}toast('Cloud sincronizado.');return true;}catch(e){console.error(e);toast('Error Cloud: '+(e.code||e.message));return false;}};
+function addMeta(obj){return {...obj,orgId,userId:auth.currentUser.uid,updatedAt:serverTimestamp()};}
+async function getProfile(uid){const snap=await getDoc(doc(fs,'users',uid));return snap.exists()?snap.data():null;}
+function role(){return currentProfile?.role||'consulta';}
+function routeIds(){return Array.isArray(currentProfile?.routeIds)?currentProfile.routeIds:[];}
+function canAll(){return ['admin','supervisor'].includes(role());}
+function dedupeClients(cleanCloud=false){if(!Array.isArray(db.clients))return;const seen=new Map(),keep=[],duplicates=[];const keyOf=c=>{const dni=String(c?.dni||'').replace(/\D/g,'');if(dni)return 'dni:'+dni;const n=String(c?.name||'').trim().toLowerCase().replace(/\s+/g,' ');const p=String(c?.phone||'').replace(/\D/g,'');return 'np:'+n+'|'+p};for(const c of db.clients){const k=keyOf(c);if(!seen.has(k)){seen.set(k,c);keep.push(c)}else{const main=seen.get(k);['address','guarantor','guarantorPhone','reference','location','routeId'].forEach(f=>{if(!main[f]&&c[f])main[f]=c[f]});db.credits?.forEach(cr=>{if(String(cr.clientId)===String(c.id))cr.clientId=main.id});duplicates.push(c)}}if(duplicates.length){db.clients=keep;duplicates.forEach(c=>audit('CLIENTE_DUPLICADO_ELIMINADO',`${c.name} #${c.id}`));saveCloudDb();try{renderAll()}catch(_){}if(cleanCloud&&canAll()&&fs){Promise.all(duplicates.map(c=>deleteDoc(doc(fs,`orgs/${orgId}/clients`,String(c.id))).catch(()=>null))).then(()=>{pushList('clients',keep).catch(()=>{})})}}}
+async function pullCollection(name,constraints=[]){const ref=collection(fs,`orgs/${orgId}/${name}`);const all=[where('orgId','==',orgId),...(constraints||[])];const snap=await getDocs(query(ref,...all));return snap.docs.map(d=>({...d.data(),id:d.data()?.id??d.id,__firestoreId:d.id}));}
+async function pullUsers(){const snap=await getDocs(query(collection(fs,'users'),where('orgId','==',orgId)));return snap.docs.map(d=>d.data());}
+async function pullAssignedRoutes(){const out=[];for(const rid of [...new Set(routeIds().map(String))]){try{const snap=await getDoc(doc(fs,`orgs/${orgId}/routes`,rid));if(snap.exists())out.push({id:snap.id,...snap.data()});}catch(e){console.warn('Ruta asignada no disponible',rid,e)}}return out;}
+async function pullCloud(){
+  if(!currentProfile)return;
+
+  const names=['routes','clients','credits','payments','cashClosures','approvals'];
+  const data={};
+
+  if(canAll()){
+    for(const n of names)
+      data[n]=await pullCollection(n);
+  }else{
+    const assigned=routeIds().map(String);
+
+    data.routes=await pullAssignedRoutes();
+    data.clients=[];
+    data.credits=[];
+    data.payments=[];
+
+    const rids=[...new Set(assigned)];
+
+    for(const rid of rids){
+      const cs=await pullCollection('clients',[where('routeId','==',rid)]);
+      data.clients.push(...cs);
+
+      const cr=await pullCollection('credits',[where('routeId','==',rid)]);
+      data.credits.push(...cr);
+
+      for(const c of cr){
+        const ps=await pullCollection('payments',[where('creditId','==',c.id)]);
+        data.payments.push(...ps);
+      }
+    }
+
+    data.cashClosures=await pullCollection(
+      'cashClosures',
+      [where('userId','==',auth.currentUser.uid)]
+    );
+
+    data.approvals=await pullCollection(
+      'approvals',
+      [where('requestedByUid','==',auth.currentUser.uid)]
+    );
+  }
+
+  data.users=await pullUsers();
+
+  const firstCloudMigration=localStorage.getItem(SEED_KEY)!=='1';
+
+  for(const n of Object.keys(data)){
+    if(!Array.isArray(data[n]))continue;
+
+    const local=Array.isArray(db[n])?db[n]:[];
+
+    if(n==='users'){
+      const merged=new Map(
+        local.map(x=>[String(x.id||x.uid),x])
+      );
+
+      for(const x of data[n]){
+        const id=String(x.id||x.uid);
+        const prev=merged.get(id)||{};
+
+        merged.set(id,{
+          ...prev,
+          ...x,
+          id,
+          uid:x.uid||id,
+          name:x.name||x.email||prev.name||'',
+          role:x.role||prev.role||'consulta',
+          routeIds:Array.isArray(x.routeIds)
+            ?x.routeIds
+            :(Array.isArray(prev.routeIds)?prev.routeIds:[]),
+          active:x.active!==false
+        });
+      }
+
+      data[n]=Array.from(merged.values());
+      continue;
+    }
+
+    const merged=new Map(
+      local.map(x=>[String(x.id||x.uid),x])
+    );
+
+    for(const x of data[n]){
+      const id=String(
+        x.id||
+        x.__firestoreId||
+        x.uid||
+        ''
+      );
+
+      if(!id)continue;
+
+      const prev=merged.get(id);
+
+      if(n==='credits'&&prev){
+        const safe={
+          ...prev,
+          ...x,
+          id:prev.id??x.id??id
+        };
+
+        if(prev.clientId!=null&&prev.clientId!=='')
+          safe.clientId=prev.clientId;
+
+        if(prev.routeId!=null&&prev.routeId!=='')
+          safe.routeId=prev.routeId;
+
+        merged.set(id,safe);
+        continue;
+      }
+
+      if(n==='payments'&&prev){
+        const safe={
+          ...prev,
+          ...x,
+          id:prev.id??x.id??id
+        };
+
+        if(prev.creditId!=null&&prev.creditId!=='')
+          safe.creditId=prev.creditId;
+
+        if(prev.routeId!=null&&prev.routeId!=='')
+          safe.routeId=prev.routeId;
+
+        merged.set(id,safe);
+        continue;
+      }
+
+      merged.set(id,{
+        ...prev,
+        ...x,
+        id:prev?.id??x.id??id
+      });
+    }
+
+    data[n]=Array.from(merged.values());
+
+    if(
+      firstCloudMigration&&
+      local.length&&
+      ['payments','cashClosures','approvals'].includes(n)
+    ){
+      const m=new Map(
+        data[n].map(x=>[String(x.id||x.uid),x])
+      );
+
+      for(const x of local)
+        m.set(String(x.id||x.uid),x);
+
+      data[n]=Array.from(m.values());
+    }
+
+    if(
+      firstCloudMigration&&
+      canAll()&&
+      data[n].length===0&&
+      local.length
+    ){
+      data[n]=local;
+    }
+
+    db[n]=data[n];
+  }
+
+  dedupeClients(true);
+}async function pushList(name,list){for(const item of list||[]){if(!item||item.id==null)continue;const payload=addMeta({...item});if(name==='routes'){payload.routeId=String(item.id);if(payload.collectorUid)payload.collectorUid=String(payload.collectorUid);if(payload.collectorId)payload.collectorId=String(payload.collectorId);}
+if(name==='payments'){payload.userId=payload.userId||auth.currentUser.uid;if(!payload.routeId){const cr=(db.credits||[]).find(c=>String(c.id)===String(payload.creditId));payload.routeId=cr?.routeId||null;}}await setDoc(doc(fs,`orgs/${orgId}/${name}`,String(item.id)),payload,{merge:true});}}
+async function pushLocalAllowed(){if(!currentProfile)return;if(canAll()){for(const n of ['routes','clients','credits','payments','cashClosures','approvals','capital','entries','expenses','audit'])await pushList(n,db[n]);}else{const ids=routeIds().map(String);await pushList('clients',(db.clients||[]).filter(c=>ids.includes(String(c.routeId))));await pushList('payments',(db.payments||[]).map(p=>{const cr=(db.credits||[]).find(c=>String(c.id)===String(p.creditId));return {...p,userId:auth.currentUser.uid,routeId:p.routeId||cr?.routeId||null};}).filter(p=>p.routeId&&ids.includes(String(p.routeId))));await pushList('cashClosures',(db.cashClosures||[]).filter(x=>x.userId===auth.currentUser.uid));await pushList('approvals',(db.approvals||[]).filter(x=>x.requestedByUid===auth.currentUser.uid));}}
+window.openCloudUserForm=()=>{if(!currentProfile||role()!=='admin')return toast('Solo el administrador puede crear accesos Cloud.');openForm('Crear acceso Cloud',`<div class="field"><label>Nombre</label><input class="input" id="cloudNewName"></div><div class="field"><label>Correo</label><input class="input" id="cloudNewEmail" type="email"></div><div class="field"><label>Contraseña temporal</label><input class="input" id="cloudNewPass" type="password" minlength="6"></div><div class="field"><label>Rol</label><select class="select" id="cloudNewRole"><option value="cobrador">Cobrador</option><option value="supervisor">Supervisor</option><option value="consulta">Consulta</option></select></div><div class="field"><label>Ruta</label><select class="select" id="cloudNewRoute"><option value="">Sin ruta asignada</option>${(db.routes||[]).map(r=>'<option value="'+String(r.id).replace(/"/g,'&quot;')+'">'+String(r.code||r.id)+' · '+String(r.name||r.id).replace(/</g,'&lt;')+'</option>').join('')}</select></div><div id="cloudCreateUserMsg" class="small muted" style="margin:8px 0"></div><button type="button" class="btn green wide" id="cloudCreateUserBtn" onclick="window.cloudCreateUser()">Crear acceso</button>`);};
+window.cloudCreateUser=async()=>{if(!currentProfile||role()!=='admin')return toast('No autorizado');const msgEl=el('cloudCreateUserMsg'),btn=el('cloudCreateUserBtn');const show=t=>{if(msgEl)msgEl.textContent=t;};const name=el('cloudNewName')?.value.trim(),email=el('cloudNewEmail')?.value.trim().toLowerCase(),password=el('cloudNewPass')?.value,rolev=el('cloudNewRole')?.value,routeRaw=el('cloudNewRoute')?.value.trim();const routeObj=(db.routes||[]).find(r=>String(r.id)===routeRaw);const route=routeObj?.id||routeRaw;if(!name||!email||password.length<6){show('Complete nombre, correo y contraseña de 6+ caracteres.');return;}if(btn){btn.disabled=true;btn.textContent='Creando acceso...';}show('Creando usuario en Firebase...');let creatorApp=null,creatorAuth=null,createdUser=null;try{creatorApp=getApps().find(a=>a.name==='prestamoYaUserCreator')||initializeApp(cfg,'prestamoYaUserCreator');try{creatorAuth=getAuth(creatorApp);}catch(_){creatorAuth=initializeAuth(creatorApp,{persistence:inMemoryPersistence});}let cred;try{cred=await createUserWithEmailAndPassword(creatorAuth,email,password);}catch(e){if(e?.code==='auth/email-already-in-use'){show('El correo ya existe. Verificando el acceso y recuperando su perfil...');cred=await signInWithEmailAndPassword(creatorAuth,email,password);}else throw e;}createdUser=cred.user;const profile={uid:createdUser.uid,orgId,name,email:createdUser.email,role:rolev,routeIds:route?[route]:[],active:true,createdAt:new Date().toISOString(),createdBy:auth.currentUser.uid};show('Guardando permisos...');await setDoc(doc(fs,'users',createdUser.uid),profile,{merge:true});await signOut(creatorAuth);const localUsers=Array.isArray(db.users)?db.users:[];const idx=localUsers.findIndex(u=>String(u.id||u.uid)===String(createdUser.uid));const localUser={id:createdUser.uid,uid:createdUser.uid,name,role:rolev,active:true,routeIds:route?[route]:[],email:createdUser.email};if(idx>=0)localUsers[idx]={...localUsers[idx],...localUser};else localUsers.push(localUser);db.users=localUsers;saveCloudDb();normalize();renderUsers();show('Acceso creado correctamente.');setTimeout(()=>{closeForm();toast('Usuario Cloud creado: '+(createdUser.email||email));},500);}catch(e){console.error('Crear acceso Cloud:',e);const code=e?.code||'';const detail=code==='auth/email-already-in-use'?'El correo ya está registrado y la contraseña no coincide.':code==='auth/invalid-credential'?'El correo ya existe, pero la contraseña temporal ingresada no coincide.':code==='auth/admin-restricted-operation'?'Firebase tiene bloqueada la creación de cuentas desde la aplicación.':code==='permission-denied'||code==='firestore/permission-denied'?'Firebase rechazó el permiso para guardar el perfil del usuario.':(e?.message||code||'Error desconocido');show('ERROR: '+detail);if(btn){btn.disabled=false;btn.textContent='Crear acceso';}}};
+function updateUI(){if(!el('cloudStatus'))return;if(!ready){status('🟡 Cloud no configurado · modo local/offline');if(el('cloudUserInfo'))el('cloudUserInfo').textContent='Sin sesión';return;}if(auth?.currentUser){status('🟢 Cloud conectado · '+auth.currentUser.email);if(el('cloudUserInfo'))el('cloudUserInfo').textContent=auth.currentUser.email;if(el('cloudRoleInfo'))el('cloudRoleInfo').textContent='Rol: '+(currentProfile?.role||'pendiente')+' · Organización: '+orgId;if(el('cloudUserBtn'))el('cloudUserBtn').textContent='☁️ '+(currentProfile?.name||'Sesión');}else{status('🟡 Cloud configurado · inicia sesión');if(el('cloudUserInfo'))el('cloudUserInfo').textContent='Sin sesión';if(el('cloudUserBtn'))el('cloudUserBtn').textContent='☁️ Entrar';}}
+if(ready){try{app=getApps().length?getApp():initializeApp(cfg);auth=getAuth(app);fs=getFirestore(app);enableIndexedDbPersistence(fs).catch(()=>{});onAuthStateChanged(auth,async user=>{if(!user){currentProfile=null;updateUI();return;}try{currentProfile=await getProfile(user.uid);if(!currentProfile||currentProfile.active===false){await signOut(auth);return msg('Usuario sin perfil activo en Préstamo Ya.');}db.users=db.users||[];let lu=db.users.find(x=>x.id===user.uid);const profileLocal={id:user.uid,uid:user.uid,name:currentProfile.name||user.email,role:currentProfile.role||'consulta',active:currentProfile.active!==false,routeIds:Array.isArray(currentProfile.routeIds)?currentProfile.routeIds:[],email:currentProfile.email||user.email};if(lu)Object.assign(lu,profileLocal);else{lu=profileLocal;db.users.push(lu);}currentUserId=user.uid;db.currentUserId=user.uid;saveCloudDb();updateUI();const firstCloudMigration=localStorage.getItem(SEED_KEY)!=='1';if(firstCloudMigration&&canAll())await pushLocalAllowed();await pullCloud();await pushLocalAllowed();localStorage.setItem(SEED_KEY,'1');toast('Sesión Cloud iniciada');}catch(e){console.error(e);status('🔴 Error al cargar perfil Cloud');}});}catch(e){console.error(e);status('🔴 Error de configuración Firebase');}}else{updateUI();}
+window.addEventListener('online',()=>{if(auth?.currentUser)setTimeout(()=>window.cloudSyncNow(),700)});
