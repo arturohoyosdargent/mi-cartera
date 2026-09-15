@@ -1,8 +1,8 @@
 // Préstamo Ya — reparación definitiva de selección de cliente y persistencia del crédito.
 (()=>{
 'use strict';
-if(window.__prestamoYaClientSaveFixV2)return;
-window.__prestamoYaClientSaveFixV2=true;
+if(window.__prestamoYaClientSaveFixV3)return;
+window.__prestamoYaClientSaveFixV3=true;
 const $=id=>document.getElementById(id);
 const norm=s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
 const num=v=>Number(v||0);
@@ -26,8 +26,6 @@ const forceSelectedClient=client=>{
  window.selectedClient=client.id;
  window.__finalRenewalState=window.__finalRenewalState||{};
  window.__finalRenewalState.clientId=client.id;
- // index.html declares selectedClient with `let`, so window.selectedClient does not
- // update that lexical binding. Keep the legacy saveCredit() path compatible.
  try{window.eval('selectedClient = '+JSON.stringify(client.id));return true}catch(e){console.warn('No se pudo sincronizar selectedClient lexical',e);return false}
 };
 const payload=()=>{
@@ -38,7 +36,7 @@ const payload=()=>{
 };
 const install=()=>{
  const originalSave=window.saveCredit;
- if(typeof originalSave==='function'&&!originalSave.__clientFixV2){
+ if(typeof originalSave==='function'&&!originalSave.__clientFixV3){
   const wrapped=function(data){
    const q=payload();
    if(!q.c){window.toast?.('No se pudo identificar al cliente del crédito');return false}
@@ -52,37 +50,37 @@ const install=()=>{
       const recent=credits.filter(x=>String(x.clientId)===String(q.c.id)).slice().sort((a,b)=>Number(b.id)-Number(a.id))[0];
       if(!recent)window.toast?.('El crédito no quedó persistido para '+q.c.name+'. Se detuvo el flujo para no crear un registro incorrecto.');
     }
-   },120);
+   },220);
    return result;
   };
-  wrapped.__clientFixV2=true;window.saveCredit=wrapped;
+  wrapped.__clientFixV3=true;window.saveCredit=wrapped;
  }
  const originalAccept=window.acceptCreditProposal;
- if(typeof originalAccept==='function'&&!originalAccept.__clientFixV2){
+ if(typeof originalAccept==='function'&&!originalAccept.__clientFixV3){
   const accept=function(){
    const q=payload();
    if(!q.c){window.toast?.('No se pudo identificar al cliente del crédito');return false}
    if(!forceSelectedClient(q.c)){window.toast?.('No se pudo fijar el cliente del crédito');return false}
-   const save=window.saveCredit;
-   if(typeof save!=='function'){window.toast?.('No está disponible el guardado del crédito');return false}
    try{
-    const before=new Set((dbx().credits||[]).map(x=>String(x.id)));
-    const result=save(q.p);
+    // IMPORTANTE: la función original marca la propuesta como aceptada y luego
+    // llama a window.saveCredit(). No debemos llamar al guardado directamente,
+    // porque eso vuelve a abrir la propuesta y deja al usuario bloqueado.
+    const result=originalAccept.call(this);
     setTimeout(()=>{
       const credits=dbx().credits||[];
-      const created=credits.find(x=>!before.has(String(x.id))&&String(x.clientId)===String(q.c.id));
+      const created=credits.find(x=>String(x.clientId)===String(q.c.id)&&Number(x.capital||0)===Number(q.p.capital||0)&&Number(x.total||0)>=Number(q.p.amount||0));
       if(created){
        window.selectedClient=q.c.id;window.__selectedClientForProposal=q.c.id;
        window.toast?.('Crédito de '+q.c.name+' guardado correctamente.');
        if(typeof window.showCredit==='function')window.showCredit(created.id);
       }else{
-       window.toast?.('⚠️ El crédito no quedó registrado. No se ocultó ningún dato.');
+       window.toast?.('⚠️ El crédito no quedó registrado. Revisa la cola de sincronización.');
       }
-    },180);
+    },350);
     return result;
    }catch(e){console.error('Aceptación de crédito',e);window.toast?.('No se pudo guardar el crédito');return false}
   };
-  accept.__clientFixV2=true;window.acceptCreditProposal=accept;
+  accept.__clientFixV3=true;window.acceptCreditProposal=accept;
  }
 };
 install();setTimeout(install,200);setTimeout(install,700);setTimeout(install,1500);setTimeout(install,3000);
