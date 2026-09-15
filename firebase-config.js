@@ -17,6 +17,6 @@ window.MI_CARTERA_CLOUD = { orgId: "mi-cartera", cloudEnabled: true };
    load('./cloud-credit-consistency-v1.js?v=1&b=20260916').catch(()=>{});
    load('./cloud-route-credit-sync-v1.js?v=2&b=20260916').catch(()=>{});
    load('./credit-detail-share-button-v1.js?v=1&b=20260916').catch(()=>{});
-   load('./credit-owner-repair-v2.js?v=3&b=20260916').catch(()=>{});
+   load('./credit-owner-repair-v4.js?v=1&b=20260916').catch(()=>{});
  });
 })();
