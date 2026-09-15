@@ -20,7 +20,7 @@ window.MI_CARTERA_CLOUD = {
 (()=>{
  const load=(src)=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)});
  window.addEventListener('load',()=>{
-   load('./credit-client-save-fix.js?v=2&b=20260914').catch(()=>{});
+   load('./credit-client-save-fix.js?v=3&b=20260914').catch(()=>{});
    load('./proposal-share-fix.js?v=3&b=20260914').catch(()=>{});
  });
 })();
