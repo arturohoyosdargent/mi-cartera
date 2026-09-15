@@ -1,37 +1,17 @@
-// Préstamo Ya — reparación directa de propietarios verificados v2.
+// Préstamo Ya — reparación directa de propietarios y estado de pagos verificados v3.
 (()=>{
 'use strict';
-if(window.__prestamoYaCreditOwnerRepairV2)return;
-window.__prestamoYaCreditOwnerRepairV2=true;
-const KNOWN={
- '1789432343734':{name:'Alfredo Lopez Martel',phone:'51947127238'},
- '1789205624924':{name:'Víctor Coronado Cordova',phone:'51944581617'}
-};
+if(window.__prestamoYaCreditOwnerRepairV3)return;
+window.__prestamoYaCreditOwnerRepairV3=true;
+const KNOWN={'1789432343734':{name:'Alfredo Lopez Martel',phone:'51947127238'},'1789205624924':{name:'Víctor Coronado Cordova',phone:'51944581617'}};
 const norm=v=>String(v??'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const digits=v=>String(v??'').replace(/\D/g,'');
-const firebase=async()=>{const [A,U,F]=await Promise.all([import('https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js'),import('https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js'),import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js')]);if(!A.getApps().length)return null;const app=A.getApp(),auth=U.getAuth(app),fs=F.getFirestore(app);return{auth,fs,F}};
+const firebase=async()=>{const[A,U,F]=await Promise.all([import('https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js'),import('https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js'),import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js')]);if(!A.getApps().length)return null;const app=A.getApp(),auth=U.getAuth(app),fs=F.getFirestore(app);return{auth,fs,F}};
 const findLocal=rule=>{const cs=Array.isArray(window.db?.clients)?window.db.clients:[];const e=cs.filter(c=>norm(c?.name)===norm(rule.name)&&digits(c?.phone)===digits(rule.phone));return e.length===1?e[0]:null};
-const repair=async()=>{
- let api=null;try{api=await firebase()}catch(e){console.warn('owner v2 firebase',e)}
- const orgId=(window.MI_CARTERA_CLOUD||{}).orgId||'mi-cartera';let changed=false;
- for(const[id,rule]of Object.entries(KNOWN)){
-  let cr=(window.db?.credits||[]).find(c=>String(c?.id)===id);
-  let client=findLocal(rule);
-  if(api?.auth?.currentUser){
-   try{const ref=api.F.doc(api.fs,`orgs/${orgId}/credits`,id),snap=await api.F.getDoc(ref);if(snap.exists()){cr={...(cr||{}),...snap.data(),id};}}
-   catch(e){console.warn('owner v2 credit read',id,e)}
-   if(!client){try{const q=api.F.query(api.F.collection(api.fs,`orgs/${orgId}/clients`),api.F.where('orgId','==',orgId));const snap=await api.F.getDocs(q);const hits=snap.docs.map(d=>d.data()).filter(c=>norm(c?.name)===norm(rule.name)&&digits(c?.phone)===digits(rule.phone));if(hits.length===1)client=hits[0]}catch(e){console.warn('owner v2 clients read',e)}}
-  }
-  if(!cr||!client)continue;
-  const cid=client.id??client.uid;
-  if(cid==null)continue;
-  cr.clientId=cid;if(!cr.routeId&&client.routeId)cr.routeId=client.routeId;
-  window.db.credits=window.db.credits||[];const idx=window.db.credits.findIndex(c=>String(c?.id)===id);if(idx>=0)window.db.credits[idx]=cr;else window.db.credits.push(cr);changed=true;
-  if(api?.auth?.currentUser){try{await api.F.setDoc(api.F.doc(api.fs,`orgs/${orgId}/credits`,id),{...cr,id,orgId,userId:api.auth.currentUser.uid,updatedAt:new Date().toISOString()},{merge:true})}catch(e){console.warn('owner v2 credit write',id,e)}}
- }
- if(changed){try{window.persist?.();window.renderAll?.()}catch(e){}}
- return changed;
-};
-window.__prestamoYaRepairKnownOwnersV2=repair;
-window.addEventListener('load',()=>setTimeout(()=>repair().catch(()=>{}),3500));
+const reconcilePayments=async(api,id,cr)=>{if(!api?.auth?.currentUser||id!=='1789205624924'||!cr)return false;try{const orgId=(window.MI_CARTERA_CLOUD||{}).orgId||'mi-cartera';const q=api.F.query(api.F.collection(api.fs,`orgs/${orgId}/payments`),api.F.where('orgId','==',orgId),api.F.where('creditId','==',id));const snap=await api.F.getDocs(q);let total=0;for(const d of snap.docs){const p=d.data(),a=Number(p.amount??p.monto??p.paidAmount??0);if(Number.isFinite(a)&&a>0)total+=a}if(total<=Number(cr.paid||0)+0.001)return false;cr.paid=total;if(Array.isArray(cr.schedule)){let rem=total;for(const row of cr.schedule){const amt=Math.max(0,Number(row.amount||0));const paid=Math.min(amt,Math.max(0,rem));row.paid=paid;row.balance=Math.max(0,amt-paid);rem=Math.max(0,rem-amt)}}return true}catch(e){console.warn('owner v3 payment reconcile',e);return false}};
+const repair=async()=>{let api=null;try{api=await firebase()}catch(e){console.warn('owner v3 firebase',e)}const orgId=(window.MI_CARTERA_CLOUD||{}).orgId||'mi-cartera';let changed=false;
+for(const[id,rule]of Object.entries(KNOWN)){let cr=(window.db?.credits||[]).find(c=>String(c?.id)===id),client=findLocal(rule);if(api?.auth?.currentUser){try{const s=await api.F.getDoc(api.F.doc(api.fs,`orgs/${orgId}/credits`,id));if(s.exists())cr={...(cr||{}),...s.data(),id}}catch(e){}if(!client){try{const q=api.F.query(api.F.collection(api.fs,`orgs/${orgId}/clients`),api.F.where('orgId','==',orgId));const s=await api.F.getDocs(q);const hits=s.docs.map(d=>d.data()).filter(c=>norm(c?.name)===norm(rule.name)&&digits(c?.phone)===digits(rule.phone));if(hits.length===1)client=hits[0]}catch(e){}}}
+if(!cr||!client)continue;const cid=client.id??client.uid;if(cid==null)continue;const oldOwner=String(cr.clientId||'');cr.clientId=cid;if(!cr.routeId&&client.routeId)cr.routeId=client.routeId;const paidChanged=await reconcilePayments(api,id,cr);if(oldOwner!==String(cid)||paidChanged){changed=true;window.db.credits=window.db.credits||[];const idx=window.db.credits.findIndex(c=>String(c?.id)===id);if(idx>=0)window.db.credits[idx]=cr;else window.db.credits.push(cr);if(api?.auth?.currentUser){try{await api.F.setDoc(api.F.doc(api.fs,`orgs/${orgId}/credits`,id),{...cr,id,orgId,userId:api.auth.currentUser.uid,updatedAt:new Date().toISOString()},{merge:true})}catch(e){console.warn('owner v3 credit write',id,e)}}}}
+if(changed){try{window.persist?.();window.renderAll?.()}catch(e){}}return changed};
+window.__prestamoYaRepairKnownOwnersV3=repair;window.addEventListener('load',()=>setTimeout(()=>repair().catch(()=>{}),3500));
 })();
