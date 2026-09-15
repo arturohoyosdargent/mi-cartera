@@ -1,10 +1,8 @@
-// PRÉSTAMO YA — REPARACIÓN DEFINITIVA DE PROPIETARIOS Y SINCRONIZACIÓN
-// v4 — Alfredo + Víctor
 (() => {
   'use strict';
 
-  if (window.__prestamoYaOwnerRepairV4) return;
-  window.__prestamoYaOwnerRepairV4 = true;
+  if (window.__prestamoYaOwnerRepairV5) return;
+  window.__prestamoYaOwnerRepairV5 = true;
 
   const ORG_ID =
     window.MI_CARTERA_CLOUD?.orgId || 'mi-cartera';
@@ -31,103 +29,109 @@
     String(v ?? '').replace(/\D/g, '');
 
   async function firebaseApi() {
-    const [
-      A,
-      U,
-      F
-    ] = await Promise.all([
-      import('https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js'),
-      import('https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js'),
-      import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js')
-    ]);
+    try {
+      const [A, U, F] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js')
+      ]);
 
-    if (!A.getApps().length) return null;
+      if (!A.getApps().length) return null;
 
-    const app = A.getApp();
+      const app = A.getApp();
 
-    return {
-      auth: U.getAuth(app),
-      fs: F.getFirestore(app),
-      F
-    };
+      return {
+        auth: U.getAuth(app),
+        fs: F.getFirestore(app),
+        F
+      };
+    } catch (e) {
+      console.error('[OwnerRepairV5] Firebase API error', e);
+      return null;
+    }
   }
 
-  async function findClient(api, rule) {
+  function localClient(rule) {
+    const clients = Array.isArray(window.db?.clients)
+      ? window.db.clients
+      : [];
+
+    const matches = clients.filter(c =>
+      norm(c?.name) === norm(rule.name) &&
+      digits(c?.phone) === digits(rule.phone)
+    );
+
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  async function cloudClient(api, rule) {
     if (!api?.auth?.currentUser) return null;
 
-    const ref =
-      api.F.collection(
+    try {
+      const ref = api.F.collection(
         api.fs,
         `orgs/${ORG_ID}/clients`
       );
 
-    const snap =
-      await api.F.getDocs(
+      const snap = await api.F.getDocs(
         api.F.query(
           ref,
           api.F.where('orgId', '==', ORG_ID)
         )
       );
 
-    const matches = [];
+      const matches = [];
 
-    for (const d of snap.docs) {
-      const c = d.data() || {};
+      for (const d of snap.docs) {
+        const c = d.data() || {};
 
-      if (
-        norm(c.name) === norm(rule.name) &&
-        digits(c.phone) === digits(rule.phone)
-      ) {
-        matches.push({
-          ...c,
-          id: d.id,
-          __firestoreId: d.id
-        });
+        if (
+          norm(c.name) === norm(rule.name) &&
+          digits(c.phone) === digits(rule.phone)
+        ) {
+          matches.push({
+            ...c,
+            __firestoreId: d.id
+          });
+        }
       }
-    }
 
-    if (matches.length !== 1) {
-      console.warn(
-        '[OwnerRepairV4] Cliente no inequívoco:',
-        rule.name,
-        matches.length
-      );
+      return matches.length === 1 ? matches[0] : null;
+    } catch (e) {
+      console.error('[OwnerRepairV5] cloud client lookup error', e);
       return null;
     }
-
-    return matches[0];
   }
 
   async function getCredit(api, creditId) {
-    if (!api?.auth?.currentUser) return null;
-
-    const ref =
-      api.F.doc(
+    try {
+      const ref = api.F.doc(
         api.fs,
         `orgs/${ORG_ID}/credits/${creditId}`
       );
 
-    const snap = await api.F.getDoc(ref);
+      const snap = await api.F.getDoc(ref);
 
-    if (!snap.exists()) return null;
+      if (!snap.exists()) return null;
 
-    return {
-      ...snap.data(),
-      id: snap.id
-    };
+      return {
+        ...snap.data(),
+        id: snap.id
+      };
+    } catch (e) {
+      console.error('[OwnerRepairV5] credit lookup error', creditId, e);
+      return null;
+    }
   }
 
   async function getPayments(api, creditId) {
-    if (!api?.auth?.currentUser) return [];
-
-    const ref =
-      api.F.collection(
+    try {
+      const ref = api.F.collection(
         api.fs,
         `orgs/${ORG_ID}/payments`
       );
 
-    const snap =
-      await api.F.getDocs(
+      const snap = await api.F.getDocs(
         api.F.query(
           ref,
           api.F.where('orgId', '==', ORG_ID),
@@ -135,18 +139,22 @@
         )
       );
 
-    return snap.docs.map(d => ({
-      ...d.data(),
-      id: d.id
-    }));
+      return snap.docs.map(d => ({
+        ...d.data(),
+        id: d.id
+      }));
+    } catch (e) {
+      console.error('[OwnerRepairV5] payment lookup error', creditId, e);
+      return [];
+    }
   }
 
   function paymentAmount(p) {
     const value =
-      p.amount ??
-      p.monto ??
-      p.paidAmount ??
-      p.paymentAmount ??
+      p?.amount ??
+      p?.monto ??
+      p?.paidAmount ??
+      p?.paymentAmount ??
       0;
 
     const n = Number(value);
@@ -155,28 +163,20 @@
   }
 
   function localPaymentTotal(creditId) {
-    const payments =
-      Array.isArray(window.db?.payments)
-        ? window.db.payments
-        : [];
+    const payments = Array.isArray(window.db?.payments)
+      ? window.db.payments
+      : [];
 
     return payments
-      .filter(
-        p =>
-          String(p?.creditId) ===
-          String(creditId)
-      )
+      .filter(p => String(p?.creditId) === String(creditId))
       .reduce(
-        (sum, p) =>
-          sum + paymentAmount(p),
+        (sum, p) => sum + paymentAmount(p),
         0
       );
   }
 
   function rebuildSchedule(credit, paidTotal) {
-    if (!Array.isArray(credit.schedule)) {
-      return;
-    }
+    if (!Array.isArray(credit.schedule)) return;
 
     let remaining = Math.max(
       0,
@@ -187,9 +187,9 @@
       const amount = Math.max(
         0,
         Number(
-          row.amount ??
-          row.installment ??
-          row.cuota ??
+          row?.amount ??
+          row?.installment ??
+          row?.cuota ??
           0
         )
       );
@@ -223,6 +223,7 @@
 
   function putLocalCredit(credit) {
     window.db = window.db || {};
+
     window.db.credits =
       Array.isArray(window.db.credits)
         ? window.db.credits
@@ -230,9 +231,7 @@
 
     const index =
       window.db.credits.findIndex(
-        c =>
-          String(c?.id) ===
-          String(credit.id)
+        c => String(c?.id) === String(credit.id)
       );
 
     if (index >= 0) {
@@ -245,18 +244,29 @@
     }
   }
 
-  async function repairOne(
-    api,
-    creditId,
-    rule
-  ) {
-    const client =
-      await findClient(api, rule);
+  async function repairOne(api, creditId, rule) {
+    const local = localClient(rule);
+    const cloud = await cloudClient(api, rule);
 
-    if (!client) {
+    /*
+      MUY IMPORTANTE:
+      La interfaz trabaja con el ID interno del cliente.
+      No usamos automáticamente el ID del documento Firestore.
+    */
+
+    const canonicalClientId =
+      local?.id ??
+      local?.uid ??
+      cloud?.id ??
+      cloud?.uid ??
+      cloud?.__firestoreId ??
+      null;
+
+    if (!canonicalClientId) {
       console.warn(
-        '[OwnerRepairV4] No se pudo resolver cliente:',
-        rule.name
+        '[OwnerRepairV5] No canonical client ID:',
+        creditId,
+        rule
       );
       return false;
     }
@@ -266,18 +276,25 @@
 
     if (!cloudCredit) {
       console.warn(
-        '[OwnerRepairV4] Crédito no encontrado:',
+        '[OwnerRepairV5] Credit not found:',
         creditId
       );
       return false;
     }
 
     const localCredit =
-      (window.db?.credits || []).find(
-        c =>
-          String(c?.id) ===
-          String(creditId)
-      ) || {};
+      (window.db?.credits || [])
+        .find(
+          c =>
+            String(c?.id) ===
+            String(creditId)
+        ) || {};
+
+    /*
+      El crédito existente es la fuente.
+      No se crea uno nuevo.
+      Se conserva ID, capital, total y calendario.
+    */
 
     const credit = {
       ...cloudCredit,
@@ -285,32 +302,35 @@
       id: creditId
     };
 
-    // PROPIETARIO AUTORITATIVO
-    credit.clientId = client.id;
+    const previousClientId =
+      credit.clientId;
+
+    credit.clientId =
+      canonicalClientId;
 
     if (
       !credit.routeId &&
-      client.routeId
+      (local?.routeId || cloud?.routeId)
     ) {
-      credit.routeId = client.routeId;
+      credit.routeId =
+        local?.routeId ||
+        cloud?.routeId;
     }
 
-    // Reconciliación de pagos:
-    // tomamos el mayor entre:
-    // 1. cloud credit.paid
-    // 2. local credit.paid
-    // 3. pagos reales almacenados
+    /*
+      Reconciliación de pagos:
+      nunca sumamos local + nube.
+      Tomamos el mayor valor confirmado.
+    */
+
     const cloudPaid =
-      Number(cloudCredit.paid || 0);
+      Number(cloudCredit.paid) || 0;
 
     const localPaid =
-      Number(localCredit.paid || 0);
+      Number(localCredit.paid) || 0;
 
     const cloudPayments =
-      await getPayments(
-        api,
-        creditId
-      );
+      await getPayments(api, creditId);
 
     const cloudPaymentTotal =
       cloudPayments.reduce(
@@ -337,130 +357,141 @@
       paidTotal
     );
 
-    // Guardamos primero el crédito corregido
+    /*
+      Escritura definitiva en Firestore.
+    */
+
+    const payload = {
+      ...credit,
+      id: creditId,
+      clientId: canonicalClientId,
+      orgId: ORG_ID,
+      userId:
+        api.auth.currentUser.uid,
+      updatedAt:
+        new Date().toISOString(),
+      ownerRepairVersion: 'v5'
+    };
+
     await api.F.setDoc(
       api.F.doc(
         api.fs,
         `orgs/${ORG_ID}/credits/${creditId}`
       ),
-      {
-        ...credit,
-        id: creditId,
-        clientId: client.id,
-        orgId: ORG_ID,
-        userId:
-          api.auth.currentUser.uid,
-        updatedAt:
-          new Date().toISOString(),
-        ownerRepairVersion: 'v4'
-      },
-      {
-        merge: true
-      }
+      payload,
+      { merge: true }
     );
 
-    // Actualizamos local
+    /*
+      Actualización inmediata de la copia local.
+    */
+
     putLocalCredit(credit);
 
     console.log(
-      '[OwnerRepairV4] CORREGIDO',
+      '[OwnerRepairV5] repaired',
       creditId,
       rule.name,
       'clientId:',
-      client.id,
+      canonicalClientId,
       'paid:',
-      paidTotal
+      paidTotal,
+      'previousClientId:',
+      previousClientId
     );
 
     return true;
   }
 
   async function repairAll() {
-    try {
-      const api =
-        await firebaseApi();
+    const api =
+      await firebaseApi();
 
-      if (
-        !api?.auth?.currentUser
-      ) {
-        console.warn(
-          '[OwnerRepairV4] Sin sesión Firebase'
-        );
-        return false;
-      }
-
-      let changed = false;
-
-      for (
-        const [creditId, rule]
-        of Object.entries(TARGETS)
-      ) {
-        try {
-          const ok =
-            await repairOne(
-              api,
-              creditId,
-              rule
-            );
-
-          if (ok) {
-            changed = true;
-          }
-        } catch (e) {
-          console.error(
-            '[OwnerRepairV4] Error crédito',
-            creditId,
-            e
-          );
-        }
-      }
-
-      if (changed) {
-        try {
-          window.persist?.();
-        } catch (_) {}
-
-        try {
-          window.renderAll?.();
-        } catch (_) {}
-      }
-
-      return changed;
-
-    } catch (e) {
-      console.error(
-        '[OwnerRepairV4] Error general',
-        e
+    if (!api?.auth?.currentUser) {
+      console.warn(
+        '[OwnerRepairV5] User not authenticated yet'
       );
-
       return false;
     }
+
+    let changed = false;
+
+    for (
+      const [creditId, rule]
+      of Object.entries(TARGETS)
+    ) {
+      try {
+        const repaired =
+          await repairOne(
+            api,
+            creditId,
+            rule
+          );
+
+        if (repaired) {
+          changed = true;
+        }
+      } catch (e) {
+        console.error(
+          '[OwnerRepairV5] repair failed',
+          creditId,
+          e
+        );
+      }
+    }
+
+    if (changed) {
+      try {
+        window.persist?.();
+      } catch (_) {}
+
+      try {
+        window.renderAll?.();
+      } catch (_) {}
+
+      try {
+        window.renderCredits?.();
+      } catch (_) {}
+    }
+
+    return changed;
   }
 
-  // Exponer reparación manual
-  window.__prestamoYaRepairOwnersV4 =
+  window.__prestamoYaRepairOwnersV5 =
     repairAll;
 
-  // Ejecutar cuando Firebase esté listo
+  /*
+    EJECUCIÓN INICIAL.
+    Importante: este archivo se carga dinámicamente
+    después de window.load, por lo que NO dependemos
+    exclusivamente del evento load.
+  */
+
   function boot() {
-    setTimeout(
-      () => {
-        repairAll().catch(
-          console.error
-        );
-      },
-      4500
+    setTimeout(() => {
+      repairAll().catch(console.error);
+    }, 1500);
+  }
+
+  if (
+    document.readyState ===
+    'complete'
+  ) {
+    boot();
+  } else {
+    window.addEventListener(
+      'load',
+      boot,
+      { once: true }
     );
   }
 
-  window.addEventListener(
-    'load',
-    boot
-  );
+  /*
+    BLINDAJE:
+    cualquier cloudSyncNow posterior
+    vuelve a ejecutar la reparación.
+  */
 
-  // IMPORTANTE:
-  // cada vez que Cloud sincroniza,
-  // volvemos a reparar DESPUÉS del pull.
   function hookCloudSync() {
     if (
       typeof window.cloudSyncNow !==
@@ -468,18 +499,18 @@
     ) {
       setTimeout(
         hookCloudSync,
-        1000
+        500
       );
       return;
     }
 
     if (
-      window.__prestamoYaCloudSyncV4Hooked
+      window.__prestamoYaCloudSyncV5Hooked
     ) {
       return;
     }
 
-    window.__prestamoYaCloudSyncV4Hooked =
+    window.__prestamoYaCloudSyncV5Hooked =
       true;
 
     const original =
@@ -497,7 +528,7 @@
           await repairAll();
         } catch (e) {
           console.error(
-            '[OwnerRepairV4] reparación post-sync',
+            '[OwnerRepairV5] post-sync repair error',
             e
           );
         }
@@ -506,7 +537,7 @@
       };
 
     console.log(
-      '[OwnerRepairV4] CloudSync protegido'
+      '[OwnerRepairV5] cloudSyncNow protegido'
     );
   }
 
