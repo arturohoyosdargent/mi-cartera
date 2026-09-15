@@ -2,6 +2,8 @@ name: QA Syntax Matrix
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
