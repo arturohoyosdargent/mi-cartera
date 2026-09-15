@@ -14,11 +14,14 @@ window.MI_CARTERA_CLOUD = {
 
 // El Service Worker se registra exclusivamente desde firebase-cloud.js.
 // Mantener un único registro evita carreras entre versiones/cache del PWA.
+// Refuerzo de versión: después de cargar todos los módulos, vuelve a cargar
+// las reparaciones críticas para garantizar que el navegador no conserve una
+// implementación anterior de persistencia/compartición.
 (()=>{
  const load=(src)=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)});
  window.addEventListener('load',()=>{
-   load('./credit-client-save-fix.js?v=3&b=20260914').catch(()=>{});
-   load('./proposal-share-fix.js?v=3&b=20260914').catch(()=>{});
-   load('./credit-detail-share-fix.js?v=1&b=20260914').catch(()=>{});
+   load('./credit-client-save-fix.js?v=3&b=20260915').catch(()=>{});
+   load('./proposal-share-fix.js?v=3&b=20260915').catch(()=>{});
+   load('./credit-detail-share-fix.js?v=2&b=20260915').catch(()=>{});
  });
 })();
