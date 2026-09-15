@@ -1,4 +1,4 @@
-const CACHE='prestamo-ya-v22';
+const CACHE='prestamo-ya-v23';
 const CORE=['./','./index.html','./manifest.webmanifest','./icon.svg','./backup.js','./firebase-config.js','./firebase-cloud.js','./firebase-cloud-core.js','./cloud-repair-v2.js','./ownership-model.js','./session-switch.js','./data-integrity.js','./field-collection-sync.js','./credit-proposal.js','./client-sync-repair.js','./sync-queue-v3.js','./credit-transaction-repair.js','./history-detail.js','./cloud-ui-fixes.js','./credit-share-v2.js','./sync-ui-fix.js','./renewal-buttons-fix.js','./renewal-schedule-correction.js','./address-navigation.js','./share-image-engine.js','./share-consistency-v1.js','./payment-result-share-fix.js','./credit-detail-share-fix.js','./credit-client-save-fix.js','./proposal-share-fix.js'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
