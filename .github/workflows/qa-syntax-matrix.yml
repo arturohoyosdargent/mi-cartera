@@ -20,7 +20,6 @@ jobs:
           from pathlib import Path
           files=sorted(str(p) for p in Path('.').glob('*.js'))
           print('files='+json.dumps(files,separators=(',',':')))
-          print('Total JS:',len(files))
           PY
   syntax:
     needs: enumerate
