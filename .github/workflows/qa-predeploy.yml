@@ -10,6 +10,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Sintaxis — credit-detail-share-fix.js
+        continue-on-error: true
+        run: node --check credit-detail-share-fix.js
+      - name: Sintaxis — firebase-cloud.js
+        continue-on-error: true
+        run: node --check firebase-cloud.js
+      - name: Sintaxis — firebase-config.js
+        continue-on-error: true
+        run: node --check firebase-config.js
+      - name: Sintaxis — sw.js
+        continue-on-error: true
+        run: node --check sw.js
       - name: Validar todos los archivos JavaScript
         run: |
           set +e
