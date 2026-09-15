@@ -29,8 +29,173 @@ function dedupeClients(cleanCloud=false){if(!Array.isArray(db.clients))return;co
 async function pullCollection(name,constraints=[]){const ref=collection(fs,`orgs/${orgId}/${name}`);const all=[where('orgId','==',orgId),...(constraints||[])];const snap=await getDocs(query(ref,...all));return snap.docs.map(d=>({...d.data(),id:d.data()?.id??d.id,__firestoreId:d.id}));}
 async function pullUsers(){const snap=await getDocs(query(collection(fs,'users'),where('orgId','==',orgId)));return snap.docs.map(d=>d.data());}
 async function pullAssignedRoutes(){const out=[];for(const rid of [...new Set(routeIds().map(String))]){try{const snap=await getDoc(doc(fs,`orgs/${orgId}/routes`,rid));if(snap.exists())out.push({id:snap.id,...snap.data()});}catch(e){console.warn('Ruta asignada no disponible',rid,e)}}return out;}
-async function pullCloud(){if(!currentProfile)return;const names=['routes','clients','credits','payments','cashClosures','approvals'];const data={};if(canAll()){for(const n of names)data[n]=await pullCollection(n);for(const n of ['capital','entries','expenses','audit'])data[n]=await pullCollection(n);data.users=await pullUsers();}else{const assigned=routeIds().map(String);data.routes=await pullAssignedRoutes();data.clients=[];data.credits=[];data.payments=[];const rids=[...new Set(assigned)];for(const rid of rids){const cs=await pullCollection('clients',[where('routeId','==',rid)]);data.clients.push(...cs);const cr=await pullCollection('credits',[where('routeId','==',rid)]);data.credits.push(...cr);for(const crd of cr){const ps=await pullCollection('payments',[where('creditId','==',crd.id)]);data.payments.push(...ps);}}data.cashClosures=await pullCollection('cashClosures',[where('userId','==',auth.currentUser.uid)]);data.approvals=await pullCollection('approvals',[where('requestedByUid','==',auth.currentUser.uid)]);data.users=[];}const firstCloudMigration=localStorage.getItem(SEED_KEY)!=='1';for(const n of Object.keys(data)){if(!Array.isArray(data[n]))continue;const local=Array.isArray(db[n])?db[n]:[];if(n==='users'){const merged=new Map(local.map(x=>[String(x.id||x.uid),x]));for(const x of data[n]){const id=String(x.id||x.uid);merged.set(id,{...merged.get(id),id,uid:x.uid||id,name:x.name||x.email||id,email:x.email||'',role:x.role||'consulta',routeIds:Array.isArray(x.routeIds)?x.routeIds:[],active:x.active!==false});}data[n]=Array.from(merged.values());}if(firstCloudMigration&&local.length&&['payments','cashClosures','approvals'].includes(n)){const m=new Map(data[n].map(x=>[String(x.id),x]));for(const x of local)m.set(String(x.id),x);data[n]=Array.from(m.values());}if(firstCloudMigration&&canAll()&&data[n].length===0&&local.length)data[n]=local;db[n]=data[n];}dedupeClients(true);db.currentUserId=currentProfile.localUserId||db.currentUserId;saveCloudDb();normalize();renderAll();}
-async function pushList(name,list){for(const item of list||[]){if(!item||item.id==null)continue;const payload=addMeta({...item});if(name==='routes'){payload.routeId=String(item.id);if(payload.collectorUid)payload.collectorUid=String(payload.collectorUid);if(payload.collectorId)payload.collectorId=String(payload.collectorId);}
+async function pullCloud(){
+  if(!currentProfile)return;
+
+  const names=['routes','clients','credits','payments','cashClosures','approvals'];
+  const data={};
+
+  if(canAll()){
+    for(const n of names)
+      data[n]=await pullCollection(n);
+  }else{
+    const assigned=routeIds().map(String);
+
+    data.routes=await pullAssignedRoutes();
+    data.clients=[];
+    data.credits=[];
+    data.payments=[];
+
+    const rids=[...new Set(assigned)];
+
+    for(const rid of rids){
+      const cs=await pullCollection('clients',[where('routeId','==',rid)]);
+      data.clients.push(...cs);
+
+      const cr=await pullCollection('credits',[where('routeId','==',rid)]);
+      data.credits.push(...cr);
+
+      for(const c of cr){
+        const ps=await pullCollection('payments',[where('creditId','==',c.id)]);
+        data.payments.push(...ps);
+      }
+    }
+
+    data.cashClosures=await pullCollection(
+      'cashClosures',
+      [where('userId','==',auth.currentUser.uid)]
+    );
+
+    data.approvals=await pullCollection(
+      'approvals',
+      [where('requestedByUid','==',auth.currentUser.uid)]
+    );
+  }
+
+  data.users=await pullUsers();
+
+  const firstCloudMigration=localStorage.getItem(SEED_KEY)!=='1';
+
+  for(const n of Object.keys(data)){
+    if(!Array.isArray(data[n]))continue;
+
+    const local=Array.isArray(db[n])?db[n]:[];
+
+    if(n==='users'){
+      const merged=new Map(
+        local.map(x=>[String(x.id||x.uid),x])
+      );
+
+      for(const x of data[n]){
+        const id=String(x.id||x.uid);
+        const prev=merged.get(id)||{};
+
+        merged.set(id,{
+          ...prev,
+          ...x,
+          id,
+          uid:x.uid||id,
+          name:x.name||x.email||prev.name||'',
+          role:x.role||prev.role||'consulta',
+          routeIds:Array.isArray(x.routeIds)
+            ?x.routeIds
+            :(Array.isArray(prev.routeIds)?prev.routeIds:[]),
+          active:x.active!==false
+        });
+      }
+
+      data[n]=Array.from(merged.values());
+      continue;
+    }
+
+    const merged=new Map(
+      local.map(x=>[String(x.id||x.uid),x])
+    );
+
+    for(const x of data[n]){
+      const id=String(
+        x.id||
+        x.__firestoreId||
+        x.uid||
+        ''
+      );
+
+      if(!id)continue;
+
+      const prev=merged.get(id);
+
+      if(n==='credits'&&prev){
+        const safe={
+          ...prev,
+          ...x,
+          id:prev.id??x.id??id
+        };
+
+        if(prev.clientId!=null&&prev.clientId!=='')
+          safe.clientId=prev.clientId;
+
+        if(prev.routeId!=null&&prev.routeId!=='')
+          safe.routeId=prev.routeId;
+
+        merged.set(id,safe);
+        continue;
+      }
+
+      if(n==='payments'&&prev){
+        const safe={
+          ...prev,
+          ...x,
+          id:prev.id??x.id??id
+        };
+
+        if(prev.creditId!=null&&prev.creditId!=='')
+          safe.creditId=prev.creditId;
+
+        if(prev.routeId!=null&&prev.routeId!=='')
+          safe.routeId=prev.routeId;
+
+        merged.set(id,safe);
+        continue;
+      }
+
+      merged.set(id,{
+        ...prev,
+        ...x,
+        id:prev?.id??x.id??id
+      });
+    }
+
+    data[n]=Array.from(merged.values());
+
+    if(
+      firstCloudMigration&&
+      local.length&&
+      ['payments','cashClosures','approvals'].includes(n)
+    ){
+      const m=new Map(
+        data[n].map(x=>[String(x.id||x.uid),x])
+      );
+
+      for(const x of local)
+        m.set(String(x.id||x.uid),x);
+
+      data[n]=Array.from(m.values());
+    }
+
+    if(
+      firstCloudMigration&&
+      canAll()&&
+      data[n].length===0&&
+      local.length
+    ){
+      data[n]=local;
+    }
+
+    db[n]=data[n];
+  }
+
+  dedupeClients(true);
+}async function pushList(name,list){for(const item of list||[]){if(!item||item.id==null)continue;const payload=addMeta({...item});if(name==='routes'){payload.routeId=String(item.id);if(payload.collectorUid)payload.collectorUid=String(payload.collectorUid);if(payload.collectorId)payload.collectorId=String(payload.collectorId);}
 if(name==='payments'){payload.userId=payload.userId||auth.currentUser.uid;if(!payload.routeId){const cr=(db.credits||[]).find(c=>String(c.id)===String(payload.creditId));payload.routeId=cr?.routeId||null;}}await setDoc(doc(fs,`orgs/${orgId}/${name}`,String(item.id)),payload,{merge:true});}}
 async function pushLocalAllowed(){if(!currentProfile)return;if(canAll()){for(const n of ['routes','clients','credits','payments','cashClosures','approvals','capital','entries','expenses','audit'])await pushList(n,db[n]);}else{const ids=routeIds().map(String);await pushList('clients',(db.clients||[]).filter(c=>ids.includes(String(c.routeId))));await pushList('payments',(db.payments||[]).map(p=>{const cr=(db.credits||[]).find(c=>String(c.id)===String(p.creditId));return {...p,userId:auth.currentUser.uid,routeId:p.routeId||cr?.routeId||null};}).filter(p=>p.routeId&&ids.includes(String(p.routeId))));await pushList('cashClosures',(db.cashClosures||[]).filter(x=>x.userId===auth.currentUser.uid));await pushList('approvals',(db.approvals||[]).filter(x=>x.requestedByUid===auth.currentUser.uid));}}
 window.openCloudUserForm=()=>{if(!currentProfile||role()!=='admin')return toast('Solo el administrador puede crear accesos Cloud.');openForm('Crear acceso Cloud',`<div class="field"><label>Nombre</label><input class="input" id="cloudNewName"></div><div class="field"><label>Correo</label><input class="input" id="cloudNewEmail" type="email"></div><div class="field"><label>Contraseña temporal</label><input class="input" id="cloudNewPass" type="password" minlength="6"></div><div class="field"><label>Rol</label><select class="select" id="cloudNewRole"><option value="cobrador">Cobrador</option><option value="supervisor">Supervisor</option><option value="consulta">Consulta</option></select></div><div class="field"><label>Ruta</label><select class="select" id="cloudNewRoute"><option value="">Sin ruta asignada</option>${(db.routes||[]).map(r=>'<option value="'+String(r.id).replace(/"/g,'&quot;')+'">'+String(r.code||r.id)+' · '+String(r.name||r.id).replace(/</g,'&lt;')+'</option>').join('')}</select></div><div id="cloudCreateUserMsg" class="small muted" style="margin:8px 0"></div><button type="button" class="btn green wide" id="cloudCreateUserBtn" onclick="window.cloudCreateUser()">Crear acceso</button>`);};
