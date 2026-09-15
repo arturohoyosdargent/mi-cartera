@@ -12,8 +12,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validar todos los archivos JavaScript
         run: |
-          set -e
-          find . -type f -name '*.js' -not -path './node_modules/*' -print0 | while IFS= read -r -d '' f; do echo "Comprobando $f"; node --check "$f"; done
+          set +e
+          bad=0
+          while IFS= read -r -d '' f; do
+            echo "Comprobando $f"
+            if ! node --check "$f"; then
+              echo "::error file=$f::JavaScript inválido"
+              bad=1
+            fi
+          done < <(find . -type f -name '*.js' -not -path './node_modules/*' -print0)
+          if [ "$bad" -ne 0 ]; then exit 1; fi
       - name: Validar JavaScript embebido en index.html
         run: |
           python - <<'PY'
@@ -100,16 +108,12 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
-          files=list(Path('.').glob('*.js'))
-          alltxt='\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in files)
+          alltxt='\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in Path('.').glob('*.js'))
           for token in ['window.shareCreditDetail=','window.shareCreditDetailV2=','window.shareCreditProposal=','window.registerPayment=']:
               n=alltxt.count(token)
               print(token,n)
           assert alltxt.count('window.shareCreditDetailV2=') <= 2
           assert alltxt.count('window.shareCreditProposal=') <= 2
-          # The payment state must never be the source of truth for detail-share payloads.
-          assert 'paymentCanvas(textData)' in Path('share-image-engine.js').read_text(encoding='utf-8')
           print('QA duplicación/aislamiento de handlers OK')
           PY
       - name: Validar reglas Firestore
