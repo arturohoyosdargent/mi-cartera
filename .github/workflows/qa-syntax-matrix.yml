@@ -18,7 +18,7 @@ jobs:
           python - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           from pathlib import Path
-          files=sorted(str(p) for p in Path('.').glob('*.js'))
+          files=sorted(str(p) for p in Path('.').rglob('*.js') if 'node_modules' not in p.parts and '.git' not in p.parts)
           print('files='+json.dumps(files,separators=(',',':')))
           PY
   syntax:
@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 20
       matrix:
         file: ${{ fromJSON(needs.enumerate.outputs.files) }}
     steps:
