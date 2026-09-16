@@ -19,6 +19,8 @@ jobs:
         run: node v2/tests/transaction-store.spec.js
       - name: Offline operation queue
         run: node v2/tests/offline-operation-queue.spec.js
+      - name: Structured sync error policy
+        run: node v2/tests/sync-errors.spec.js
       - name: Runtime reconnect and replay
         run: node v2/tests/runtime-retry.spec.js
       - name: Deterministic installment schedules
