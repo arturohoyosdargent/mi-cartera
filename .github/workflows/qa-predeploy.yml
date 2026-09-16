@@ -79,7 +79,7 @@ jobs:
           assert int(queue_match.group(1)) >= 15
           assert int(sw_match.group(1)) >= 20
           assert int(sw_cache.group(1)) >= 20
-          assert "credit-detail-share-fix.js?v=2" in s
+          assert "credit-detail-share-fix.js?v=3" in s
           assert "credit-detail-share-fix.js" in sw
           print('QA Service Worker/cache bust OK')
           PY
@@ -110,7 +110,7 @@ jobs:
           assert 'window.__prestamoYaCreditDetailShareFixV2' in d
           assert 'const bodyCreditId=' in d and 'b.dataset.creditId=id' in d
           assert 'window.__prestamoYaLastPaymentShare=null' in d
-          assert "credit-detail-share-fix.js?v=2" in loader
+          assert "credit-detail-share-fix.js?v=3" in loader
           assert 'navigator.share' in d and 'prestamo-ya-detalle-credito.png' in d
           assert 'PAGO RECIBIDO' in engine
           assert 'PROPUESTA DE CRÉDITO' in engine
