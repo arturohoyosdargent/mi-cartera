@@ -35,6 +35,8 @@ jobs:
         run: node v2/tests/offline-operational-integration.spec.js
       - name: Alfredo Elias and network end-to-end safety
         run: node v2/tests/end-to-end-safety.spec.js
+      - name: V2 Firestore pilot namespace isolation
+        run: node v2/tests/firestore-v2-rules.spec.js
       - name: Legacy migration corruption audit
         run: node v2/tests/legacy-audit.spec.js
       - name: Shadow migration reconciliation gate
