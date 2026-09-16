@@ -76,7 +76,6 @@ jobs:
           assert "const routeAllowed=(p,item)=>" in q and "if(col==='credits')return true" in q
           assert "for(const item of queue){if(item?.status==='ENVIANDO')item.status='PENDIENTE'}" in q
           assert 'credit-modified-sync-fix.js' not in f
-          # Contrato real: clientes se refrescan exclusivamente mediante cloudSyncNow; no se exige texto/comentario literal.
           assert 'window.cloudSyncNow' in r and "refreshCloud('inicio')" in r and "refreshCloud('online')" in r
           print('QA contrato offline/Cloud OK')
           PY
@@ -85,11 +84,11 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           d=Path('credit-detail-share-fix.js').read_text(encoding='utf-8');engine=Path('share-image-engine.js').read_text(encoding='utf-8');loader=Path('firebase-cloud.js').read_text(encoding='utf-8')
-          assert 'window.__prestamoYaCreditDetailShareFixV2' in d and 'const bodyCreditId=' in d and 'b.dataset.creditId=id' in d
+          assert 'window.__prestamoYaCreditDetailShareFixV4' in d and 'const bodyId=' in d and 'b.dataset.creditId=id' in d
           assert 'window.__prestamoYaLastPaymentShare=null' in d and "credit-detail-share-fix.js?v=3" in loader
           assert 'navigator.share' in d and 'prestamo-ya-detalle-credito.png' in d
           assert 'PAGO RECIBIDO' in engine and 'PROPUESTA DE CRÉDITO' in engine
-          print('QA compartir OK')
+          print('QA compartir v4 OK')
           PY
       - name: Detectar riesgos de loaders y handlers duplicados
         run: |
