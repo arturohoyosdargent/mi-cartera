@@ -43,5 +43,7 @@ jobs:
         run: node v2/tests/opening-credit-validator.spec.js
       - name: Independent installable app shell
         run: node v2/tests/app-shell.spec.js
+      - name: Pilot activation safety gate
+        run: node v2/tests/pilot-config.spec.js
       - name: Canonical branch smoke
         run: node v2/tests/integrated-branch-smoke.spec.js
