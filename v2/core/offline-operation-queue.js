@@ -1,0 +1,11 @@
+// Mi Cartera PRO V2 — offline queue stores business operations, never DB snapshots.
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.MiCarteraV2OfflineQueue=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){'use strict';
+const sid=v=>String(v??'').trim();
+function createQueue(storage,key='mi-cartera-v2-operations'){if(!storage||typeof storage.getItem!=='function'||typeof storage.setItem!=='function')throw new Error('STORAGE_REQUIRED');let busy=false;
+ const read=()=>{try{const v=JSON.parse(storage.getItem(key)||'[]');return Array.isArray(v)?v:[];}catch{return [];}};
+ const write=q=>storage.setItem(key,JSON.stringify(q));
+ function enqueue(operation){if(!operation||!sid(operation.id))throw new Error('OPERATION_ID_REQUIRED');const q=read();const found=q.find(x=>sid(x.operation?.id)===sid(operation.id));if(found)return found;const item={id:sid(operation.id),operation,status:'PENDIENTE',attempts:0,nextAttemptAt:0,createdAt:new Date().toISOString(),lastError:null};q.push(item);write(q);return item;}
+ async function flush(executor,now=Date.now()){if(busy)return {status:'BUSY'};if(typeof executor!=='function')throw new Error('EXECUTOR_REQUIRED');busy=true;try{const q=read();let applied=0,failed=0;for(const item of q){if(item.status==='SINCRONIZADO'||Number(item.nextAttemptAt||0)>now)continue;try{const r=await executor(item.operation);if(r?.status==='APPLIED'||r?.status==='ALREADY_APPLIED'){item.status='SINCRONIZADO';item.syncedAt=new Date().toISOString();item.lastError=null;applied++;}else throw new Error('UNKNOWN_EXECUTOR_RESULT');}catch(e){item.attempts=Number(item.attempts||0)+1;item.status='ERROR';item.lastError=String(e?.message||e);const delay=Math.min(300000,1000*Math.pow(2,Math.min(item.attempts,8)));item.nextAttemptAt=now+delay;failed++;}}write(q);return {status:'DONE',applied,failed,pending:q.filter(x=>x.status!=='SINCRONIZADO').length};}finally{busy=false;}}
+ function inspect(){return read().map(x=>({id:x.id,type:x.operation?.type,status:x.status,attempts:x.attempts,nextAttemptAt:x.nextAttemptAt,lastError:x.lastError}));}
+ return {enqueue,flush,inspect};}
+return {createQueue};});
