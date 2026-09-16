@@ -1,0 +1,4 @@
+const assert=require('assert');const S=require('../core/schedule-engine.js');
+(()=>{const elias=S.generate({total:240,term:4,freq:'weekly',firstPaymentDate:'2026-09-20'});assert.equal(elias.length,4);assert.deepEqual(elias.map(x=>x.amount),[60,60,60,60]);assert.deepEqual(elias.map(x=>x.date),['2026-09-20','2026-09-27','2026-10-04','2026-10-11']);assert.equal(elias.reduce((s,x)=>s+x.amount,0),240);
+const rounded=S.generate({total:100,term:3,freq:'weekly',firstPaymentDate:'2026-09-20'});assert.deepEqual(rounded.map(x=>x.amount),[33.33,33.33,33.34]);assert.equal(rounded.reduce((s,x)=>Math.round((s+x.amount)*100)/100,0),100);
+const rest=S.generate({total:120,term:2,freq:'weekly',firstPaymentDate:'2026-09-20',restDay:0});assert.equal(rest[0].date,'2026-09-21');assert.equal(rest[1].date,'2026-09-28');console.log('V2 schedule engine: PASS');})();
