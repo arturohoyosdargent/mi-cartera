@@ -25,6 +25,8 @@ jobs:
         run: node v2/tests/runtime-retry.spec.js
       - name: Deterministic installment schedules
         run: node v2/tests/schedule-engine.spec.js
+      - name: Access control and immutable audit
+        run: node v2/tests/access-audit.spec.js
       - name: Legacy migration corruption audit
         run: node v2/tests/legacy-audit.spec.js
       - name: Shadow migration reconciliation gate
