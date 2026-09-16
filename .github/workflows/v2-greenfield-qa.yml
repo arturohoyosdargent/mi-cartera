@@ -1,7 +1,7 @@
 name: V2 Greenfield QA
 on:
   push:
-    branches: [v2-greenfield-app, reengineering-v2]
+    branches: [v2-greenfield-app, reengineering-v2, reengineering-v2-integrated]
     paths: ['v2/**', '.github/workflows/v2-greenfield-qa.yml']
   pull_request:
     paths: ['v2/**', '.github/workflows/v2-greenfield-qa.yml']
