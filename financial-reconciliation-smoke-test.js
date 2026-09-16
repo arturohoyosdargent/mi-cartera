@@ -1,0 +1,10 @@
+'use strict';
+const EPS=.005,n=v=>Number.isFinite(Number(v))?Number(v):0,sid=v=>String(v??'');
+const paymentsFor=(db,id)=>(db.payments||[]).filter(p=>sid(p.creditId)===sid(id)&&n(p.amount)>0);
+const derive=(db,cr)=>{const total=n(cr.total)||(cr.schedule||[]).reduce((s,q)=>s+n(q.amount),0),ledger=paymentsFor(db,cr.id).reduce((s,p)=>s+n(p.amount),0),stored=n(cr.paid),sched=(cr.schedule||[]).reduce((s,q)=>s+n(q.paid),0),expectedPaid=Math.min(Math.max(0,ledger),Math.max(0,total));return{ledger,expectedPaid,balance:Math.max(0,total-expectedPaid),consistent:Math.abs(stored-ledger)<=EPS&&Math.abs(sched-ledger)<=EPS}};
+const assert=(ok,msg)=>{if(!ok)throw new Error(msg)};
+const falsePaid={credits:[{id:'alfredo',total:720,paid:720,schedule:[{amount:720,paid:720}]}],payments:[]};
+let r=derive(falsePaid,falsePaid.credits[0]);assert(r.ledger===0,'ledger debe ser cero');assert(r.balance===720,'saldo derivado debe ser 720');assert(!r.consistent,'falso pagado debe detectarse');
+const realPaid={credits:[{id:'ok',total:720,paid:720,schedule:[{amount:720,paid:720}]}],payments:[{id:'p1',creditId:'ok',amount:720}]};r=derive(realPaid,realPaid.credits[0]);assert(r.balance===0,'pago real debe dejar saldo cero');assert(r.consistent,'pago real debe conciliar');
+const partial={credits:[{id:'partial',total:720,paid:200,schedule:[{amount:720,paid:200}]}],payments:[{id:'p2',creditId:'partial',amount:200}]};r=derive(partial,partial.credits[0]);assert(r.balance===520,'pago parcial debe dejar 520');assert(r.consistent,'pago parcial debe conciliar');
+console.log('financial-reconciliation-smoke-test: PASS');
