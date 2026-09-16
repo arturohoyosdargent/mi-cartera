@@ -1,11 +1,11 @@
-// Préstamo Ya — cola offline/Cloud v15.
+// Préstamo Ya — cola offline/Cloud v16.
 // La cola espera explícitamente a Firebase/Auth y procesa la DB local expuesta por el cargador.
 import { getApp, getApps } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
 import { getFirestore, doc, setDoc, deleteDoc, waitForPendingWrites } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
 
 (()=>{
-  const VERSION='sync-queue-v15';
+  const VERSION='sync-queue-v16';
   const waitFirebase=()=>new Promise((resolve,reject)=>{const started=Date.now();const tick=()=>{if(getApps().length)return resolve(getApp());if(Date.now()-started>15000)return reject(new Error('FIREBASE_NO_INICIALIZADO'));setTimeout(tick,150)};tick()});
   const collectionFor=t=>({CLIENTE_CREADO:'clients',CLIENTE_MODIFICADO:'clients',CLIENTE_ELIMINADO:'clients',CREDITO_CREADO:'credits',CREDITO_MODIFICADO:'credits',CREDITO_ELIMINADO:'credits',PAGO_CREADO:'payments',PAGO_MODIFICADO:'payments',PAGO_ELIMINADO:'payments',RECAUDO:'payments',RECAUDO_CREADO:'payments',RUTA_CREADA:'routes',RUTA_MODIFICADA:'routes',RUTA_ELIMINADA:'routes',CAPITAL_INGRESADO:'capital',CAPITAL_MODIFICADO:'capital',CAPITAL_ELIMINADO:'capital',ENTRADA:'entries',ENTRADA_CREADA:'entries',ENTRADA_MODIFICADA:'entries',ENTRADA_ELIMINADA:'entries',GASTO:'expenses',GASTO_CREADO:'expenses',GASTO_MODIFICADO:'expenses',GASTO_ELIMINADO:'expenses',CIERRE_CAJA:'cashClosures',CIERRE_CAJA_MODIFICADO:'cashClosures',AUTORIZACION_APROBADA:'approvals',AUTORIZACION_RECHAZADA:'approvals',SOLICITUD_AUTORIZACION:'approvals'})[t]||null;
   const isDelete=t=>/(_ELIMINADO|_ELIMINADA)$/.test(t);
@@ -27,7 +27,9 @@ import { getFirestore, doc, setDoc, deleteDoc, waitForPendingWrites } from 'http
     for(const item of queue){if(item?.status==='ENVIANDO')item.status='PENDIENTE'}
     for(const item of queue.slice()){
       if(!item||!['PENDIENTE','ERROR'].includes(item.status))continue;const col=collectionFor(item.type);if(!col){setError(item,'TIPO_NO_SOPORTADO');errors++;persist();ui();continue}if(!routeAllowed(profile,item)){setError(item,'FUNCION_NO_GESTIONADA');errors++;persist();ui();continue}
-      const payload=item.payload&&typeof item.payload==='object'?item.payload:{};const local=findLocal(item.type,payload);const merged=local?{...local,...payload}:payload;const id=merged?.id!=null?String(merged.id):null;
+      const payload=item.payload&&typeof item.payload==='object'?item.payload:{};const local=findLocal(item.type,payload);
+      // v16: el estado local vigente manda sobre un payload viejo de la cola. Evita rehidratar paid/status/schedule obsoletos.
+      const merged=local?{...payload,...local}:payload;const id=merged?.id!=null?String(merged.id):null;
       if(id==null){setError(item,'ID_NO_DETERMINADO');errors++;persist();ui();continue}
       if(col==='credits'&&merged.routeId!=null)merged.routeId=String(merged.routeId);
       if(col==='credits'&&merged.clientId!=null)merged.clientId=String(merged.clientId);
@@ -49,5 +51,5 @@ import { getFirestore, doc, setDoc, deleteDoc, waitForPendingWrites } from 'http
   window.ackQueueAfterCloudSync=()=>{ui();return {processed:0,remaining:pendingCount(),mode:'ack-by-write-confirmation',version:VERSION}};window.waitForCloudWrites=async()=>true;
   window.prestamoYaSyncDiagnostics=async()=>{const q=Array.isArray(window.db?.syncQueue)?window.db.syncQueue:[];let firebase={auth:false,uid:null,profile:null,profileReadError:null},sw=[];try{sw=await navigator.serviceWorker?.getRegistrations?.()||[]}catch(e){}try{const app=await waitFirebase(),auth=getAuth(app);firebase.auth=!!auth.currentUser;firebase.uid=auth.currentUser?.uid||null;firebase.profile=window.__prestamoYaQueueProfile?{role:window.__prestamoYaQueueProfile.role,active:window.__prestamoYaQueueProfile.active,orgId:window.__prestamoYaQueueProfile.orgId,routeIds:window.__prestamoYaQueueProfile.routeIds}:null}catch(e){firebase.profileReadError=String(e?.code||e?.message||e)}const result={timestamp:new Date().toISOString(),online:navigator.onLine,appVersion:VERSION,windowDb:!!window.db,queue:q.map((x,i)=>({index:i,id:x?.id,type:x?.type,status:x?.status,attempts:x?.attempts||0,error:x?.error||null,payloadId:x?.payload?.id??null,clientId:x?.payload?.clientId??null,routeId:x?.payload?.routeId??null,createdAt:x?.createdAt||null,syncedAt:x?.syncedAt||null})),firebase,serviceWorkers:sw.map(r=>({scope:r.scope,state:r.active?.state||null,script:r.active?.scriptURL||null})),last:window.__prestamoYaQueueLast||null,localKeys:Object.keys(localStorage).filter(k=>/mi_cartera|prestamo/i.test(k))};console.table(result.queue);console.log('Préstamo Ya diagnóstico completo:',result);return result};
   const attachAuth=()=>{try{if(!getApps().length)return setTimeout(attachAuth,300);const app=getApp(),auth=getAuth(app);if(window.__prestamoYaQueueAuthAttached)return;window.__prestamoYaQueueAuthAttached=true;onAuthStateChanged(auth,user=>{if(user)setTimeout(()=>window.syncQueueV3(),250)});setTimeout(()=>window.syncQueueV3(),500)}catch(e){setTimeout(attachAuth,500)}};
-  const start=()=>{if(window.__prestamoYaQueueV15)return;window.__prestamoYaQueueV15=true;window.__prestamoYaQueueVersion=VERSION;window.addEventListener('online',()=>setTimeout(()=>window.syncQueueV3(),500));setTimeout(()=>window.syncQueueV3(),1000);setInterval(()=>{if(navigator.onLine)window.syncQueueV3()},10000);attachAuth()};start();
+  const start=()=>{if(window.__prestamoYaQueueV16)return;window.__prestamoYaQueueV16=true;window.__prestamoYaQueueVersion=VERSION;window.addEventListener('online',()=>setTimeout(()=>window.syncQueueV3(),500));setTimeout(()=>window.syncQueueV3(),1000);setInterval(()=>{if(navigator.onLine)window.syncQueueV3()},10000);attachAuth()};start();
 })();
