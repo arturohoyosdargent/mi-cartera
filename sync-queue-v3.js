@@ -1,11 +1,11 @@
-// Préstamo Ya — cola offline/Cloud v16.
-// La cola espera explícitamente a Firebase/Auth y procesa la DB local expuesta por el cargador.
+// Préstamo Ya — cola offline/Cloud v17.
+// Sin polling periódico: procesa solo al arrancar, autenticar, volver online o cuando se solicita explícitamente.
 import { getApp, getApps } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js';
-import { getFirestore, doc, setDoc, deleteDoc, waitForPendingWrites } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
+import { getFirestore, doc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js';
 
 (()=>{
-  const VERSION='sync-queue-v16';
+  const VERSION='sync-queue-v17';
   const waitFirebase=()=>new Promise((resolve,reject)=>{const started=Date.now();const tick=()=>{if(getApps().length)return resolve(getApp());if(Date.now()-started>15000)return reject(new Error('FIREBASE_NO_INICIALIZADO'));setTimeout(tick,150)};tick()});
   const collectionFor=t=>({CLIENTE_CREADO:'clients',CLIENTE_MODIFICADO:'clients',CLIENTE_ELIMINADO:'clients',CREDITO_CREADO:'credits',CREDITO_MODIFICADO:'credits',CREDITO_ELIMINADO:'credits',PAGO_CREADO:'payments',PAGO_MODIFICADO:'payments',PAGO_ELIMINADO:'payments',RECAUDO:'payments',RECAUDO_CREADO:'payments',RUTA_CREADA:'routes',RUTA_MODIFICADA:'routes',RUTA_ELIMINADA:'routes',CAPITAL_INGRESADO:'capital',CAPITAL_MODIFICADO:'capital',CAPITAL_ELIMINADO:'capital',ENTRADA:'entries',ENTRADA_CREADA:'entries',ENTRADA_MODIFICADA:'entries',ENTRADA_ELIMINADA:'entries',GASTO:'expenses',GASTO_CREADO:'expenses',GASTO_MODIFICADO:'expenses',GASTO_ELIMINADO:'expenses',CIERRE_CAJA:'cashClosures',CIERRE_CAJA_MODIFICADO:'cashClosures',AUTORIZACION_APROBADA:'approvals',AUTORIZACION_RECHAZADA:'approvals',SOLICITUD_AUTORIZACION:'approvals'})[t]||null;
   const isDelete=t=>/(_ELIMINADO|_ELIMINADA)$/.test(t);
@@ -14,7 +14,7 @@ import { getFirestore, doc, setDoc, deleteDoc, waitForPendingWrites } from 'http
   const findLocal=(type,payload)=>{const name=collectionFor(type),list=Array.isArray(window.db?.[name])?window.db[name]:[];if(payload?.id!=null){const exact=list.find(x=>String(x.id)===String(payload.id));if(exact)return exact}if(!list.length)return null;const candidates=list.filter(x=>type.startsWith('CREDITO_')?String(x.clientId??'')===String(payload?.clientId??'')&&String(x.date??'')===String(payload?.date??'')&&Number(x.capital??0)===Number(payload?.capital??0):type.startsWith('CLIENTE_')?String(x.name??'')===String(payload?.name??'')&&String(x.phone??'')===String(payload?.phone??''):false);return candidates.length?candidates[candidates.length-1]:null};
   const routeAllowed=(p,item)=>{if(['admin','supervisor'].includes(p?.role))return true;const col=collectionFor(item.type);if(['clients','payments','cashClosures','approvals'].includes(col))return true;if(col==='credits')return true;return false};
   const persist=()=>{try{const db=window.db;if(!db)return;db.settings=db.settings||{};db.settings.lastOnline=new Date().toISOString();localStorage.setItem('mi_cartera_pro_v21',JSON.stringify(db));localStorage.setItem('mi_cartera_pro_v19',JSON.stringify(db));window.persist?.()}catch(e){console.warn('Cola: persistencia',e)}};
-  const ui=()=>{try{window.updateSyncUI?.()}catch(_){} try{window.renderAll?.()}catch(_){} };
+  const ui=()=>{try{window.updateSyncUI?.()}catch(_){} };
   const timeout=(promise,ms,label)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(label)),ms))]);
   const setError=(item,error)=>{item.status='ERROR';item.error=String(error?.code||error?.message||error||'ERROR_DESCONOCIDO');item.lastErrorAt=new Date().toISOString();item.attempts=(item.attempts||0)+1};
   const markPrecondition=(reason)=>{const q=Array.isArray(window.db?.syncQueue)?window.db.syncQueue:[];let changed=0;for(const item of q){if(item&&['PENDIENTE','ENVIANDO'].includes(item.status)){setError(item,reason);changed++}}if(changed){persist();ui()}return changed};
@@ -27,22 +27,11 @@ import { getFirestore, doc, setDoc, deleteDoc, waitForPendingWrites } from 'http
     for(const item of queue){if(item?.status==='ENVIANDO')item.status='PENDIENTE'}
     for(const item of queue.slice()){
       if(!item||!['PENDIENTE','ERROR'].includes(item.status))continue;const col=collectionFor(item.type);if(!col){setError(item,'TIPO_NO_SOPORTADO');errors++;persist();ui();continue}if(!routeAllowed(profile,item)){setError(item,'FUNCION_NO_GESTIONADA');errors++;persist();ui();continue}
-      const payload=item.payload&&typeof item.payload==='object'?item.payload:{};const local=findLocal(item.type,payload);
-      // v16: el estado local vigente manda sobre un payload viejo de la cola. Evita rehidratar paid/status/schedule obsoletos.
-      const merged=local?{...payload,...local}:payload;const id=merged?.id!=null?String(merged.id):null;
+      const payload=item.payload&&typeof item.payload==='object'?item.payload:{};const local=findLocal(item.type,payload);const merged=local?{...payload,...local}:payload;const id=merged?.id!=null?String(merged.id):null;
       if(id==null){setError(item,'ID_NO_DETERMINADO');errors++;persist();ui();continue}
-      if(col==='credits'&&merged.routeId!=null)merged.routeId=String(merged.routeId);
-      if(col==='credits'&&merged.clientId!=null)merged.clientId=String(merged.clientId);
-      if(col==='payments'&&merged.creditId!=null)merged.creditId=String(merged.creditId);
+      if(col==='credits'&&merged.routeId!=null)merged.routeId=String(merged.routeId);if(col==='credits'&&merged.clientId!=null)merged.clientId=String(merged.clientId);if(col==='payments'&&merged.creditId!=null)merged.creditId=String(merged.creditId);
       item.attempts=(item.attempts||0)+1;item.status='ENVIANDO';delete item.error;persist();ui();
-      try{
-        const ref=doc(fs,`orgs/${orgId}/${col}`,id);
-        if(isDelete(item.type)) await timeout(deleteDoc(ref),12000,'FIRESTORE_DELETE_TIMEOUT');
-        else await timeout(setDoc(ref,clean({...merged,id,orgId,userId:u.uid,updatedAt:new Date().toISOString()}),{merge:true}),12000,'FIRESTORE_WRITE_TIMEOUT');
-        await timeout(waitForPendingWrites(fs),12000,'FIRESTORE_PENDING_WRITES_TIMEOUT');
-        item.status='SINCRONIZADO';item.syncedAt=new Date().toISOString();delete item.error;processed++;
-      }catch(e){setError(item,e);errors++}
-      persist();ui();
+      try{const ref=doc(fs,`orgs/${orgId}/${col}`,id);if(isDelete(item.type))await timeout(deleteDoc(ref),12000,'FIRESTORE_DELETE_TIMEOUT');else await timeout(setDoc(ref,clean({...merged,id,orgId,userId:u.uid,updatedAt:new Date().toISOString()}),{merge:true}),12000,'FIRESTORE_WRITE_TIMEOUT');item.status='SINCRONIZADO';item.syncedAt=new Date().toISOString();delete item.error;processed++}catch(e){setError(item,e);errors++}persist();ui();
     }
     const remaining=pendingCount(),errorCount=queue.filter(x=>x&&x.status==='ERROR').length,sending=queue.filter(x=>x&&x.status==='ENVIANDO').length;window.__prestamoYaQueueLast={processed,errors,remaining,sending,errorCount,at:new Date().toISOString(),role:profile.role||'consulta',version:VERSION};return {ok:true,processed,errors,remaining,sending,errorCount,version:VERSION};
   }
@@ -50,6 +39,6 @@ import { getFirestore, doc, setDoc, deleteDoc, waitForPendingWrites } from 'http
   let running=false;window.syncQueueV3=async()=>{if(running)return {ok:false,busy:true,version:VERSION};running=true;try{return await window.processSyncQueue()}finally{running=false}};
   window.ackQueueAfterCloudSync=()=>{ui();return {processed:0,remaining:pendingCount(),mode:'ack-by-write-confirmation',version:VERSION}};window.waitForCloudWrites=async()=>true;
   window.prestamoYaSyncDiagnostics=async()=>{const q=Array.isArray(window.db?.syncQueue)?window.db.syncQueue:[];let firebase={auth:false,uid:null,profile:null,profileReadError:null},sw=[];try{sw=await navigator.serviceWorker?.getRegistrations?.()||[]}catch(e){}try{const app=await waitFirebase(),auth=getAuth(app);firebase.auth=!!auth.currentUser;firebase.uid=auth.currentUser?.uid||null;firebase.profile=window.__prestamoYaQueueProfile?{role:window.__prestamoYaQueueProfile.role,active:window.__prestamoYaQueueProfile.active,orgId:window.__prestamoYaQueueProfile.orgId,routeIds:window.__prestamoYaQueueProfile.routeIds}:null}catch(e){firebase.profileReadError=String(e?.code||e?.message||e)}const result={timestamp:new Date().toISOString(),online:navigator.onLine,appVersion:VERSION,windowDb:!!window.db,queue:q.map((x,i)=>({index:i,id:x?.id,type:x?.type,status:x?.status,attempts:x?.attempts||0,error:x?.error||null,payloadId:x?.payload?.id??null,clientId:x?.payload?.clientId??null,routeId:x?.payload?.routeId??null,createdAt:x?.createdAt||null,syncedAt:x?.syncedAt||null})),firebase,serviceWorkers:sw.map(r=>({scope:r.scope,state:r.active?.state||null,script:r.active?.scriptURL||null})),last:window.__prestamoYaQueueLast||null,localKeys:Object.keys(localStorage).filter(k=>/mi_cartera|prestamo/i.test(k))};console.table(result.queue);console.log('Préstamo Ya diagnóstico completo:',result);return result};
-  const attachAuth=()=>{try{if(!getApps().length)return setTimeout(attachAuth,300);const app=getApp(),auth=getAuth(app);if(window.__prestamoYaQueueAuthAttached)return;window.__prestamoYaQueueAuthAttached=true;onAuthStateChanged(auth,user=>{if(user)setTimeout(()=>window.syncQueueV3(),250)});setTimeout(()=>window.syncQueueV3(),500)}catch(e){setTimeout(attachAuth,500)}};
-  const start=()=>{if(window.__prestamoYaQueueV16)return;window.__prestamoYaQueueV16=true;window.__prestamoYaQueueVersion=VERSION;window.addEventListener('online',()=>setTimeout(()=>window.syncQueueV3(),500));setTimeout(()=>window.syncQueueV3(),1000);setInterval(()=>{if(navigator.onLine)window.syncQueueV3()},10000);attachAuth()};start();
+  const attachAuth=()=>{try{if(!getApps().length)return setTimeout(attachAuth,300);const app=getApp(),auth=getAuth(app);if(window.__prestamoYaQueueAuthAttached)return;window.__prestamoYaQueueAuthAttached=true;onAuthStateChanged(auth,user=>{if(user)setTimeout(()=>window.syncQueueV3(),500)});setTimeout(()=>window.syncQueueV3(),800)}catch(e){setTimeout(attachAuth,500)}};
+  const start=()=>{if(window.__prestamoYaQueueV17)return;window.__prestamoYaQueueV17=true;window.__prestamoYaQueueVersion=VERSION;window.addEventListener('online',()=>setTimeout(()=>window.syncQueueV3(),700));setTimeout(()=>window.syncQueueV3(),1200);attachAuth()};start();
 })();
