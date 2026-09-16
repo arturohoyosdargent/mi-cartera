@@ -27,5 +27,7 @@ jobs:
         run: node v2/tests/legacy-audit.spec.js
       - name: Shadow migration reconciliation gate
         run: node v2/tests/shadow-plan.spec.js
+      - name: Clients-only clean-start gate
+        run: node v2/tests/client-import.spec.js
       - name: Canonical branch smoke
         run: node v2/tests/integrated-branch-smoke.spec.js
