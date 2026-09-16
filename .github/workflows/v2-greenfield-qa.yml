@@ -1,7 +1,7 @@
 name: V2 Greenfield QA
 on:
   push:
-    branches: [v2-greenfield-app, reengineering-v2, reengineering-v2-integrated]
+    branches: [v2-greenfield-app, reengineering-v2, reengineering-v2-integrated, reengineering-v2-final]
     paths: ['v2/**', '.github/workflows/v2-greenfield-qa.yml']
   pull_request:
     paths: ['v2/**', '.github/workflows/v2-greenfield-qa.yml']
@@ -27,3 +27,5 @@ jobs:
         run: node v2/tests/legacy-audit.spec.js
       - name: Shadow migration reconciliation gate
         run: node v2/tests/shadow-plan.spec.js
+      - name: Canonical branch smoke
+        run: node v2/tests/integrated-branch-smoke.spec.js
