@@ -25,3 +25,5 @@ jobs:
         run: node v2/tests/schedule-engine.spec.js
       - name: Legacy migration corruption audit
         run: node v2/tests/legacy-audit.spec.js
+      - name: Shadow migration reconciliation gate
+        run: node v2/tests/shadow-plan.spec.js
