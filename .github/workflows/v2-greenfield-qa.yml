@@ -29,5 +29,7 @@ jobs:
         run: node v2/tests/shadow-plan.spec.js
       - name: Clients-only clean-start gate
         run: node v2/tests/client-import.spec.js
+      - name: Opening credits validation gate
+        run: node v2/tests/opening-credit-validator.spec.js
       - name: Canonical branch smoke
         run: node v2/tests/integrated-branch-smoke.spec.js
