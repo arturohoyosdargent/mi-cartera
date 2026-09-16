@@ -1,0 +1,20 @@
+name: V2 Greenfield QA
+on:
+  push:
+    branches: [v2-greenfield-app, reengineering-v2]
+    paths: ['v2/**', '.github/workflows/v2-greenfield-qa.yml']
+  pull_request:
+    branches: [reengineering-v2]
+    paths: ['v2/**', '.github/workflows/v2-greenfield-qa.yml']
+jobs:
+  financial-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node v2/tests/financial-engine.spec.js
+      - run: node v2/tests/transaction-store.spec.js
+      - run: node v2/tests/offline-operation-queue.spec.js
+      - run: node v2/tests/runtime-retry.spec.js
