@@ -27,6 +27,8 @@ jobs:
         run: node v2/tests/schedule-engine.spec.js
       - name: Access control and immutable audit
         run: node v2/tests/access-audit.spec.js
+      - name: Operational RBAC integration
+        run: node v2/tests/operational-rbac.spec.js
       - name: Legacy migration corruption audit
         run: node v2/tests/legacy-audit.spec.js
       - name: Shadow migration reconciliation gate
