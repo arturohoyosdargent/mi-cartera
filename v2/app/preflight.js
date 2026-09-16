@@ -1,0 +1,5 @@
+// Mi Cartera PRO V2 — read-only pilot preflight. Never performs a financial write.
+(function(root){'use strict';
+function run(env){env=env||{};const gate=root.MiCarteraV2PilotConfig;const checks=[];const add=(id,ok,detail)=>checks.push(Object.freeze({id,ok:!!ok,detail:String(detail||'')}));add('V2_IDENTITY',true,'Mi Cartera PRO V2');add('HTTPS',env.protocol==='https:'||env.hostname==='localhost','PWA requires secure context');add('SERVICE_WORKER',env.serviceWorker===true,'service worker capability');add('ONLINE',env.online===true,'network available');add('FIREBASE_SDK',env.firebaseSdk===true,'modular Firebase SDK injected');add('FIRESTORE_CONFIG',env.firestoreConfig===true,'db/runTransaction/doc supplied');const d=gate?gate.evaluate(env.pilotConfig):{ready:false,reasons:['PILOT_GATE_MISSING']};add('PILOT_GATE',d.ready,d.reasons?.join(',')||'READY');const ready=checks.every(c=>c.ok);return Object.freeze({ready,checks:Object.freeze(checks),writes:0});}
+root.MiCarteraV2Preflight={run};
+})(window);
