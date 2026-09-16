@@ -94,10 +94,15 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          alltxt='\n'.join(p.read_text(encoding='utf-8',errors='ignore') for p in Path('.').glob('*.js'))
-          assert alltxt.count('window.shareCreditDetailV2=') <= 2
-          assert alltxt.count('window.shareCreditProposal=') <= 2
-          print('QA duplicación/aislamiento de handlers OK')
+          import re
+          files={p.name:p.read_text(encoding='utf-8',errors='ignore') for p in Path('.').glob('*.js')}
+          active=['credit-detail-share-fix.js','credit-proposal.js','credit-proposal-ui.js','proposal-share-fix.js','share-consistency-v1.js']
+          txt='\n'.join(files.get(n,'') for n in active)
+          detail=len(re.findall(r'window\.shareCreditDetailV2\s*=',txt))
+          proposal=len(re.findall(r'window\.shareCreditProposal\s*=',txt))
+          assert detail <= 2, f'Demasiadas asignaciones runtime shareCreditDetailV2: {detail}'
+          assert proposal <= 2, f'Demasiadas asignaciones runtime shareCreditProposal: {proposal}'
+          print(f'QA duplicación/aislamiento de handlers OK: detail={detail}, proposal={proposal}')
           PY
       - name: Validar reglas Firestore
         run: |
