@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function pilotOrg(orgId) { return orgId.matches('^v2-.*$'); }
+    function samePilotOrg(orgId) { return signedIn() && pilotOrg(orgId) && me().orgId == orgId; }
+    function manager() { return signedIn() && me().role in ['admin','supervisor']; }
+    function collector() { return signedIn() && me().role == 'cobrador'; }
+    function assignedRoute(routeId) { return me().routeIds is list && routeId in me().routeIds; }
+
+    // V2 pilot data can only exist under an explicitly V2-prefixed organization.
+    match /orgs/{orgId}/clients/{id} {
+      allow read: if samePilotOrg(orgId) && (manager() || (collector() && assignedRoute(resource.data.routeId)));
+      allow create: if samePilotOrg(orgId) && (manager() || (collector() && assignedRoute(request.resource.data.routeId)));
+      allow update: if samePilotOrg(orgId) && manager();
+      allow delete: if false;
+    }
+    match /orgs/{orgId}/credits/{id} {
+      allow read: if samePilotOrg(orgId) && (manager() || (collector() && assignedRoute(resource.data.routeId)));
+      allow create, update: if samePilotOrg(orgId) && manager();
+      allow delete: if false;
+    }
+    match /orgs/{orgId}/payments/{id} {
+      allow read: if samePilotOrg(orgId) && (manager() || resource.data.userId == request.auth.uid);
+      allow create: if samePilotOrg(orgId) && (manager() || (collector() && request.resource.data.userId == request.auth.uid && assignedRoute(request.resource.data.routeId)));
+      allow update, delete: if false;
+    }
+    match /orgs/{orgId}/audit/{id} {
+      allow read: if samePilotOrg(orgId) && manager();
+      allow create: if samePilotOrg(orgId) && signedIn();
+      allow update, delete: if false;
+    }
+    match /orgs/{orgId}/{collection}/{id} {
+      allow read: if samePilotOrg(orgId) && manager() && collection in ['capital','entries','expenses','cashClosures','routes'];
+      allow create, update: if samePilotOrg(orgId) && manager() && collection in ['capital','entries','expenses','cashClosures','routes'];
+      allow delete: if false;
+    }
+    // This V2 ruleset intentionally grants nothing to non-v2 org IDs.
+    match /{document=**} { allow read, write: if false; }
+  }
+}
