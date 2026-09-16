@@ -23,3 +23,5 @@ jobs:
         run: node v2/tests/runtime-retry.spec.js
       - name: Deterministic installment schedules
         run: node v2/tests/schedule-engine.spec.js
+      - name: Legacy migration corruption audit
+        run: node v2/tests/legacy-audit.spec.js
