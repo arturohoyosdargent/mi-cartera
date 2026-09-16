@@ -31,6 +31,8 @@ jobs:
         run: node v2/tests/operational-rbac.spec.js
       - name: Operational cloud sync boundary
         run: node v2/tests/operational-sync.spec.js
+      - name: Real offline operational replay
+        run: node v2/tests/offline-operational-integration.spec.js
       - name: Alfredo Elias and network end-to-end safety
         run: node v2/tests/end-to-end-safety.spec.js
       - name: Legacy migration corruption audit
