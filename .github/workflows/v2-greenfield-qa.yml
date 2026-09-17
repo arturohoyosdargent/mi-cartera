@@ -2,9 +2,9 @@ name: V2 Greenfield QA
 on:
   push:
     branches: [v2-greenfield-app, reengineering-v2, reengineering-v2-integrated, reengineering-v2-final]
-    paths: ['v2/**', '.github/workflows/v2-greenfield-qa.yml']
+    paths: ['v2/**', 'firestore.rules', '.github/workflows/v2-greenfield-qa.yml']
   pull_request:
-    paths: ['v2/**', '.github/workflows/v2-greenfield-qa.yml']
+    paths: ['v2/**', 'firestore.rules', '.github/workflows/v2-greenfield-qa.yml']
 jobs:
   financial-regression:
     runs-on: ubuntu-latest
@@ -37,6 +37,8 @@ jobs:
         run: node v2/tests/end-to-end-safety.spec.js
       - name: V2 Firestore pilot namespace isolation
         run: node v2/tests/firestore-v2-rules.spec.js
+      - name: Integrated Firestore V1 V2 isolation
+        run: node v2/tests/firestore-integrated-isolation.spec.js
       - name: Legacy migration corruption audit
         run: node v2/tests/legacy-audit.spec.js
       - name: Shadow migration reconciliation gate
