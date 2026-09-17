@@ -17,4 +17,24 @@ function credit(id,capital,total=capital){return {id,clientId:'client-1',capital
 {
  const r=F.allocatePayment(credit('c',200,240),{id:'p',amount:50,concept:F.CONCEPT.CAPITAL});assert.equal(r.credit.principalPaid,50);assert.equal(F.principalBalance(r.credit),150);
 }
+// Cuota completa: distribuye exactamente capital e interés y cierra el crédito.
+{
+ const r=F.allocateInstallment(credit('full',600,720),{id:'p-full',amount:720},720);
+ assert.equal(r.payment.concept,F.CONCEPT.INSTALLMENT);assert.equal(r.payment.capitalAmount,600);assert.equal(r.payment.interestAmount,120);assert.equal(r.payment.amount,720);assert.equal(r.credit.principalPaid,600);assert.equal(r.credit.interestPaid,120);assert.equal(r.credit.status,F.STATUS.PAID);
+}
+// Cuota parcial: distribuye proporcionalmente y nunca marca PAGADO antes de completar el saldo programado.
+{
+ const r=F.allocateInstallment(credit('partial',600,720),{id:'p-partial',amount:360},720);
+ assert.equal(r.payment.capitalAmount,300);assert.equal(r.payment.interestAmount,60);assert.equal(r.credit.principalPaid,300);assert.equal(r.credit.interestPaid,60);assert.equal(r.credit.status,F.STATUS.ACTIVE);assert.equal(F.principalBalance(r.credit),300);
+}
+// Protección: una cobranza no puede superar el saldo programado.
+{
+ assert.throws(()=>F.allocateInstallment(credit('over',600,720),{id:'p-over',amount:721},720),/PAYMENT_EXCEEDS_SCHEDULE_BALANCE/);
+}
+// Crédito parcialmente amortizado: la cuota respeta el capital pendiente y conserva la suma exacta.
+{
+ const c={...credit('existing',600,720),principalPaid:300,interestPaid:60};
+ const r=F.allocateInstallment(c,{id:'p-existing',amount:180},360);
+ assert.equal(r.payment.capitalAmount,150);assert.equal(r.payment.interestAmount,30);assert.equal(r.payment.capitalAmount+r.payment.interestAmount,r.payment.amount);assert.equal(F.principalBalance(r.credit),150);assert.equal(r.credit.status,F.STATUS.ACTIVE);
+}
 console.log('V2 financial acceptance: PASS');
