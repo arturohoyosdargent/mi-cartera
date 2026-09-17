@@ -1,0 +1,12 @@
+// Mi Cartera PRO V2 — fail-closed release freshness guard.
+(function(root){'use strict';
+  const state={ready:false,publishedBuild:null,workerBuild:null,reason:'VERSION_NOT_VERIFIED'};
+  const timeout=(ms)=>new Promise((_,reject)=>setTimeout(()=>reject(new Error('VERSION_TIMEOUT')),ms));
+  async function published(){const r=await fetch('./release.json?ts='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('RELEASE_UNAVAILABLE');const j=await r.json();if(!j||typeof j.build!=='string'||!j.build)throw new Error('RELEASE_INVALID');return j.build;}
+  async function worker(){if(!('serviceWorker' in navigator))throw new Error('SERVICE_WORKER_UNAVAILABLE');const reg=await navigator.serviceWorker.register('./service-worker.js',{scope:'./',updateViaCache:'none'});await reg.update();await navigator.serviceWorker.ready;const sw=navigator.serviceWorker.controller||reg.active||reg.waiting;if(!sw)throw new Error('SERVICE_WORKER_NOT_ACTIVE');return await Promise.race([new Promise((resolve,reject)=>{const onMessage=e=>{if(e.data&&e.data.type==='V2_BUILD'){navigator.serviceWorker.removeEventListener('message',onMessage);resolve(e.data.build)}};navigator.serviceWorker.addEventListener('message',onMessage);sw.postMessage({type:'GET_BUILD'});setTimeout(()=>{navigator.serviceWorker.removeEventListener('message',onMessage);reject(new Error('SERVICE_WORKER_BUILD_TIMEOUT'))},2500)}),timeout(3000)]);}
+  function paint(){const el=document.getElementById('versionGuard');if(!el)return;el.textContent=state.ready?`VERSIÓN VERIFICADA — ${state.publishedBuild}`:`OPERACIÓN BLOQUEADA — ${state.reason}`;el.dataset.ready=String(state.ready);}
+  async function verify(){state.ready=false;state.reason='VERSION_CHECK_RUNNING';paint();try{state.publishedBuild=await published();state.workerBuild=await worker();if(state.publishedBuild!==state.workerBuild)throw new Error(`VERSION_MISMATCH:${state.publishedBuild}:${state.workerBuild}`);state.ready=true;state.reason='READY';}catch(e){state.ready=false;state.reason=String(e&&e.message||e||'VERSION_CHECK_FAILED');}paint();root.dispatchEvent(new CustomEvent('v2-version-state',{detail:{...state}}));return {...state};}
+  function requireReady(){if(!state.ready){const e=new Error('V2_VERSION_NOT_READY');e.code='V2_VERSION_NOT_READY';e.detail={...state};throw e}return true;}
+  root.MiCarteraV2VersionGuard={state:()=>({...state}),verify,requireReady};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',verify);else verify();
+})(window);
