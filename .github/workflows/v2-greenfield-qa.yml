@@ -55,5 +55,7 @@ jobs:
         run: node v2/tests/cloud-pilot-runtime.spec.js
       - name: Read-only pilot preflight
         run: node v2/tests/preflight.spec.js
+      - name: Pilot runtime consistency gate
+        run: node v2/tests/pilot-runtime-consistency.spec.js
       - name: Canonical branch smoke
         run: node v2/tests/integrated-branch-smoke.spec.js
