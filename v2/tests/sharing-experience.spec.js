@@ -1,6 +1,7 @@
 const assert=require('assert'),fs=require('fs'),path=require('path');
 const app=path.join(__dirname,'../app');
 const shell=fs.readFileSync(path.join(app,'operational-shell.html'),'utf8');
+const controller=fs.readFileSync(path.join(app,'operational-controller.js'),'utf8');
 const proposal=fs.readFileSync(path.join(app,'proposal-share-v2.js'),'utf8');
 const credit=fs.readFileSync(path.join(app,'credit-detail-share-v2.js'),'utf8');
 const receipt=fs.readFileSync(path.join(app,'payment-receipt-v2.js'),'utf8');
@@ -10,6 +11,10 @@ const sw=fs.readFileSync(path.join(app,'service-worker.js'),'utf8');
 assert.ok(shell.includes('💬 Compartir propuesta'),'credit proposal share action missing');
 assert.ok(shell.includes('credit-detail-share-v2.js'),'credit detail share module not loaded');
 assert.ok(shell.includes('payment-receipt-v2.js'),'payment receipt share module not loaded');
+assert.ok(controller.includes('💬 Compartir comprobante'),'payment history receipt action missing');
+assert.ok(controller.includes('V2UI.sharePaymentReceipt'),'payment history receipt action not wired');
+assert.ok(controller.includes('MiCarteraV2PaymentReceipt.share'),'payment receipt module not invoked from history');
+assert.ok(controller.includes("state.payments.find(x=>x.id===paymentId)"),'receipt must resolve the selected payment');
 assert.ok(proposal.includes('navigator.share'),'proposal native share missing');
 assert.ok(proposal.includes('MiCarteraV2CustomerExperience.whatsapp'),'proposal WhatsApp fallback missing');
 assert.ok(proposal.includes('navigator.clipboard?.writeText'),'proposal clipboard fallback missing');
