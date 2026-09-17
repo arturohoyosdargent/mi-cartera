@@ -5,10 +5,13 @@ const controller=fs.readFileSync(path.join(app,'operational-controller.js'),'utf
 const proposal=fs.readFileSync(path.join(app,'proposal-share-v2.js'),'utf8');
 const credit=fs.readFileSync(path.join(app,'credit-detail-share-v2.js'),'utf8');
 const receipt=fs.readFileSync(path.join(app,'payment-receipt-v2.js'),'utf8');
+const renderer=fs.readFileSync(path.join(app,'share-card-renderer-v2.js'),'utf8');
 const agenda=fs.readFileSync(path.join(app,'agenda-v2.js'),'utf8');
 const cx=fs.readFileSync(path.join(app,'customer-experience-v2.js'),'utf8');
 const sw=fs.readFileSync(path.join(app,'service-worker.js'),'utf8');
 assert.ok(shell.includes('💬 Compartir propuesta'),'credit proposal share action missing');
+assert.ok(shell.includes('share-card-renderer-v2.js'),'canonical share renderer not loaded');
+assert.ok(shell.indexOf('share-card-renderer-v2.js')<shell.indexOf('credit-detail-share-v2.js'),'renderer must load before credit detail sharing');
 assert.ok(shell.includes('credit-detail-share-v2.js'),'credit detail share module not loaded');
 assert.ok(shell.includes('payment-receipt-v2.js'),'payment receipt share module not loaded');
 assert.ok(controller.includes('💬 Compartir comprobante'),'payment history receipt action missing');
@@ -22,7 +25,9 @@ assert.ok(proposal.includes('El crédito NO queda registrado'),'proposal mutatio
 assert.ok(credit.includes('navigator.share'),'credit detail native share missing');
 assert.ok(credit.includes('MiCarteraV2CustomerExperience.whatsapp'),'credit detail WhatsApp fallback missing');
 assert.ok(credit.includes('navigator.clipboard?.writeText'),'credit detail clipboard fallback missing');
-assert.ok(credit.includes('Estado'),'credit schedule status missing');
+assert.ok(credit.includes('status(q)'),'credit detail text must render installment status');
+assert.ok(renderer.includes("txt(x,'Estado',690,700"),'credit image schedule status column missing');
+assert.ok(renderer.includes('installmentStatus(q)'),'credit image must calculate installment status');
 assert.ok(receipt.includes('COMPROBANTE DE PAGO'),'payment receipt title missing');
 assert.ok(receipt.includes('navigator.share'),'payment receipt native share missing');
 assert.ok(receipt.includes('MiCarteraV2CustomerExperience.whatsapp'),'payment receipt WhatsApp fallback missing');
@@ -30,5 +35,5 @@ assert.ok(receipt.includes('navigator.clipboard?.writeText'),'payment receipt cl
 assert.ok(receipt.includes('Pago registrado en Mi Cartera PRO V2'),'payment receipt confirmation missing');
 assert.ok(cx.includes('https://wa.me/'),'central WhatsApp transport missing');
 assert.ok(agenda.includes('MiCarteraV2CustomerExperience.reminder'),'agenda reminder must use central sharing experience');
-for(const file of ['./proposal-share-v2.js','./credit-detail-share-v2.js','./payment-receipt-v2.js','./customer-experience-v2.js','./agenda-v2.js'])assert.ok(sw.includes(file),`offline sharing shell missing ${file}`);
+for(const file of ['./proposal-share-v2.js','./credit-detail-share-v2.js','./payment-receipt-v2.js','./customer-experience-v2.js','./agenda-v2.js','./share-card-renderer-v2.js'])assert.ok(sw.includes(file),`offline sharing shell missing ${file}`);
 console.log('V2 customer sharing experience: PASS');
