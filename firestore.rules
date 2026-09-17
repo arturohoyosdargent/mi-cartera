@@ -20,6 +20,13 @@ service cloud.firestore {
         && request.resource.data.active is bool;
     }
 
+    // V2 isolated pilot readiness marker. Read-only and contains no financial records.
+    // This exact-document exception does not alter any V1 collection permissions.
+    match /orgs/v2-mi-cartera-pilot {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /users/{uid} {
       allow read: if signedIn() && ((request.auth.uid == uid && sameOrg(resource.data.orgId)) || (manager() && sameOrg(resource.data.orgId)));
       allow create: if admin() && validUserProfile(uid);
