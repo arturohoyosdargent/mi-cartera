@@ -10,6 +10,10 @@ const reminder=fs.readFileSync(path.join(app,'collection-reminder-share-v2.js'),
 const agenda=fs.readFileSync(path.join(app,'agenda-v2.js'),'utf8');
 const cx=fs.readFileSync(path.join(app,'customer-experience-v2.js'),'utf8');
 const sw=fs.readFileSync(path.join(app,'service-worker.js'),'utf8');
+const release=JSON.parse(fs.readFileSync(path.join(app,'release.json'),'utf8'));
+const workerBuild=(sw.match(/const BUILD='([^']+)'/)||[])[1];
+assert.ok(workerBuild,'service worker build missing');
+assert.strictEqual(release.build,workerBuild,'release.json and service-worker.js builds must match');
 assert.ok(shell.includes('💬 Compartir propuesta'),'credit proposal share action missing');
 assert.ok(shell.includes('share-card-renderer-v2.js'),'canonical share renderer not loaded');
 assert.ok(shell.indexOf('share-card-renderer-v2.js')<shell.indexOf('credit-detail-share-v2.js'),'renderer must load before credit detail sharing');
