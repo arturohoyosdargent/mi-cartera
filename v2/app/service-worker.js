@@ -1,5 +1,7 @@
-const CACHE='mi-cartera-pro-v2-shell-7';
+const BUILD='d37b5a3-pilot';
+const CACHE=`mi-cartera-pro-v2-${BUILD}`;
 const SHELL=['./','./index.html','./self-check.js','./preflight-ui.js','./operational-shell.html','./operational-controller.js','./operation-sync-bridge.js','./pilot-config.js','./preflight.js','./firebase-v2-template.js','./firebase-bootstrap.js','./manifest.webmanifest','../core/financial-engine.js','../core/schedule-engine.js','../core/access-audit.js','../core/sync-errors.js','../core/offline-operation-queue.js','../core/transaction-store.js','../cloud/firestore-atomic-adapter.js','../cloud/operational-sync.js','../cloud/runtime-cloud.js'];
-self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL))));
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL.map(url=>new Request(url,{cache:'reload'})))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('mi-cartera-pro-v2-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;event.respondWith(fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy));return response;}).catch(()=>caches.match(event.request)));});
+self.addEventListener('message',event=>{if(event.data?.type==='GET_BUILD')event.source?.postMessage({type:'V2_BUILD',build:BUILD});if(event.data?.type==='SKIP_WAITING')self.skipWaiting();});
+self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;const u=new URL(event.request.url);if(u.origin!==self.location.origin)return;event.respondWith(fetch(event.request,{cache:'no-store'}).then(response=>{if(response&&response.ok){const copy=response.clone();event.waitUntil(caches.open(CACHE).then(cache=>cache.put(event.request,copy)));}return response;}).catch(()=>caches.match(event.request)));});
