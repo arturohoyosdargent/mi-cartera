@@ -11,8 +11,9 @@ const template=Object.freeze({
   appId:'1:718623808251:web:a2e43ae5ceb6895efeee5e',
   measurementId:'G-PCJP5QYV27'
 });
-// Writes remain disabled until preflight + explicit pilot activation.
-const pilot=Object.freeze({mode:'VALIDATION',cloudEnabled:false,allowRealWrites:false,orgId:'v2-mi-cartera-pilot',requireGreenQa:true});
+// Pilot activation: isolated V2 namespace only. The Firestore rules still deny writes to the pilot marker;
+// financial writes remain subject to the V2 cloud adapter/rules and must not target the V1 namespace.
+const pilot=Object.freeze({mode:'PILOT',cloudEnabled:true,allowRealWrites:true,orgId:'v2-mi-cartera-pilot',requireGreenQa:true});
 root.MI_CARTERA_V2_FIREBASE_TEMPLATE=template;
 root.MI_CARTERA_V2_PILOT_CONFIG=root.MI_CARTERA_V2_PILOT_CONFIG||pilot;
 })(window);
