@@ -49,6 +49,8 @@ jobs:
         run: node v2/tests/opening-credit-validator.spec.js
       - name: Independent installable app shell
         run: node v2/tests/app-shell.spec.js
+      - name: Functional parity phase 1
+        run: node v2/tests/functional-parity.spec.js
       - name: Pilot activation safety gate
         run: node v2/tests/pilot-config.spec.js
       - name: Cloud runtime pilot gate
