@@ -19,14 +19,62 @@ service cloud.firestore {
         && request.resource.data.routeIds is list
         && request.resource.data.active is bool;
     }
+    // V2 pilot authorization is deliberately separate from the legacy /users profile.
+    // A V1 user profile cannot grant V2 access by itself.
+    function v2Org(orgId) { return orgId == 'v2-mi-cartera-pilot'; }
+    function v2Member(orgId) {
+      return signedIn() && v2Org(orgId)
+        && exists(/databases/$(database)/documents/orgs/$(orgId)/members/$(request.auth.uid));
+    }
+    function v2Me(orgId) {
+      return get(/databases/$(database)/documents/orgs/$(orgId)/members/$(request.auth.uid)).data;
+    }
+    function v2Active(orgId) { return v2Member(orgId) && v2Me(orgId).active == true; }
+    function v2Manager(orgId) { return v2Active(orgId) && v2Me(orgId).role in ['admin','supervisor']; }
+    function v2Collector(orgId) { return v2Active(orgId) && v2Me(orgId).role == 'cobrador'; }
+    function v2AssignedRoute(orgId, rid) { return v2Active(orgId) && v2Me(orgId).routeIds is list && rid in v2Me(orgId).routeIds; }
 
     // V2 isolated pilot readiness marker. Read-only and contains no financial records.
-    // This exact-document exception does not alter any V1 collection permissions.
     match /orgs/v2-mi-cartera-pilot {
       allow read: if true;
       allow write: if false;
     }
 
+    // V2 membership documents are provisioned administratively, never self-created by the browser.
+    match /orgs/{orgId}/members/{uid} {
+      allow read: if v2Org(orgId) && signedIn() && request.auth.uid == uid;
+      allow create, update, delete: if false;
+    }
+
+    // Explicit V2 pilot paths. No deletes; payments/audit are append-only.
+    match /orgs/{orgId}/clients/{id} {
+      allow read: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && v2AssignedRoute(orgId, resource.data.routeId)));
+      allow create: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && v2AssignedRoute(orgId, request.resource.data.routeId)));
+      allow update: if v2Org(orgId) && v2Manager(orgId);
+      allow delete: if false;
+    }
+    match /orgs/{orgId}/credits/{id} {
+      allow read: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && v2AssignedRoute(orgId, resource.data.routeId)));
+      allow create, update: if v2Org(orgId) && v2Manager(orgId);
+      allow delete: if false;
+    }
+    match /orgs/{orgId}/payments/{id} {
+      allow read: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && resource.data.userId == request.auth.uid));
+      allow create: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && request.resource.data.userId == request.auth.uid && v2AssignedRoute(orgId, request.resource.data.routeId)));
+      allow update, delete: if false;
+    }
+    match /orgs/{orgId}/audit/{id} {
+      allow read: if v2Org(orgId) && v2Manager(orgId);
+      allow create: if v2Org(orgId) && v2Active(orgId);
+      allow update, delete: if false;
+    }
+    match /orgs/{orgId}/{collection}/{id} {
+      allow read, create, update: if v2Org(orgId) && v2Manager(orgId) && collection in ['capital','entries','expenses','cashClosures','routes'];
+      allow delete: if false;
+    }
+
+    // Legacy V1 rules remain unchanged in behavior, but explicitly exclude the V2 pilot org
+    // so overlapping Firestore matches cannot broaden V2 permissions.
     match /users/{uid} {
       allow read: if signedIn() && ((request.auth.uid == uid && sameOrg(resource.data.orgId)) || (manager() && sameOrg(resource.data.orgId)));
       allow create: if admin() && validUserProfile(uid);
@@ -35,49 +83,42 @@ service cloud.firestore {
         && request.resource.data.orgId == resource.data.orgId;
       allow delete: if admin() && sameOrg(resource.data.orgId);
     }
-
     match /orgs/{orgId}/routes/{id} {
-      allow read: if sameOrg(orgId) && (manager() || resource.data.collectorId == request.auth.uid);
-      allow create, update, delete: if sameOrg(orgId) && manager();
+      allow read: if !v2Org(orgId) && sameOrg(orgId) && (manager() || resource.data.collectorId == request.auth.uid);
+      allow create, update, delete: if !v2Org(orgId) && sameOrg(orgId) && manager();
     }
-
     match /orgs/{orgId}/clients/{id} {
-      allow read: if sameOrg(orgId) && (manager() || assignedRoute(resource.data.routeId));
-      allow create: if sameOrg(orgId) && (manager() || assignedRoute(request.resource.data.routeId));
-      allow update: if sameOrg(orgId) && (manager() || (assignedRoute(resource.data.routeId) && request.resource.data.routeId == resource.data.routeId));
-      allow delete: if manager() && sameOrg(orgId);
+      allow read: if !v2Org(orgId) && sameOrg(orgId) && (manager() || assignedRoute(resource.data.routeId));
+      allow create: if !v2Org(orgId) && sameOrg(orgId) && (manager() || assignedRoute(request.resource.data.routeId));
+      allow update: if !v2Org(orgId) && sameOrg(orgId) && (manager() || (assignedRoute(resource.data.routeId) && request.resource.data.routeId == resource.data.routeId));
+      allow delete: if !v2Org(orgId) && manager() && sameOrg(orgId);
     }
-
     match /orgs/{orgId}/credits/{id} {
-      allow read: if sameOrg(orgId) && (manager() || assignedRoute(resource.data.routeId));
-      allow create: if sameOrg(orgId) && (manager() || assignedRoute(request.resource.data.routeId));
-      allow update: if sameOrg(orgId) && (manager() || (assignedRoute(resource.data.routeId) && request.resource.data.routeId == resource.data.routeId));
-      allow delete: if sameOrg(orgId) && manager();
+      allow read: if !v2Org(orgId) && sameOrg(orgId) && (manager() || assignedRoute(resource.data.routeId));
+      allow create: if !v2Org(orgId) && sameOrg(orgId) && (manager() || assignedRoute(request.resource.data.routeId));
+      allow update: if !v2Org(orgId) && sameOrg(orgId) && (manager() || (assignedRoute(resource.data.routeId) && request.resource.data.routeId == resource.data.routeId));
+      allow delete: if !v2Org(orgId) && sameOrg(orgId) && manager();
     }
-
     match /orgs/{orgId}/payments/{id} {
-      allow read: if sameOrg(orgId) && (manager() || request.auth.uid == resource.data.userId);
-      allow create: if sameOrg(orgId) && (manager() || (request.resource.data.userId == request.auth.uid && assignedRoute(request.resource.data.routeId)));
-      allow update: if sameOrg(orgId) && (manager() || (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid && assignedRoute(resource.data.routeId) && request.resource.data.routeId == resource.data.routeId));
-      allow delete: if sameOrg(orgId) && manager();
+      allow read: if !v2Org(orgId) && sameOrg(orgId) && (manager() || request.auth.uid == resource.data.userId);
+      allow create: if !v2Org(orgId) && sameOrg(orgId) && (manager() || (request.resource.data.userId == request.auth.uid && assignedRoute(request.resource.data.routeId)));
+      allow update: if !v2Org(orgId) && sameOrg(orgId) && (manager() || (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid && assignedRoute(resource.data.routeId) && request.resource.data.routeId == resource.data.routeId));
+      allow delete: if !v2Org(orgId) && sameOrg(orgId) && manager();
     }
-
     match /orgs/{orgId}/cashClosures/{id} {
-      allow read: if sameOrg(orgId) && (manager() || resource.data.userId == request.auth.uid);
-      allow create: if sameOrg(orgId) && (manager() || request.resource.data.userId == request.auth.uid);
-      allow update: if sameOrg(orgId) && (manager() || (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid));
-      allow delete: if sameOrg(orgId) && manager();
+      allow read: if !v2Org(orgId) && sameOrg(orgId) && (manager() || resource.data.userId == request.auth.uid);
+      allow create: if !v2Org(orgId) && sameOrg(orgId) && (manager() || request.resource.data.userId == request.auth.uid);
+      allow update: if !v2Org(orgId) && sameOrg(orgId) && (manager() || (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid));
+      allow delete: if !v2Org(orgId) && sameOrg(orgId) && manager();
     }
-
     match /orgs/{orgId}/approvals/{id} {
-      allow read: if sameOrg(orgId) && (manager() || resource.data.requestedByUid == request.auth.uid);
-      allow create: if sameOrg(orgId) && request.resource.data.requestedByUid == request.auth.uid;
-      allow update: if sameOrg(orgId) && (manager() || (resource.data.requestedByUid == request.auth.uid && request.resource.data.requestedByUid == resource.data.requestedByUid && request.resource.data.status == resource.data.status));
-      allow delete: if sameOrg(orgId) && admin();
+      allow read: if !v2Org(orgId) && sameOrg(orgId) && (manager() || resource.data.requestedByUid == request.auth.uid);
+      allow create: if !v2Org(orgId) && sameOrg(orgId) && request.resource.data.requestedByUid == request.auth.uid;
+      allow update: if !v2Org(orgId) && sameOrg(orgId) && (manager() || (resource.data.requestedByUid == request.auth.uid && request.resource.data.requestedByUid == resource.data.requestedByUid && request.resource.data.status == resource.data.status));
+      allow delete: if !v2Org(orgId) && sameOrg(orgId) && admin();
     }
-
     match /orgs/{orgId}/{collection}/{id} {
-      allow read, write: if sameOrg(orgId) && manager() && collection in ['capital','entries','expenses','audit'];
+      allow read, write: if !v2Org(orgId) && sameOrg(orgId) && manager() && collection in ['capital','entries','expenses','audit'];
     }
   }
 }
