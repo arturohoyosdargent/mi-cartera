@@ -35,6 +35,8 @@ jobs:
         run: node v2/tests/operation-commit-gate.spec.js
       - name: Durable controller mutation contract
         run: node v2/tests/controller-durable-commit.spec.js
+      - name: Firestore operational paths and authorization fields
+        run: node v2/tests/firestore-operational-paths.spec.js
       - name: Real offline operational replay
         run: node v2/tests/offline-operational-integration.spec.js
       - name: Alfredo Elias and network end-to-end safety
