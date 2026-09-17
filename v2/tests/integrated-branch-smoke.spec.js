@@ -9,18 +9,19 @@ const S=require('../core/schedule-engine.js');
   const schedule=S.generate({total:240,term:4,freq:'weekly',firstPaymentDate:'2026-09-20'});
   assert.deepEqual(schedule.map(x=>x.amount),[60,60,60,60]);
 
-  // Canonical pilot smoke must cover the installable shell, not only core modules.
-  const v2Root=path.resolve(__dirname,'..');
+  // The canonical pilot shell is hosted from the repository root while
+  // this smoke test lives under v2/tests. Validate the real release paths.
+  const repoRoot=path.resolve(__dirname,'..','..');
   const required=['index.html','manifest.webmanifest','service-worker.js'];
   for(const file of required){
-    assert.ok(fs.existsSync(path.join(v2Root,file)),`missing canonical pilot asset: ${file}`);
+    assert.ok(fs.existsSync(path.join(repoRoot,file)),`missing canonical pilot asset: ${file}`);
   }
 
-  const manifest=JSON.parse(fs.readFileSync(path.join(v2Root,'manifest.webmanifest'),'utf8'));
+  const manifest=JSON.parse(fs.readFileSync(path.join(repoRoot,'manifest.webmanifest'),'utf8'));
   assert.ok(manifest.name && manifest.short_name,'pilot manifest identity is incomplete');
   assert.ok(manifest.start_url,'pilot manifest start_url is required');
 
-  const sw=fs.readFileSync(path.join(v2Root,'service-worker.js'),'utf8');
+  const sw=fs.readFileSync(path.join(repoRoot,'service-worker.js'),'utf8');
   assert.ok(sw.length>0,'canonical service worker must not be empty');
 
   console.log('V2 integrated branch smoke: PASS');
