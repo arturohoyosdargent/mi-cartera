@@ -45,6 +45,8 @@ assert.ok(agenda.includes('📤 Compartir recordatorio'),'agenda must expose rem
 assert.ok(reminder.includes('navigator.share'),'reminder native share missing');
 assert.ok(reminder.includes('MiCarteraV2CustomerExperience?.whatsapp'),'reminder WhatsApp fallback missing');
 assert.ok(reminder.includes('navigator.clipboard?.writeText'),'reminder clipboard fallback missing');
+assert.ok(reminder.includes("console.warn('V2 reminder clipboard fallback failed.'"),'reminder clipboard rejection must be handled');
+assert.ok(reminder.includes("throw new Error(hasPhone?'REMINDER_SHARE_UNAVAILABLE':'REMINDER_SHARE_UNAVAILABLE_NO_PHONE')"),'reminder clipboard failure must end in controlled error');
 assert.ok(reminder.includes('REMINDER_SHARE_UNAVAILABLE_NO_PHONE'),'reminder no-phone fallback must remain explicit');
 for(const file of ['./proposal-share-v2.js','./credit-detail-share-v2.js','./payment-receipt-v2.js','./customer-experience-v2.js','./agenda-v2.js','./share-card-renderer-v2.js','./collection-reminder-share-v2.js'])assert.ok(sw.includes(file),`offline sharing shell missing ${file}`);
 console.log('V2 customer sharing experience: PASS');
