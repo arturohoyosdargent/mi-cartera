@@ -17,6 +17,8 @@ jobs:
         run: node v2/tests/financial-engine.spec.js
       - name: Collection report allocation regression
         run: node v2/tests/report-installment-splits.spec.js
+      - name: Inactive credit collection actions regression
+        run: node v2/tests/inactive-credit-actions.spec.js
       - name: Atomic transaction idempotency
         run: node v2/tests/transaction-store.spec.js
       - name: Offline operation queue
