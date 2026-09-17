@@ -33,6 +33,8 @@ jobs:
         run: node v2/tests/operational-sync.spec.js
       - name: Durable operation acceptance before local commit
         run: node v2/tests/operation-commit-gate.spec.js
+      - name: Durable controller mutation contract
+        run: node v2/tests/controller-durable-commit.spec.js
       - name: Real offline operational replay
         run: node v2/tests/offline-operational-integration.spec.js
       - name: Alfredo Elias and network end-to-end safety
