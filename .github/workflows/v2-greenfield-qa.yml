@@ -53,6 +53,8 @@ jobs:
         run: node v2/tests/pilot-config.spec.js
       - name: Cloud runtime pilot gate
         run: node v2/tests/cloud-pilot-runtime.spec.js
+      - name: Authenticated Cloud fail-closed gate
+        run: node v2/tests/auth-cloud-gate.spec.js
       - name: Read-only pilot preflight
         run: node v2/tests/preflight.spec.js
       - name: Pilot runtime consistency gate
