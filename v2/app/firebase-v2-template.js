@@ -3,7 +3,7 @@
 // Firebase web config values are public project/app identifiers; no service-account credential is stored here.
 (function(root){'use strict';
 const template=Object.freeze({
-  apiKey:'AIzaSyCYODrnoiOSEyaYHjOiORJsY4UlidqNUEoEsa',
+  apiKey:'AIzaSyC0Q--YUB9rKei3_CKz_txfYf8Y8a9Tdv8',
   authDomain:'mi-cartera-d0d8c.firebaseapp.com',
   projectId:'mi-cartera-d0d8c',
   storageBucket:'mi-cartera-d0d8c.firebasestorage.app',
