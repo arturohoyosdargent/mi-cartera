@@ -8,7 +8,7 @@ const SHELL=[
   './operation-sync-bridge.js','./operation-commit-gate.js','./durable-actions-v2.js',
   './version-guard.js','./auth-cloud-gate.js','./cloud-rehydration-v2.js','./login-v2.js',
   './customer-experience-v2.js','./agenda-v2.js','./operational-cards-v2.js',
-  './proposal-share-v2.js','./share-card-renderer-v2.js','./credit-detail-share-v2.js','./payment-receipt-v2.js',
+  './proposal-share-v2.js','./collection-reminder-share-v2.js','./share-card-renderer-v2.js','./credit-detail-share-v2.js','./payment-receipt-v2.js',
   './backup-v2.js','./admin-parity-v2.js','./credit-form-parity-v2.js',
   './screen-navigation-v2.js','./dashboard-parity-v2.js',
   '../core/financial-engine.js','../core/schedule-engine.js','../core/access-audit.js',
