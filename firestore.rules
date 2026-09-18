@@ -68,6 +68,13 @@ service cloud.firestore {
       allow create: if v2Org(orgId) && v2Active(orgId);
       allow update, delete: if false;
     }
+    // Idempotency records for the V2 transactional sync boundary. They are
+    // isolated from V1 and cannot be deleted by the browser.
+    match /orgs/{orgId}/operations/{id} {
+      allow read: if v2Org(orgId) && v2Manager(orgId);
+      allow create, update: if v2Org(orgId) && v2Manager(orgId);
+      allow delete: if false;
+    }
     match /orgs/{orgId}/{collection}/{id} {
       allow read, create, update: if v2Org(orgId) && v2Manager(orgId) && collection in ['capital','entries','expenses','cashClosures','routes'];
       allow delete: if false;

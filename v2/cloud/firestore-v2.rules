@@ -31,6 +31,11 @@ service cloud.firestore {
       allow create: if samePilotOrg(orgId) && signedIn();
       allow update, delete: if false;
     }
+    match /orgs/{orgId}/operations/{id} {
+      allow read: if samePilotOrg(orgId) && manager();
+      allow create, update: if samePilotOrg(orgId) && manager();
+      allow delete: if false;
+    }
     match /orgs/{orgId}/{collection}/{id} {
       allow read: if samePilotOrg(orgId) && manager() && collection in ['capital','entries','expenses','cashClosures','routes'];
       allow create, update: if samePilotOrg(orgId) && manager() && collection in ['capital','entries','expenses','cashClosures','routes'];
