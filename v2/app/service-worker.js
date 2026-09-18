@@ -1,4 +1,4 @@
-const BUILD='v2-pilot-20260918-client-import-01';
+const BUILD='v2-pilot-20260918-parallel-qa-01';
 const CACHE=`mi-cartera-pro-v2-${BUILD}`;
 const SHELL=[
   './','./index.html','./release.json','./manifest.webmanifest',
