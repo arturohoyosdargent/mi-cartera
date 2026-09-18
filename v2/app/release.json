@@ -1,5 +1,5 @@
 {
-  "build": "v2-pilot-20260918-local-admin-01",
+  "build": "v2-pilot-20260918-client-import-01",
   "mode": "PILOT_LOCAL_ADMIN",
   "orgId": "v2-mi-cartera-pilot"
 }
