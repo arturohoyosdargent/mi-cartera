@@ -8,7 +8,7 @@ try{
   const fsSdk=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
   const app=appSdk.initializeApp(cfg,'mi-cartera-pro-v2-pilot');const db=fsSdk.getFirestore(app);
   root.firebaseSdkV2={appSdk,fsSdk,app};
-  root.firestoreV2={db,doc:fsSdk.doc,getDoc:fsSdk.getDoc,collection:fsSdk.collection,getDocs:fsSdk.getDocs};
+  root.firestoreV2={db,doc:fsSdk.doc,getDoc:fsSdk.getDoc,collection:fsSdk.collection,getDocs:fsSdk.getDocs,query:fsSdk.query,where:fsSdk.where};
   root.readPilotMarkerV2=async function(orgId){if(!/^v2-/.test(String(orgId||''))||orgId==='mi-cartera')throw Object.assign(new Error('V2_NAMESPACE_REQUIRED'),{code:'V2_NAMESPACE_REQUIRED'});if(pilot?.orgId&&orgId!==pilot.orgId)throw Object.assign(new Error('V2_NAMESPACE_MISMATCH'),{code:'V2_NAMESPACE_MISMATCH'});const snap=await fsSdk.getDoc(fsSdk.doc(db,'orgs',orgId));return snap.exists()?snap.data():null;};
   root.dispatchEvent(new CustomEvent('mi-cartera-v2-firebase-ready'));
 }catch(e){root.firebaseV2BootstrapError=e?.code||e?.message||String(e);root.dispatchEvent(new CustomEvent('mi-cartera-v2-firebase-error',{detail:root.firebaseV2BootstrapError}));}
