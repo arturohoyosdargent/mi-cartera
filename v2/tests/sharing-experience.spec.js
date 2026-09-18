@@ -34,6 +34,9 @@ assert.ok(credit.includes('status(q)'),'credit detail text must render installme
 assert.ok(renderer.includes("txt(x,'Estado',690,700"),'credit image schedule status column missing');
 assert.ok(renderer.includes('installmentStatus(q)'),'credit image must calculate installment status');
 assert.ok(renderer.includes("canvas('RECORDATORIO DE PAGO'"),'canonical renderer must provide reminder card');
+assert.ok(renderer.includes("metric(x,'Cuota pendiente'"),'reminder card must use the structured branded summary');
+assert.ok(renderer.includes("txt(x,'Detalle del pago'"),'reminder card must show a structured payment detail section');
+assert.ok(renderer.includes("metric(x,'Estado',state"),'reminder card must show the payment state');
 assert.ok(receipt.includes('COMPROBANTE DE PAGO'),'payment receipt title missing');
 assert.ok(receipt.includes('navigator.share'),'payment receipt native share missing');
 assert.ok(receipt.includes('MiCarteraV2CustomerExperience.whatsapp'),'payment receipt WhatsApp fallback missing');
