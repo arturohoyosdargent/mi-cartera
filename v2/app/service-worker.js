@@ -1,4 +1,4 @@
-const BUILD='v2-pilot-20260918-local-admin-01';
+const BUILD='v2-pilot-20260918-client-import-01';
 const CACHE=`mi-cartera-pro-v2-${BUILD}`;
 const SHELL=['./','./index.html','./release.json','./operational-shell.html','./operational-controller.js','./operation-sync-bridge.js','./operation-commit-gate.js','./durable-actions-v2.js','./version-guard.js','./auth-cloud-gate.js','./login-v2.js','./customer-experience-v2.js','./agenda-v2.js','./operational-cards-v2.js','./backup-v2.js','./admin-parity-v2.js','./credit-form-parity-v2.js','./screen-navigation-v2.js','./dashboard-parity-v2.js','./pilot-config.js','./manifest.webmanifest','../core/financial-engine.js','../core/schedule-engine.js','../core/access-audit.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL.map(url=>new Request(url,{cache:'reload'})))).then(()=>self.skipWaiting())));
