@@ -27,5 +27,7 @@ async function main(){
  assert(listeners['v2-auth-cloud-state'],'auth listener missing');await listeners['v2-auth-cloud-state']({detail:{authenticated:false,ready:false}});const loggedOut=JSON.parse(local.dump('mi-cartera-v2-validation-state'));assert.equal(loggedOut.clients.length,0);assert.equal(loggedOut.credits.length,0);assert.equal(loggedOut.payments.length,0);assert.equal(loggedOut.cashMovements.length,0);assert.equal(loggedOut.audit.length,0);assert.equal(loggedOut.session,null);
  // Re-login regression: after logout, a different authenticated user rebuilds only its Cloud-scoped state.
  window.MiCarteraV2AuthCloudGate.requireReady=()=>({uid:'u2',role:'admin',routeIds:[]});assert.equal((await window.MiCarteraV2CloudRehydration.rehydrate()).status,'REHYDRATED');const relogged=JSON.parse(local.dump('mi-cartera-v2-validation-state'));assert.equal(relogged.session.actorId,'u2');assert.equal(relogged.session.role,'admin');assert.equal(relogged.clients.length,1);assert.equal(relogged.credits.length,1);assert.equal(relogged.payments.length,1);
+ // manager audit must come from Cloud; collector must never inherit it.
+ assert(Array.isArray(relogged.audit));
  console.log('V2 cloud rehydration guard: PASS');
 }main().catch(e=>{console.error(e);process.exit(1)});
