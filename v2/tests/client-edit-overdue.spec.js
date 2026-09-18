@@ -12,18 +12,21 @@ const editor=fs.readFileSync(path.join(app,'client-edit-v2.js'),'utf8');
 const overdue=fs.readFileSync(path.join(app,'credit-overdue-v2.js'),'utf8');
 const preview=fs.readFileSync(path.join(app,'share-preview-v2.js'),'utf8');
 const durable=fs.readFileSync(path.join(app,'durable-actions-v2.js'),'utf8');
+const dates=fs.readFileSync(path.join(app,'date-utils-v2.js'),'utf8');
 
 assert.ok(shell.includes('<script src="client-edit-v2.js"></script>'),'client edit module must load in the shell');
 assert.ok(shell.includes('<script src="credit-overdue-v2.js"></script>'),'overdue module must load in the shell');
-assert.ok(sw.includes("'./client-edit-v2.js'")&&sw.includes("'./credit-overdue-v2.js'"),'new modules must be cached by the PWA');
+assert.ok(shell.includes('<script src="date-utils-v2.js"></script>'),'date utility must load before operational views');
+assert.ok(sw.includes("'./client-edit-v2.js'")&&sw.includes("'./credit-overdue-v2.js'")&&sw.includes("'./date-utils-v2.js'"),'new modules must be cached by the PWA');
 assert.ok(sw.includes(`const BUILD='${release.build}'`),'service worker and release build must match');
 assert.ok(cards.includes('data-client-card')&&cards.includes('data-credit-card'),'cards must expose stable client and credit identifiers');
 assert.ok(editor.includes('CLIENT_UPDATED')&&editor.includes("type:'CLIENT_UPDATE'")&&editor.includes('Guardar cambios'),'editing must be an auditable durable client update');
 assert.ok(editor.includes('address')&&editor.includes('phone')&&editor.includes('routeId'),'editing must preserve/update contact and routing fields');
-assert.ok(overdue.includes('q.date')&&overdue.includes("'OVERDUE'")&&overdue.includes('v2-overdue-label'),'overdue state must derive from schedule dates and be visible');
+assert.ok(overdue.includes('dueDate(q)')&&overdue.includes("'OVERDUE'")&&overdue.includes('v2-overdue-label'),'overdue state must derive from schedule dates and be visible');
 assert.ok(overdue.includes('api.filter=filter'),'credit filter must use the schedule-derived status');
 assert.ok(preview.includes('Estado de cuotas')&&preview.includes('vencida'),'credit preview must show payment state before sharing');
 assert.ok(durable.includes('MiCarteraV2SharePreview?.previewPayment'),'recording a payment must offer a preview before sharing its receipt');
+assert.ok(dates.includes('fromInstallment')&&dates.includes('isOverdue')&&dates.includes('balance'),'operational views must share date and balance interpretation');
 
 const document={readyState:'loading',addEventListener(){},getElementById(){return null},querySelectorAll(){return[]},createElement(){return {style:{},appendChild(){}}}};
 const window={addEventListener(){},localStorage:{getItem(){return '{}'}}};

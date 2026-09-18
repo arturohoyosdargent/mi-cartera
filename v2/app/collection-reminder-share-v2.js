@@ -1,7 +1,7 @@
 // Mi Cartera PRO V2 — unified collection reminder sharing: branded card -> WhatsApp -> native share -> clipboard.
 (function(root){'use strict';
-const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
-const fmt=s=>{if(!s)return '';const v=String(s).slice(0,10);try{return new Date(v+'T12:00:00').toLocaleDateString('es-PE')}catch{return v}};
+const D=root.MiCarteraV2Dates||{},money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmt=s=>{if(!s)return '';const v=D.normalize?.(s)||String(s).slice(0,10);try{return new Date(v+'T12:00:00').toLocaleDateString('es-PE')}catch{return v}};
 let rendererPromise=null;
 function ensureRenderer(){if(root.MiCarteraV2ShareCard?.reminder)return Promise.resolve(root.MiCarteraV2ShareCard);if(rendererPromise)return rendererPromise;rendererPromise=new Promise((ok,bad)=>{const existing=[...document.scripts].find(s=>s.src.endsWith('share-card-renderer-v2.js'));const done=()=>root.MiCarteraV2ShareCard?.reminder?ok(root.MiCarteraV2ShareCard):bad(new Error('SHARE_CARD_RENDERER_NOT_READY'));if(existing){if(root.MiCarteraV2ShareCard?.reminder)return ok(root.MiCarteraV2ShareCard);existing.addEventListener('load',done,{once:true});existing.addEventListener('error',()=>bad(new Error('SHARE_CARD_RENDERER_LOAD_FAILED')),{once:true});return}const s=document.createElement('script');s.src='share-card-renderer-v2.js';s.onload=done;s.onerror=()=>bad(new Error('SHARE_CARD_RENDERER_LOAD_FAILED'));document.head.appendChild(s)}).catch(e=>{rendererPromise=null;throw e});return rendererPromise}
 function text(c,amount,date){return `Hola ${c?.name||''}, te recordamos que tienes un pago pendiente de ${money(amount)}${date?' con vencimiento el '+fmt(date):''}.\n\nPRÉSTAMO YA · Gracias por tu confianza.`}
