@@ -12,5 +12,10 @@ async function main(){
  assert.equal((await window.MiCarteraV2CloudRehydration.rehydrate()).status,'REHYDRATED');
  const d=JSON.parse(local.dump('mi-cartera-v2-validation-state'));assert.equal(d.clients[0].id,'c1');assert.equal(d.credits[0].id,'cr1');assert.equal(d.payments[0].id,'p1');assert.equal(d.cashMovements.length,2);
  local.setItem('mi-cartera-v2-cloud-operations',JSON.stringify([{status:'PENDIENTE'}]));assert.equal((await window.MiCarteraV2CloudRehydration.rehydrate()).status,'SKIPPED_PENDING_LOCAL_OPERATIONS');
+ // Second-device regression: a repeated authenticated hydration must replace, not duplicate, Cloud rows.
+ assert.equal((await window.MiCarteraV2CloudRehydration.rehydrate()).status,'SKIPPED_PENDING_LOCAL_OPERATIONS');
+ local.setItem('mi-cartera-v2-cloud-operations','[]');
+ assert.equal((await window.MiCarteraV2CloudRehydration.rehydrate()).status,'REHYDRATED');
+ const d2=JSON.parse(local.dump('mi-cartera-v2-validation-state'));assert.equal(d2.clients.length,1);assert.equal(d2.credits.length,1);assert.equal(d2.payments.length,1);assert.equal(d2.cashMovements.length,2);
  console.log('V2 cloud rehydration guard: PASS');
 }main().catch(e=>{console.error(e);process.exit(1)});
