@@ -3,27 +3,23 @@
     "site": "mi-cartera-d0d8c",
     "public": ".",
     "ignore": [
-      "firebase.json",
-      "firebase.*.json",
+      "firebase*.json",
+      ".firebaserc",
       "**/.*",
       "**/node_modules/**",
-      "v2/**",
       "functions/**",
-      "repo-inspect/**",
-      "upload/**"
+      "scripts/**",
+      "tests/**",
+      "v2/**",
+      "*.md",
+      "package*.json"
     ],
     "headers": [
       {
-        "source": "**/*.html",
-        "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
-      },
-      {
-        "source": "**/*.js",
-        "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
-      },
-      {
-        "source": "sw.js",
-        "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+        "source": "/index.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
       }
     ]
   }

@@ -1,2 +1,69 @@
 // Mi Cartera PRO V2 — proposal sharing as branded PRÉSTAMO YA visual card. Never creates/mutates credit.
-(function(root){'use strict';const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});const frequencyLabel=f=>({daily:'Diaria',weekly:'Semanal',biweekly:'Quincenal',monthly:'Mensual'}[f]||f);let rendererPromise=null;function ensureRenderer(){if(root.MiCarteraV2ShareCard?.proposal)return Promise.resolve(root.MiCarteraV2ShareCard);if(rendererPromise)return rendererPromise;rendererPromise=new Promise((resolve,reject)=>{const done=()=>root.MiCarteraV2ShareCard?.proposal?resolve(root.MiCarteraV2ShareCard):reject(new Error('SHARE_CARD_RENDERER_NOT_READY'));const existing=[...document.scripts].find(s=>s.src&&s.src.endsWith('/share-card-renderer-v2.js'));if(existing){if(root.MiCarteraV2ShareCard?.proposal)return resolve(root.MiCarteraV2ShareCard);existing.addEventListener('load',done,{once:true});existing.addEventListener('error',()=>reject(new Error('SHARE_CARD_RENDERER_LOAD_FAILED')),{once:true});setTimeout(()=>{if(root.MiCarteraV2ShareCard?.proposal)resolve(root.MiCarteraV2ShareCard)},0);return}const s=document.createElement('script');s.src='share-card-renderer-v2.js';s.onload=done;s.onerror=()=>reject(new Error('SHARE_CARD_RENDERER_LOAD_FAILED'));document.head.appendChild(s)}).catch(e=>{rendererPromise=null;throw e});return rendererPromise}function draft(){const $=id=>document.getElementById(id),q=$('cClient')?.value.trim()||'',capital=Number($('cCapital')?.value||0),rate=Number($('cRate')?.value||0),term=Number($('cTerm')?.value||0),freq=$('cFreq')?.value||'',first=$('cFirst')?.value||'';if(!q||!(capital>0)||!Number.isInteger(term)||term<1||!first)throw new Error('Completa cliente, capital, cuotas y primera fecha antes de compartir.');const total=Math.round(capital*(1+rate/100)*100)/100,installment=Math.round(total/term*100)/100,maturity=root.MiCarteraV2CreditFormParity?.maturity?.(first,term,freq)||'';return {client:q,capital,rate,term,freq,first,maturity,total,installment}}function message(d){return `PRÉSTAMO YA — PROPUESTA DE CRÉDITO\nCliente: ${d.client}\nCapital: ${money(d.capital)}\nInterés: ${d.rate}%\nTotal a pagar: ${money(d.total)}\nCuotas: ${d.term}\nCuota referencial: ${money(d.installment)}\nFrecuencia: ${frequencyLabel(d.freq)}\nPrimera fecha de pago: ${d.first}${d.maturity?`\nFecha estimada de última cuota: ${d.maturity}`:''}\n\nEsta es una propuesta. El crédito NO queda registrado hasta su aceptación y posterior guardado en Mi Cartera PRO.`}function findClient(d){const K='mi-cartera-v2-validation-state';let db={};try{db=JSON.parse(localStorage.getItem(K)||'{}')}catch{}return (db.clients||[]).find(x=>String(x.id)===d.client)||(db.clients||[]).find(x=>String(x.name||'').toLowerCase()===d.client.toLowerCase())}async function share(){const d=draft(),text=message(d),client=findClient(d);let file=null;try{const cards=await ensureRenderer(),blob=await cards.proposal(d,client);if(blob)file=new File([blob],'prestamo-ya-propuesta-credito.png',{type:'image/png'})}catch(e){console.warn('V2 proposal image unavailable; continuing with text share.',e)}if(file&&navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({title:'Préstamo Ya · Propuesta de crédito',text:'Préstamo Ya · Revisa tu propuesta de crédito.',files:[file]});return 'file-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 proposal image sharing failed; continuing with fallback.',e)}}const hasPhone=Boolean(String(client?.phone||'').trim());if(hasPhone&&root.MiCarteraV2CustomerExperience?.whatsapp){try{root.MiCarteraV2CustomerExperience.whatsapp(client,text);return 'whatsapp'}catch(e){console.warn('V2 WhatsApp proposal fallback failed; continuing.',e)}}if(navigator.share){try{await navigator.share({title:'Préstamo Ya · Propuesta de crédito',text});return 'native-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 native proposal sharing failed; continuing with clipboard.',e)}}if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(text);alert(hasPhone?'Propuesta copiada. El crédito todavía NO fue creado.':'El cliente no tiene teléfono registrado. La propuesta quedó copiada para compartirla por otro medio. El crédito todavía NO fue creado.');return 'clipboard'}throw Object.assign(new Error(hasPhone?'No se pudo compartir la propuesta.':'No se pudo compartir la propuesta y el cliente no tiene teléfono registrado.'),{code:hasPhone?'PROPOSAL_SHARE_UNAVAILABLE':'PROPOSAL_SHARE_UNAVAILABLE_NO_PHONE'})}root.MiCarteraV2ProposalShare={draft,message,findClient,ensureRenderer,share};})(window);
+(function(root){
+  'use strict';
+
+  const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const frequencyLabel=f=>({daily:'Diaria',weekly:'Semanal',biweekly:'Quincenal',monthly:'Mensual'}[f]||f);
+  let rendererPromise=null;
+
+  function ensureRenderer(){
+    if(root.MiCarteraV2ShareCard?.proposal)return Promise.resolve(root.MiCarteraV2ShareCard);
+    if(rendererPromise)return rendererPromise;
+    rendererPromise=new Promise((resolve,reject)=>{
+      const done=()=>root.MiCarteraV2ShareCard?.proposal?resolve(root.MiCarteraV2ShareCard):reject(new Error('SHARE_CARD_RENDERER_NOT_READY'));
+      const existing=[...document.scripts].find(s=>s.src&&s.src.endsWith('/share-card-renderer-v2.js'));
+      if(existing){
+        if(root.MiCarteraV2ShareCard?.proposal)return resolve(root.MiCarteraV2ShareCard);
+        existing.addEventListener('load',done,{once:true});
+        existing.addEventListener('error',()=>reject(new Error('SHARE_CARD_RENDERER_LOAD_FAILED')),{once:true});
+        setTimeout(()=>{if(root.MiCarteraV2ShareCard?.proposal)resolve(root.MiCarteraV2ShareCard)},0);
+        return;
+      }
+      const s=document.createElement('script');s.src='share-card-renderer-v2.js';s.onload=done;s.onerror=()=>reject(new Error('SHARE_CARD_RENDERER_LOAD_FAILED'));document.head.appendChild(s);
+    }).catch(e=>{rendererPromise=null;throw e});
+    return rendererPromise;
+  }
+
+  function fallbackPlan(){
+    const $=id=>document.getElementById(id);
+    const capital=Number($('cCapital')?.value||0),rate=Number($('cRate')?.value||0),term=Number($('cTerm')?.value||0),freq=$('cFreq')?.value||'',first=$('cFirst')?.value||'';
+    const total=Math.round(capital*(1+rate/100)*100)/100;
+    const installment=term>0?Math.round(total/term*100)/100:0;
+    const maturity=root.MiCarteraV2CreditFormParity?.maturity?.(first,term,freq)||'';
+    return {capital,rate,term,freq,first,maturity,total,installment,regularInstallment:installment,extraPayments:[],extraTotal:0,schedule:[]};
+  }
+
+  function draft(){
+    const $=id=>document.getElementById(id),q=$('cClient')?.value.trim()||'';
+    if(!q)throw new Error('Completa cliente, capital, cuotas y primera fecha antes de compartir.');
+    const p=root.MiCarteraV2CreditFormParity?.plan?.()||fallbackPlan();
+    if(!(p.capital>0)||!Number.isInteger(p.term)||p.term<1||!p.first)throw new Error('Completa cliente, capital, cuotas y primera fecha antes de compartir.');
+    if(p.error)throw new Error(`Corrige el cronograma: ${p.error}`);
+    return {...p,client:q,clientRecord:root.MiCarteraV2CreditFormParity?.selectedClient?.()||null,installment:p.regularInstallment??p.installment};
+  }
+
+  function message(d){
+    const extras=Number(d.extraTotal||0)>0?`\nCuota adicional total: ${money(d.extraTotal)}`:'';
+    const rows=Array.isArray(d.schedule)&&d.schedule.length?`\n\nCRONOGRAMA\n${d.schedule.map(q=>`${q.number??q.n??''}. ${q.date} · ${q.extra?'Pago adicional':'Cuota'} · ${money(q.amount)}`).join('\n')}`:'';
+    return `PRÉSTAMO YA — PROPUESTA DE CRÉDITO\nCliente: ${d.client}\nCapital: ${money(d.capital)}\nInterés: ${d.rate}%\nTotal a pagar: ${money(d.total)}\nCuotas: ${d.term}\nCuota referencial: ${money(d.installment)}${extras}\nFrecuencia: ${frequencyLabel(d.freq)}\nPrimera fecha de pago: ${d.first}${d.maturity?`\nFecha estimada de última cuota: ${d.maturity}`:''}${rows}\n\nEsta es una propuesta. El crédito NO queda registrado hasta su aceptación y posterior guardado en Mi Cartera PRO.`;
+  }
+
+  function findClient(d){
+    if(d?.clientRecord)return d.clientRecord;
+    const K='mi-cartera-v2-validation-state';let db={};try{db=JSON.parse(localStorage.getItem(K)||'{}')}catch{}
+    return (db.clients||[]).find(x=>String(x.id)===d.client)||(db.clients||[]).find(x=>String(x.name||'').toLowerCase()===String(d.client||'').toLowerCase());
+  }
+
+  async function share(){
+    const d=draft(),text=message(d),client=findClient(d);let file=null;
+    try{const cards=await ensureRenderer(),blob=await cards.proposal(d,client);if(blob)file=new File([blob],'prestamo-ya-propuesta-credito.png',{type:'image/png'})}catch(e){console.warn('V2 proposal image unavailable; continuing with text share.',e)}
+    if(file&&navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({title:'Préstamo Ya · Propuesta de crédito',text:'Préstamo Ya · Revisa tu propuesta de crédito.',files:[file]});return 'file-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 proposal image sharing failed; continuing with fallback.',e)}}
+    const hasPhone=Boolean(String(client?.phone||'').trim());
+    if(hasPhone&&root.MiCarteraV2CustomerExperience?.whatsapp){try{root.MiCarteraV2CustomerExperience.whatsapp(client,text);return 'whatsapp'}catch(e){console.warn('V2 WhatsApp proposal fallback failed; continuing.',e)}}
+    if(navigator.share){try{await navigator.share({title:'Préstamo Ya · Propuesta de crédito',text});return 'native-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 native proposal sharing failed; continuing with clipboard.',e)}}
+    if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(text);alert(hasPhone?'Propuesta copiada. El crédito todavía NO fue creado.':'El cliente no tiene teléfono registrado. La propuesta quedó copiada para compartirla por otro medio. El crédito todavía NO fue creado.');return 'clipboard'}
+    throw Object.assign(new Error(hasPhone?'No se pudo compartir la propuesta.':'No se pudo compartir la propuesta y el cliente no tiene teléfono registrado.'),{code:hasPhone?'PROPOSAL_SHARE_UNAVAILABLE':'PROPOSAL_SHARE_UNAVAILABLE_NO_PHONE'});
+  }
+
+  root.MiCarteraV2ProposalShare={draft,message,findClient,ensureRenderer,share};
+})(window);
