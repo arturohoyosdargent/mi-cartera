@@ -12,7 +12,7 @@ async function submit({bridge,versionGuard,authGate,operation,onStatus}){
   const status=String(r?.status||'').toUpperCase();
   if(onStatus)onStatus(status||'UNKNOWN');
   if(status==='OFFLINE')throw Object.assign(new Error('Sin conexión. La operación no se guardó; vuelve a intentarla cuando recuperes internet.'),{code:'V2_OFFLINE_RETRY_REQUIRED',retryable:true,result:r});
-  if(!['LOCAL_ONLY','COMMITTED','QUEUED','ALREADY_COMMITTED','DUPLICATE','APPLIED','ALREADY_APPLIED'].includes(status))throw Object.assign(new Error('V2_OPERATION_NOT_DURABLY_ACCEPTED'),{code:'V2_OPERATION_NOT_DURABLY_ACCEPTED',result:r});
+  if(['LOCAL_ONLY','QUEUED'].includes(status))throw Object.assign(new Error('La operación todavía no está confirmada en Firestore. No se aplicó en la app; vuelve a intentarla cuando la sincronización esté disponible.'),{code:'V2_CLOUD_CONFIRMATION_REQUIRED',retryable:true,result:r});if(!['COMMITTED','ALREADY_COMMITTED','DUPLICATE','APPLIED','ALREADY_APPLIED'].includes(status))throw Object.assign(new Error('V2_OPERATION_NOT_DURABLY_ACCEPTED'),{code:'V2_OPERATION_NOT_DURABLY_ACCEPTED',result:r});
   return r;
 }
 root.MiCarteraV2OperationCommitGate={submit};
