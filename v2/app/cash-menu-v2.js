@@ -28,16 +28,26 @@
   }
 
   function renderHistory(){
-    const el=$('cashHistory');
-    if(!el)return;
+    const el=$('cashHistory'); if(!el)return;
     const movements=[...(Array.isArray(data().cashMovements)?data().cashMovements:[])].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.id||'').localeCompare(String(a.id||'')));
     if(!movements.length){el.textContent='Sin movimientos de caja V2.';return;}
     const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-    el.innerHTML=movements.map(item=>{
-      const category=String(item.category||item.concept||'SIN_CATEGORIA').replaceAll('_',' ');
-      const observation=String(item.observation||'').trim();
-      const cls=item.type==='INGRESO'?'v2-cash-income':'v2-cash-expense';
-      return `<div class="card ${cls}"><b>${esc(item.type||'MOVIMIENTO')} · ${money(item.amount)}</b><div>${esc(item.date||'')} · ${esc(category)}</div><div class="metric">${esc(item.concept||'Sin detalle')}</div>${observation?`<div class="metric">Observación: ${esc(observation)}</div>`:''}</div>`;
+    const automatic=new Set(['COBRO_CUOTA','DESEMBOLSO_CREDITO']);
+    const groups=new Map();
+    movements.forEach(item=>{
+      const cat=String(item.category||item.concept||'SIN_CATEGORIA');
+      const key=automatic.has(cat)?[item.date,item.type,cat].join('|'):'MOV|'+String(item.id||Math.random());
+      if(!groups.has(key))groups.set(key,{...item,count:0,total:0,items:[]});
+      const g=groups.get(key);g.count++;g.total+=Number(item.amount||0);g.items.push(item);
+    });
+    el.innerHTML=[...groups.values()].map(g=>{
+      const category=String(g.category||g.concept||'SIN_CATEGORIA').replaceAll('_',' ');
+      const cls=g.type==='INGRESO'?'v2-cash-income':'v2-cash-expense';
+      if(g.count>1&&automatic.has(String(g.category||g.concept||''))){
+        return `<details class="card ${cls} v2-cash-group"><summary><b>${esc(g.type)} · ${money(g.total)}</b><span>${esc(g.date||'')} · ${esc(category)} · ${g.count} movimientos</span></summary><div class="v2-cash-group-detail">${g.items.map(x=>`<div>${money(x.amount)} · ${esc(x.concept||category)}</div>`).join('')}</div></details>`;
+      }
+      const observation=String(g.observation||'').trim();
+      return `<div class="card ${cls}"><b>${esc(g.type||'MOVIMIENTO')} · ${money(g.amount)}</b><div>${esc(g.date||'')} · ${esc(category)}</div><div class="metric">${esc(g.concept||'Sin detalle')}</div>${observation?`<div class="metric">Observación: ${esc(observation)}</div>`:''}</div>`;
     }).join('');
   }
 
@@ -76,6 +86,7 @@
       .v2-cash-actions .btn{width:100%;text-align:left}
       .v2-cash-income{border-left:5px solid #2e9d58}
       .v2-cash-expense{border-left:5px solid #c62828}
+      .v2-cash-group summary{cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center}.v2-cash-group summary span{font-size:.9em}.v2-cash-group-detail{padding-top:10px;display:grid;gap:6px}
       .v2-month-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
       .v2-cash-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
       .v2-cash-form .v2-form-head,.v2-cash-form>button{grid-column:1/-1}.v2-form-head{display:flex;justify-content:space-between;align-items:center}
