@@ -46,7 +46,7 @@ async function readCollection(name,auth){
   const out=[],seen=new Set();
   for(const ref of refs){
     const snap=await f.getDocs(ref);
-    snap.forEach(d=>{const raw=d.data()||{},data={...raw,id:raw.id||d.id};if(!seen.has(String(data.id))){seen.add(String(data.id));out.push(data)}});
+    snap.forEach(d=>{const raw=d.data()||{};if(raw.tombstone===true)return;const data={...raw,id:raw.id||d.id};if(!seen.has(String(data.id))){seen.add(String(data.id));out.push(data)}});
   }
   return out;
 }
