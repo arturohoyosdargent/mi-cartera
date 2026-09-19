@@ -22,5 +22,8 @@ assert.ok(source.includes("type:'CREDIT_DUPLICATE_CONSOLIDATE'")&&source.include
 assert.ok(source.includes("if(sourcePayments.length||targetPayments.length)throw new Error"),'automatic consolidation must be blocked whenever either credit has payments');
 assert.ok(source.includes("collection:'credits',kind:'delete'"),'only the confirmed duplicate credit may be tombstoned');
 assert.ok(source.includes("sourceCash=(d.cashMovements||[]).filter(m=>m.ref===source.id)")&&source.includes("targetCash=(d.cashMovements||[]).filter(m=>m.ref===target.id)"),'duplicate consolidation must inspect cash movements for both credits');
-assert.ok(source.includes('existe movimiento de caja asociado'),'cash-linked duplicate credits must be blocked from automatic consolidation');
+assert.ok(source.includes("String(m.concept||'').toUpperCase()==='DESEMBOLSO_CREDITO'")&&source.includes("Math.abs(Number(m.amount||0)-Number(source.capital||0))<0.01"),'cash reconciliation must accept only the expected matching credit disbursement');
+assert.ok(source.includes("if((sourceCash.length===1)!==(targetCash.length===1))throw new Error"),'one-sided disbursement must remain blocked to protect cash integrity');
+assert.ok(source.includes("collection:'expenses',kind:'delete'")&&source.includes("duplicateCashId:duplicateCash?.id||null"),'safe duplicate consolidation must tombstone and audit only the duplicate disbursement');
+assert.ok(source.includes("sourceCash.length>1||targetCash.length>1")&&source.includes('Requiere revisión manual'),'unexpected or multiple cash movements must remain blocked');
 console.log('PASS inactive credit actions and safe duplicate-credit controls.');
