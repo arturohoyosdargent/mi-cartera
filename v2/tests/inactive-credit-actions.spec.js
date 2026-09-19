@@ -11,4 +11,14 @@ assert.equal(state({status:'ACTIVO',schedule}).collectible,true,'ACTIVO credit w
 assert.equal(state({status:'INACTIVE',schedule}).collectible,false,'inactive credit must never expose collection actions');
 assert.equal(state({status:'CANCELLED',schedule}).collectible,false,'cancelled credit must never expose collection actions');
 assert.equal(state({status:'ACTIVE',schedule:[{amount:100,balance:0}]}).collectible,false,'fully paid active credit must not be collectible');
-console.log('PASS inactive credit actions: collection/renew/refinance require active credit with positive balance.');
+const dup=window.MiCarteraV2Cards.duplicateCredits;
+const base={id:'cre-a',clientId:'cli-1',status:'ACTIVE',capital:500,total:600,rate:20,term:4,freq:'weekly',firstPaymentDate:'2026-09-20'};
+const exact={...base,id:'cre-b'};
+const different={...base,id:'cre-c',capital:501};
+assert.deepEqual(dup({credits:[base,exact,different]},base).map(x=>x.id),['cre-b'],'only exact active credit signatures must be flagged as duplicates');
+assert.deepEqual(dup({credits:[base,{...exact,status:'PAID'}]},base),[],'paid historical credits must never be offered as duplicate consolidation candidates');
+const source=fs.readFileSync('v2/app/operational-cards-v2.js','utf8');
+assert.ok(source.includes("type:'CREDIT_DUPLICATE_CONSOLIDATE'")&&source.includes("action:'CREDIT_DUPLICATE_CONSOLIDATED'"),'duplicate credit consolidation must be durable and audited');
+assert.ok(source.includes("if(sourcePayments.length||targetPayments.length)throw new Error"),'automatic consolidation must be blocked whenever either credit has payments');
+assert.ok(source.includes("collection:'credits',kind:'delete'"),'only the confirmed duplicate credit may be tombstoned');
+console.log('PASS inactive credit actions and safe duplicate-credit controls.');
