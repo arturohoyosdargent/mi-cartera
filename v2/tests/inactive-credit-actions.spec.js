@@ -21,4 +21,6 @@ const source=fs.readFileSync('v2/app/operational-cards-v2.js','utf8');
 assert.ok(source.includes("type:'CREDIT_DUPLICATE_CONSOLIDATE'")&&source.includes("action:'CREDIT_DUPLICATE_CONSOLIDATED'"),'duplicate credit consolidation must be durable and audited');
 assert.ok(source.includes("if(sourcePayments.length||targetPayments.length)throw new Error"),'automatic consolidation must be blocked whenever either credit has payments');
 assert.ok(source.includes("collection:'credits',kind:'delete'"),'only the confirmed duplicate credit may be tombstoned');
+assert.ok(source.includes("sourceCash=(d.cashMovements||[]).filter(m=>m.ref===source.id)")&&source.includes("targetCash=(d.cashMovements||[]).filter(m=>m.ref===target.id)"),'duplicate consolidation must inspect cash movements for both credits');
+assert.ok(source.includes('existe movimiento de caja asociado'),'cash-linked duplicate credits must be blocked from automatic consolidation');
 console.log('PASS inactive credit actions and safe duplicate-credit controls.');
