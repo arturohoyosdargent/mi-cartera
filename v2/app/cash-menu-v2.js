@@ -41,11 +41,28 @@
     }).join('');
   }
 
-  function invoke(type){
-    const action = root.V2UI?.manualCash;
-    if (typeof action !== 'function') return alert('Las acciones de caja V2 todavía no están disponibles. Recarga la aplicación e inténtalo nuevamente.');
-    Promise.resolve(action(type)).then(()=>{renderSummary();renderHistory();});
+  function openForm(type){
+    const old=$('v2CashForm'); if(old) old.remove();
+    const income=type==='INGRESO';
+    const panel=document.createElement('div'); panel.id='v2CashForm'; panel.className='card v2-cash-form';
+    const cats=income?['APORTE_CAPITAL','OTRO_INGRESO']:['COLEGIO','SERVICIO_MOVIL','SERVICIOS','ALIMENTACION','TRANSPORTE','SALUD','GASTO_OPERATIVO','OTROS_GASTOS'];
+    panel.innerHTML='<div class="v2-form-head"><b>'+(income?'Registrar capital / ingreso':'Registrar egreso / gasto')+'</b><button type="button" class="btn" data-close>✕ Cerrar</button></div>'+
+      '<label>Fecha<input id="v2CashDate" type="date"></label><label>Monto (S/)<input id="v2CashAmount" type="number" min="0.01" step="0.01" placeholder="0.00"></label>'+
+      '<label>'+(income?'Tipo de ingreso':'Tipo de egreso')+'<select id="v2CashCategory">'+cats.map(x=>'<option value="'+x+'">'+x.replaceAll('_',' ')+'</option>').join('')+'</select></label>'+
+      '<label>Detalle<input id="v2CashConcept" placeholder="'+(income?'Ej. Inyección adicional de capital':'Ej. Mensualidad colegio / plan móvil')+'"></label>'+
+      '<label>Observación<textarea id="v2CashObservation" rows="2" placeholder="Opcional"></textarea></label><button type="button" class="btn '+(income?'green':'')+'" data-save>Guardar movimiento</button>';
+    panel.querySelector('#v2CashDate').value=new Date().toISOString().slice(0,10);
+    panel.querySelector('[data-close]').onclick=()=>panel.remove();
+    panel.querySelector('[data-save]').onclick=async()=>{
+      const action=root.V2UI?.manualCash;if(typeof action!=='function')return alert('Las acciones de caja V2 todavía no están disponibles.');
+      const payload={date:panel.querySelector('#v2CashDate').value,amount:panel.querySelector('#v2CashAmount').value,category:panel.querySelector('#v2CashCategory').value,concept:panel.querySelector('#v2CashConcept').value,observation:panel.querySelector('#v2CashObservation').value};
+      if(!payload.amount)return alert('Ingresa el monto.'); if(!payload.concept)return alert('Ingresa el detalle.');
+      try{await action(type,payload);panel.remove();renderSummary();renderHistory()}catch(e){}
+    };
+    const actions=document.querySelector('[data-v2-cash-actions]'); actions?.insertAdjacentElement('afterend',panel); panel.scrollIntoView({behavior:'smooth',block:'center'});
   }
+
+  function invoke(type){ openForm(type); }
 
   function addStyles(){
     if ($('v2CashMenuStyles')) return;
@@ -60,10 +77,13 @@
       .v2-cash-income{border-left:5px solid #2e9d58}
       .v2-cash-expense{border-left:5px solid #c62828}
       .v2-month-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+      .v2-cash-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+      .v2-cash-form .v2-form-head,.v2-cash-form>button{grid-column:1/-1}.v2-form-head{display:flex;justify-content:space-between;align-items:center}
+      .v2-cash-form label{display:flex;flex-direction:column;gap:5px;font-weight:600}.v2-cash-form input,.v2-cash-form select,.v2-cash-form textarea{padding:10px;border:1px solid #bbb;border-radius:8px;font:inherit}
       #more .v2-more-menu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
       #more .v2-more-menu .btn{width:100%;min-height:52px;text-align:center;margin:0;white-space:normal}
       @media(max-width:700px){#more .v2-more-menu{grid-template-columns:repeat(2,minmax(0,1fr))}.v2-month-summary{grid-template-columns:1fr}}
-      @media(max-width:480px){.v2-cash-summary,.v2-cash-actions{grid-template-columns:1fr}}
+      @media(max-width:480px){.v2-cash-summary,.v2-cash-actions,.v2-cash-form{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
   }
