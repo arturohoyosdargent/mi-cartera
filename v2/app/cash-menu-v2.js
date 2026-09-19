@@ -79,9 +79,9 @@
       .v2-cash-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
       .v2-cash-form .v2-form-head,.v2-cash-form>button{grid-column:1/-1}.v2-form-head{display:flex;justify-content:space-between;align-items:center}
       .v2-cash-form label{display:flex;flex-direction:column;gap:5px;font-weight:600}.v2-cash-form input,.v2-cash-form select,.v2-cash-form textarea{padding:10px;border:1px solid #bbb;border-radius:8px;font:inherit}
-      #more .v2-more-menu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-      #more .v2-more-menu .btn{width:100%;min-height:52px;text-align:center;margin:0;white-space:normal}
-      @media(max-width:700px){#more .v2-more-menu{grid-template-columns:repeat(2,minmax(0,1fr))}.v2-month-summary{grid-template-columns:1fr}}
+      #more .v2-more-menu{display:flex;flex-direction:column;gap:10px}
+      #more .v2-more-menu .btn{width:100%;min-height:52px;text-align:left;margin:0;white-space:normal;display:block}
+      @media(max-width:700px){.v2-month-summary{grid-template-columns:1fr}}
       @media(max-width:480px){.v2-cash-summary,.v2-cash-actions,.v2-cash-form{grid-template-columns:1fr}}
     `;
     document.head.appendChild(style);
