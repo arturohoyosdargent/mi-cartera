@@ -1,0 +1,14 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const code=fs.readFileSync('v2/app/operational-cards-v2.js','utf8');
+const document={addEventListener(){},getElementById(){return null}};
+const window={addEventListener(){}};
+const localStorage={getItem(){return '{}'}};
+vm.runInNewContext(code,{window,document,localStorage,alert(){}});
+const state=window.MiCarteraV2Cards.installmentState;
+const schedule=[{amount:100,balance:60}];
+assert.equal(state({status:'ACTIVE',schedule}).collectible,true,'ACTIVE credit with balance must remain collectible');
+assert.equal(state({status:'ACTIVO',schedule}).collectible,true,'ACTIVO credit with balance must remain collectible');
+assert.equal(state({status:'INACTIVE',schedule}).collectible,false,'inactive credit must never expose collection actions');
+assert.equal(state({status:'CANCELLED',schedule}).collectible,false,'cancelled credit must never expose collection actions');
+assert.equal(state({status:'ACTIVE',schedule:[{amount:100,balance:0}]}).collectible,false,'fully paid active credit must not be collectible');
+console.log('PASS inactive credit actions: collection/renew/refinance require active credit with positive balance.');

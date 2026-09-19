@@ -1,0 +1,22 @@
+// Mi Cartera PRO V2 — unified collection reminder sharing: branded card -> WhatsApp -> native share -> clipboard.
+(function(root){'use strict';
+const D=root.MiCarteraV2Dates||{},money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmt=s=>{if(!s)return '';const v=D.normalize?.(s)||String(s).slice(0,10);try{return new Date(v+'T12:00:00').toLocaleDateString('es-PE')}catch{return v}};
+let rendererPromise=null;
+function ensureRenderer(){if(root.MiCarteraV2ShareCard?.reminder)return Promise.resolve(root.MiCarteraV2ShareCard);if(rendererPromise)return rendererPromise;rendererPromise=new Promise((ok,bad)=>{const existing=[...document.scripts].find(s=>s.src.endsWith('share-card-renderer-v2.js'));const done=()=>root.MiCarteraV2ShareCard?.reminder?ok(root.MiCarteraV2ShareCard):bad(new Error('SHARE_CARD_RENDERER_NOT_READY'));if(existing){if(root.MiCarteraV2ShareCard?.reminder)return ok(root.MiCarteraV2ShareCard);existing.addEventListener('load',done,{once:true});existing.addEventListener('error',()=>bad(new Error('SHARE_CARD_RENDERER_LOAD_FAILED')),{once:true});return}const s=document.createElement('script');s.src='share-card-renderer-v2.js';s.onload=done;s.onerror=()=>bad(new Error('SHARE_CARD_RENDERER_LOAD_FAILED'));document.head.appendChild(s)}).catch(e=>{rendererPromise=null;throw e});return rendererPromise}
+function text(c,amount,date){return `Hola ${c?.name||''}, te recordamos que tienes un pago pendiente de ${money(amount)}${date?' con vencimiento el '+fmt(date):''}.\n\nPRÉSTAMO YA · Gracias por tu confianza.`}
+async function share(c,amount,date){
+  const msg=text(c,amount,date);let blob=null;
+  try{const r=await ensureRenderer();blob=await r.reminder({amount,date},c)}catch(e){console.warn('V2 reminder branded card unavailable; continuing with text sharing.',e)}
+  if(blob){
+    try{const file=new File([blob],`prestamo-ya-recordatorio-${String(c?.name||'cliente').replace(/[^a-z0-9]+/gi,'-').toLowerCase()}.png`,{type:'image/png'});if(navigator.canShare?.({files:[file]})){await navigator.share({title:'PRÉSTAMO YA · Recordatorio de pago',text:msg,files:[file]});return 'file-share'}}
+    catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 reminder image sharing failed; continuing with fallback.',e)}
+  }
+  const hasPhone=Boolean(String(c?.phone||'').trim());
+  if(hasPhone){try{if(root.MiCarteraV2CustomerExperience?.whatsapp){root.MiCarteraV2CustomerExperience.whatsapp(c,msg);return 'whatsapp'}}catch(e){console.warn('V2 WhatsApp reminder fallback failed.',e)}}
+  try{if(navigator.share){await navigator.share({title:'PRÉSTAMO YA · Recordatorio de pago',text:msg});return 'native-share'}}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 native reminder sharing failed; continuing with clipboard.',e)}
+  if(navigator.clipboard?.writeText){try{await navigator.clipboard.writeText(msg);alert(hasPhone?'Recordatorio copiado. Puedes pegarlo en WhatsApp.':'El cliente no tiene teléfono registrado. El recordatorio quedó copiado para compartirlo por otro medio.');return 'clipboard'}catch(e){console.warn('V2 reminder clipboard fallback failed.',e)}}
+  throw new Error(hasPhone?'REMINDER_SHARE_UNAVAILABLE':'REMINDER_SHARE_UNAVAILABLE_NO_PHONE');
+}
+root.MiCarteraV2CollectionReminderShare={share,text,ensureRenderer};
+})(window);

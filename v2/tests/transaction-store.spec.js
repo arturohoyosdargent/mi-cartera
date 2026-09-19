@@ -1,0 +1,8 @@
+const assert=require('assert');const S=require('../core/transaction-store.js');
+class MemoryAdapter{constructor(seed={}){this.db=new Map(Object.entries(seed));}async runAtomic(fn){const snapshot=new Map(this.db);const tx={get:async p=>snapshot.get(p),set:async(p,v)=>snapshot.set(p,JSON.parse(JSON.stringify(v)))};const out=await fn(tx);this.db=snapshot;return out;}}
+(async()=>{const a=new MemoryAdapter({'credits/c1':{id:'c1',version:1,capital:600}}),s=S.createStore(a);const op={id:'op-1',type:'TEST',writes:[S.write('credits/c1',{id:'c1',version:2,capital:600},1),S.create('payments/p1',{id:'p1',amount:120,version:1})]};let r=await s.execute(op);assert.equal(r.status,'APPLIED');r=await s.execute(op);assert.equal(r.status,'ALREADY_APPLIED');assert.equal(a.db.get('payments/p1').amount,120);
+ await assert.rejects(()=>s.execute({id:'op-1',type:'TEST',writes:[S.write('credits/c1',{id:'c1',version:3,capital:1},2)]}),/OPERATION_ID_COLLISION/);
+ await assert.rejects(()=>s.execute({id:'op-2',type:'BAD',writes:[S.write('credits/c1',{id:'c1',version:3},1)]}),/VERSION_CONFLICT/);
+ await assert.rejects(()=>s.execute({id:'op-3',type:'DUPLICATE_PAYMENT',writes:[S.create('payments/p1',{id:'p1',amount:120,version:1})]}),/VERSION_CONFLICT|DOCUMENT_ALREADY_EXISTS/);
+ await assert.rejects(()=>s.execute({id:'op-4',type:'BAD_VERSION',writes:[S.write('credits/c1',{id:'c1',version:99},2)]}),/INVALID_NEXT_VERSION/);
+ await s.execute({id:'delete-1',type:'VOID',writes:[S.tombstone('credits/c1',2)]});assert.equal(a.db.get('credits/c1').tombstone,true);assert.ok(a.db.get('credits/c1').deletedAt);assert.equal(a.db.get('credits/c1').version,3);console.log('V2 transaction store: PASS');})().catch(e=>{console.error(e);process.exitCode=1;});
