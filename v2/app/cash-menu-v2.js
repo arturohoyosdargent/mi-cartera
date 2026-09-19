@@ -1,0 +1,76 @@
+// Mi Cartera PRO V2 — explicit capital/income and expense actions.
+(function(root){
+  'use strict';
+
+  const KEY = 'mi-cartera-v2-validation-state';
+  const $ = id => document.getElementById(id);
+  const money = value => `S/ ${Number(value || 0).toLocaleString('es-PE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+  function data(){
+    try { return JSON.parse(localStorage.getItem(KEY) || '{}'); }
+    catch { return {}; }
+  }
+
+  function renderSummary(){
+    const movements = Array.isArray(data().cashMovements) ? data().cashMovements : [];
+    const income = movements.filter(item => item.type === 'INGRESO').reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const expense = movements.filter(item => item.type === 'EGRESO').reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    if ($('cashIncomeTotal')) $('cashIncomeTotal').textContent = money(income);
+    if ($('cashExpenseTotal')) $('cashExpenseTotal').textContent = money(expense);
+  }
+
+  function invoke(type){
+    const action = root.V2UI?.manualCash;
+    if (typeof action !== 'function') return alert('Las acciones de caja V2 todavía no están disponibles. Recarga la aplicación e inténtalo nuevamente.');
+    Promise.resolve(action(type)).then(renderSummary);
+  }
+
+  function addStyles(){
+    if ($('v2CashMenuStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'v2CashMenuStyles';
+    style.textContent = `
+      .v2-cash-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+      .v2-cash-summary .metric{margin:0}
+      .v2-cash-actions{display:grid;gap:10px}
+      .v2-cash-actions .btn{width:100%;text-align:left}
+      .v2-cash-income{border-left:5px solid #2e9d58}
+      .v2-cash-expense{border-left:5px solid #c62828}
+      #more .v2-more-menu{display:grid;gap:10px}
+      #more .v2-more-menu .btn{width:100%;text-align:left;margin:0}
+      @media(max-width:480px){.v2-cash-summary{grid-template-columns:1fr}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function install(){
+    addStyles();
+    const cash = $('cash');
+    if (cash && !cash.querySelector('[data-v2-cash-actions]')) {
+      const summary = document.createElement('div');
+      summary.className = 'card v2-cash-summary';
+      summary.innerHTML = '<div class="card metric v2-cash-income">Ingresos / capital<b id="cashIncomeTotal">S/ 0.00</b></div><div class="card metric v2-cash-expense">Egresos / gastos<b id="cashExpenseTotal">S/ 0.00</b></div>';
+      const actions = document.createElement('div');
+      actions.className = 'card v2-cash-actions';
+      actions.dataset.v2CashActions = '1';
+      actions.innerHTML = '<b>Registrar movimiento</b><span>Los ingresos y egresos quedan reflejados en Balance / Caja.</span><button type="button" class="btn green" data-v2-cash-type="INGRESO">＋ Ingresar capital / ingreso</button><button type="button" class="btn v2-cash-expense" data-v2-cash-type="EGRESO">− Registrar egreso / gasto</button>';
+      actions.querySelectorAll('[data-v2-cash-type]').forEach(button => button.addEventListener('click', () => invoke(button.dataset.v2CashType)));
+      const metric = cash.querySelector('#cashBalance')?.closest('.card');
+      if (metric) { metric.insertAdjacentElement('afterend', summary); summary.insertAdjacentElement('afterend', actions); }
+      else { cash.insertBefore(summary, cash.firstChild); cash.insertBefore(actions, summary.nextSibling); }
+    }
+    const moreCard = document.querySelector('#more .card');
+    if (moreCard && !moreCard.querySelector('.v2-more-menu')) {
+      const buttons = [...moreCard.children].filter(child => child.tagName === 'BUTTON');
+      const menu = document.createElement('div');
+      menu.className = 'v2-more-menu';
+      buttons.forEach(button => menu.appendChild(button));
+      moreCard.appendChild(menu);
+    }
+    renderSummary();
+  }
+
+  document.addEventListener('DOMContentLoaded', install);
+  root.addEventListener?.('storage', renderSummary);
+  root.MiCarteraV2CashMenu = {install, renderSummary};
+})(window);
