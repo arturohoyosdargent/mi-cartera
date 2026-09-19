@@ -5,6 +5,7 @@
   const KEY = 'mi-cartera-v2-validation-state';
   const $ = id => document.getElementById(id);
   const money = value => `S/ ${Number(value || 0).toLocaleString('es-PE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+  const localDate = date => { const d=date||new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 
   function data(){
     try { return JSON.parse(localStorage.getItem(KEY) || '{}'); }
@@ -29,13 +30,13 @@
 
   function renderHistory(){
     const el=$('cashHistory'); if(!el)return;
-    let movements=[...(Array.isArray(data().cashMovements)?data().cashMovements:[])];const period=String($('cashHistoryPeriod')?.value||'ALL'),now=new Date(),today=now.toISOString().slice(0,10),ym=today.slice(0,7);if(period==='TODAY')movements=movements.filter(x=>String(x.date||'')===today);else if(period==='MONTH')movements=movements.filter(x=>String(x.date||'').slice(0,7)===ym);
+    let movements=[...(Array.isArray(data().cashMovements)?data().cashMovements:[])];const period=String($('cashHistoryPeriod')?.value||'ALL'),now=new Date(),today=localDate(now),ym=today.slice(0,7);if(period==='TODAY')movements=movements.filter(x=>String(x.date||'')===today);else if(period==='MONTH')movements=movements.filter(x=>String(x.date||'').slice(0,7)===ym);
     if(!movements.length){el.textContent='Sin movimientos de caja V2.';return;}
     const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     const groups=new Map();
     movements.forEach(item=>{const cat=String(item.category||item.concept||'SIN_CATEGORIA'),key=[item.type||'MOVIMIENTO',cat].join('|');if(!groups.has(key))groups.set(key,{type:item.type||'MOVIMIENTO',category:cat,count:0,total:0});const g=groups.get(key);g.count++;g.total+=Number(item.amount||0)});
     const rows=[...groups.values()].sort((a,b)=>a.type.localeCompare(b.type)||b.total-a.total);
-    el.innerHTML='<div class="card"><b>Historial de caja</b><div style="margin-top:8px"><select id="cashHistoryPeriod" class="input"><option value="ALL" '+(period==='ALL'?'selected':'')+'>Todo</option><option value="TODAY" '+(period==='TODAY'?'selected':'')+'>Hoy</option><option value="MONTH" '+(period==='MONTH'?'selected':'')+'>Este mes</option></select></div><div class="metric">Agrupado por tipo y categoría. El detalle individual queda oculto para mantener esta pantalla compacta.</div></div>'+rows.map(g=>{const cls=g.type==='INGRESO'?'v2-cash-income':'v2-cash-expense';return `<div class="card ${cls} v2-cash-compact"><b>${esc(g.category.replaceAll('_',' '))}</b><span>${g.count} movimiento${g.count===1?'':'s'} · ${money(g.total)}</span></div>`}).join('');$('cashHistoryPeriod')?.addEventListener('change',renderHistory);return;/* legacy */el.innerHTML='<div class="card"><b>Resumen de movimientos</b><div class="metric">Agrupado por tipo y categoría. El detalle individual queda oculto para mantener esta pantalla compacta.</div></div>'+rows.map(g=>{const cls=g.type==='INGRESO'?'v2-cash-income':'v2-cash-expense';return `<div class="card ${cls} v2-cash-compact"><b>${esc(g.category.replaceAll('_',' '))}</b><span>${g.count} movimiento${g.count===1?'':'s'} · ${money(g.total)}</span></div>`}).join('');
+    el.innerHTML='<div class="card"><b>Historial de caja</b><div style="margin-top:8px"><select id="cashHistoryPeriod" class="input"><option value="ALL" '+(period==='ALL'?'selected':'')+'>Todo</option><option value="TODAY" '+(period==='TODAY'?'selected':'')+'>Hoy</option><option value="MONTH" '+(period==='MONTH'?'selected':'')+'>Este mes</option></select></div><div class="metric">Agrupado por tipo y categoría. El detalle individual queda oculto para mantener esta pantalla compacta.</div></div>'+rows.map(g=>{const cls=g.type==='INGRESO'?'v2-cash-income':'v2-cash-expense';return `<div class="card ${cls} v2-cash-compact"><b>${esc(g.category.replaceAll('_',' '))}</b><span>${g.count} movimiento${g.count===1?'':'s'} · ${money(g.total)}</span></div>`}).join('');$('cashHistoryPeriod')?.addEventListener('change',renderHistory);
   }
 
   function openForm(type){
@@ -48,7 +49,7 @@
       '<label>'+(income?'Tipo de ingreso':'Tipo de egreso')+'<select id="v2CashCategory">'+cats.map(x=>'<option value="'+x+'">'+x.replaceAll('_',' ')+'</option>').join('')+'</select></label>'+
       '<label>Detalle<input id="v2CashConcept" placeholder="'+(income?'Ej. Inyección adicional de capital':'Ej. Mensualidad colegio / plan móvil')+'"></label>'+
       '<label>Observación<textarea id="v2CashObservation" rows="2" placeholder="Opcional"></textarea></label><button type="button" class="btn '+(income?'green':'')+'" data-save>Guardar movimiento</button>';
-    panel.querySelector('#v2CashDate').value=new Date().toISOString().slice(0,10);
+    panel.querySelector('#v2CashDate').value=localDate();
     panel.querySelector('[data-close]').onclick=()=>panel.remove();
     panel.querySelector('[data-save]').onclick=async()=>{
       const action=root.V2UI?.manualCash;if(typeof action!=='function')return alert('Las acciones de caja V2 todavía no están disponibles.');
@@ -119,5 +120,5 @@
 
   document.addEventListener('DOMContentLoaded', install);
   root.addEventListener?.('storage', renderSummary);
-  root.MiCarteraV2CashMenu = {install, renderSummary};
+  root.MiCarteraV2CashMenu = {install, renderSummary, renderHistory, localDate};
 })(window);
