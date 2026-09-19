@@ -75,7 +75,7 @@
       .v2-agenda-client-head{display:flex;gap:8px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
       .v2-agenda-client-total{font-weight:700;color:#144b63}
       .v2-agenda-overdue-label{display:inline-block;color:#a61b1b;background:#ffe1de;border-radius:999px;padding:3px 8px;font-size:.78rem;font-weight:700}
-      .v2-agenda-detail{border-top:1px solid #d4d9dd;margin-top:10px;padding-top:6px}
+      .v2-agenda-detail{border-top:1px solid #d4d9dd;margin-top:10px;padding-top:6px}.v2-agenda-detail summary{cursor:pointer;font-weight:700;padding:6px 0}
       .v2-agenda-detail-row{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:7px 0;border-bottom:1px solid #edf0f2;flex-wrap:wrap}
       .v2-agenda-detail-row:last-child{border-bottom:0}
       .v2-agenda-detail-row.is-overdue{color:#a61b1b;font-weight:600}
@@ -110,7 +110,7 @@
         const late = overdue(row);
         return `<div class="v2-agenda-detail-row${late ? ' is-overdue' : ''}"><span>Cuota ${esc(row.number)} · ${esc(row.date || 'Sin fecha')} · ${money(row.amount)}${late ? ' · VENCIDA' : ''}</span><button type="button" class="btn green" onclick="MiCarteraV2Agenda.remind('${esc(row.id)}')">📤 Recordar</button></div>`;
       }).join('');
-      return `<div class="card v2-agenda-client-card${hasOverdue ? ' v2-agenda-overdue-card' : ''}"><div class="v2-agenda-client-head"><div><b>${esc(group.client.name)}</b><br><span>${esc(group.route || 'Sin ruta')} · ${group.rows.length} cuota${group.rows.length === 1 ? '' : 's'}</span></div><div class="v2-agenda-client-total">${money(groupTotal)}${hasOverdue ? ' <span class="v2-agenda-overdue-label">🔴 VENCIDO</span>' : ''}</div></div><div class="v2-agenda-detail">${detail}</div><div class="row"><button type="button" class="btn" onclick="show('credits');window.MiCarteraV2CreditOverdue?.focus?.('${esc(group.rows[0].creditId)}')">Ver crédito</button></div></div>`;
+      return `<div class="card v2-agenda-client-card${hasOverdue ? ' v2-agenda-overdue-card' : ''}"><div class="v2-agenda-client-head"><div><b>${esc(group.client.name)}</b><br><span>${esc(group.route || 'Sin ruta')} · ${group.rows.length} cuota${group.rows.length === 1 ? '' : 's'}</span></div><div class="v2-agenda-client-total">${money(groupTotal)}${hasOverdue ? ' <span class="v2-agenda-overdue-label">🔴 VENCIDO</span>' : ''}</div></div><details class="v2-agenda-detail"><summary>Ver detalle de ${group.rows.length} cuota${group.rows.length===1?'':'s'}</summary>${detail}</details><div class="row"><button type="button" class="btn green" onclick="MiCarteraV2Agenda.remind('${esc(group.rows[0].id)}')">📤 Recordar próximo</button><button type="button" class="btn" onclick="show('credits');window.MiCarteraV2CreditOverdue?.focus?.('${esc(group.rows[0].creditId)}')">Ver crédito</button></div></div>`;
     }).join('') : '<div class="card">No hay cuotas pendientes en este periodo.</div>';
   }
 
