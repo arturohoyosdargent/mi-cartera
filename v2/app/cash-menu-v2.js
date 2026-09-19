@@ -27,10 +27,24 @@
     if ($('cashMonthlyResult')) $('cashMonthlyResult').textContent = money(monthlyIncome - monthlyExpense);
   }
 
+  function renderHistory(){
+    const el=$('cashHistory');
+    if(!el)return;
+    const movements=[...(Array.isArray(data().cashMovements)?data().cashMovements:[])].sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.id||'').localeCompare(String(a.id||'')));
+    if(!movements.length){el.textContent='Sin movimientos de caja V2.';return;}
+    const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    el.innerHTML=movements.map(item=>{
+      const category=String(item.category||item.concept||'SIN_CATEGORIA').replaceAll('_',' ');
+      const observation=String(item.observation||'').trim();
+      const cls=item.type==='INGRESO'?'v2-cash-income':'v2-cash-expense';
+      return `<div class="card ${cls}"><b>${esc(item.type||'MOVIMIENTO')} · ${money(item.amount)}</b><div>${esc(item.date||'')} · ${esc(category)}</div><div class="metric">${esc(item.concept||'Sin detalle')}</div>${observation?`<div class="metric">Observación: ${esc(observation)}</div>`:''}</div>`;
+    }).join('');
+  }
+
   function invoke(type){
     const action = root.V2UI?.manualCash;
     if (typeof action !== 'function') return alert('Las acciones de caja V2 todavía no están disponibles. Recarga la aplicación e inténtalo nuevamente.');
-    Promise.resolve(action(type)).then(renderSummary);
+    Promise.resolve(action(type)).then(()=>{renderSummary();renderHistory();});
   }
 
   function addStyles(){
@@ -82,6 +96,7 @@
       moreCard.appendChild(menu);
     }
     renderSummary();
+    renderHistory();
   }
 
   document.addEventListener('DOMContentLoaded', install);
