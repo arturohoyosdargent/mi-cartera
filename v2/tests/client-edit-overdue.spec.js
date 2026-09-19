@@ -22,6 +22,9 @@ assert.ok(sw.includes(`const BUILD='${release.build}'`),'service worker and rele
 assert.ok(cards.includes('data-client-card')&&cards.includes('data-credit-card'),'cards must expose stable client and credit identifiers');
 assert.ok(editor.includes('CLIENT_UPDATED')&&editor.includes("type:'CLIENT_UPDATE'")&&editor.includes('Guardar cambios'),'editing must be an auditable durable client update');
 assert.ok(editor.includes('address')&&editor.includes('phone')&&editor.includes('routeId'),'editing must preserve/update contact and routing fields');
+assert.ok(editor.includes('mergeDuplicateClient')&&editor.includes("type:'CLIENT_DUPLICATE_MERGE'")&&editor.includes('CLIENT_DUPLICATE_MERGED'),'duplicate consolidation must be a durable audited operation');
+assert.ok(editor.includes("collection:'credits',kind:'set'")&&editor.includes('clientId:target.id'),'duplicate consolidation must repoint linked credits to the master client');
+assert.ok(editor.includes("collection:'clients',kind:'delete'"),'duplicate consolidation must tombstone the source client only after preparing the merge');
 assert.ok(overdue.includes('dueDate(q)')&&overdue.includes("'OVERDUE'")&&overdue.includes('v2-overdue-label'),'overdue state must derive from schedule dates and be visible');
 assert.ok(overdue.includes('api.filter=filter'),'credit filter must use the schedule-derived status');
 assert.ok(preview.includes('Estado de cuotas')&&preview.includes('vencida'),'credit preview must show payment state before sharing');
