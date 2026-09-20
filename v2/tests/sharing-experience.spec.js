@@ -24,12 +24,12 @@ assert.ok(controller.includes('V2UI.sharePaymentReceipt'),'payment history recei
 assert.ok(controller.includes('MiCarteraV2PaymentReceipt.share'),'payment receipt module not invoked from history');
 assert.ok(controller.includes("state.payments.find(x=>x.id===paymentId)"),'receipt must resolve the selected payment');
 assert.ok(proposal.includes('navigator.share'),'proposal native share missing');
-assert.ok(proposal.includes('MiCarteraV2CustomerExperience.whatsapp'),'proposal WhatsApp fallback missing');
-assert.ok(proposal.includes('navigator.clipboard?.writeText'),'proposal clipboard fallback missing');
+assert.ok(proposal.includes("return 'file-share'"),'proposal branded file share missing');
+assert.ok(!proposal.includes('MiCarteraV2CustomerExperience.whatsapp')&&!proposal.includes('navigator.clipboard?.writeText'),'proposal must not degrade to text-only sharing');
 assert.ok(proposal.includes('El crédito NO queda registrado'),'proposal mutation warning missing');
 assert.ok(credit.includes('navigator.share'),'credit detail native share missing');
-assert.ok(credit.includes('MiCarteraV2CustomerExperience.whatsapp'),'credit detail WhatsApp fallback missing');
-assert.ok(credit.includes('navigator.clipboard?.writeText'),'credit detail clipboard fallback missing');
+assert.ok(credit.includes("return 'file-share'"),'credit detail branded file share missing');
+assert.ok(!credit.includes('MiCarteraV2CustomerExperience.whatsapp')&&!credit.includes('navigator.clipboard?.writeText'),'credit detail must not degrade to text-only sharing');
 assert.ok(credit.includes('status(q)'),'credit detail text must render installment status');
 assert.ok(renderer.includes("txt(x,'Estado',690,700"),'credit image schedule status column missing');
 assert.ok(renderer.includes('installmentStatus(q)'),'credit image must calculate installment status');
@@ -39,8 +39,8 @@ assert.ok(renderer.includes("txt(x,'Detalle del pago'"),'reminder card must show
 assert.ok(renderer.includes("metric(x,'Estado',state"),'reminder card must show the payment state');
 assert.ok(receipt.includes('COMPROBANTE DE PAGO'),'payment receipt title missing');
 assert.ok(receipt.includes('navigator.share'),'payment receipt native share missing');
-assert.ok(receipt.includes('MiCarteraV2CustomerExperience.whatsapp'),'payment receipt WhatsApp fallback missing');
-assert.ok(receipt.includes('navigator.clipboard?.writeText'),'payment receipt clipboard fallback missing');
+assert.ok(receipt.includes("return 'file-share'"),'payment receipt branded file share missing');
+assert.ok(!receipt.includes('MiCarteraV2CustomerExperience.whatsapp')&&!receipt.includes('navigator.clipboard?.writeText'),'payment receipt must not degrade to text-only sharing');
 assert.ok(receipt.includes('Pago registrado en Mi Cartera PRO V2'),'payment receipt confirmation missing');
 assert.ok(cx.includes('https://wa.me/'),'central WhatsApp transport missing');
 assert.ok(agenda.includes('MiCarteraV2CollectionReminderShare.share'),'agenda must invoke unified reminder sharing');
