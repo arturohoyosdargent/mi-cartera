@@ -94,19 +94,20 @@
   function receiptInstallmentLabel(p,cr){
     if(String(p?.concept||'').toUpperCase()!=='CUOTA')return p?.concept||'PAGO';
     const qs=Array.isArray(cr?.schedule)?cr.schedule:[];
-    if(!qs.length)return 'CUOTA';
-    const total=qs.length,amount=Math.max(0,Number(p?.amount||0));
+    const total=Number(p?.totalInstallments||qs.length||0);
+    if(!total)return 'CUOTA';
     const explicit=Number(p?.installmentNumber||p?.installmentNo||p?.quotaNumber||0);
     let current=explicit>0?Math.min(total,explicit):0;
-    if(!current){
+    if(!current&&qs.length){
+      const amount=Math.max(0,Number(p?.amount||0));
       const paidAfter=qs.reduce((sum,q)=>sum+Math.max(0,Number(q.amount||0)-(D.balance?.(q)??Math.max(0,Number(q.balance??q.amount)||0))),0);
       const paidBefore=Math.max(0,paidAfter-amount);
       let acc=0;
       for(let i=0;i<qs.length;i++){acc+=Number(qs[i].amount||0);if(paidBefore<acc-0.005){current=i+1;break}}
     }
-    if(!current)current=Math.max(1,qs.findIndex(q=>(D.balance?.(q)??Number(q.balance??q.amount||0))>0)+1);
-    const remaining=qs.reduce((sum,q)=>sum+(D.balance?.(q)??Math.max(0,Number(q.balance??q.amount)||0)),0);
-    return `CUOTA ${current} DE ${total}${remaining<=0.005?' · CANCELADO':''}`;
+    if(!current)current=1;
+    const remaining=qs.length?qs.reduce((sum,q)=>sum+(D.balance?.(q)??Math.max(0,Number(q.balance??q.amount)||0)),0):NaN;
+    return `CUOTA ${current} DE ${total}${Number.isFinite(remaining)&&remaining<=0.005?' · CANCELADO':''}`;
   }
   function receipt(p,c,cr){
     const cv=document.createElement('canvas');cv.width=720;cv.height=1080;const x=cv.getContext('2d'),firstName=String(c?.name||'').trim().split(/\s+/)[0]||'cliente',t=cr?creditTotals(cr):null;
