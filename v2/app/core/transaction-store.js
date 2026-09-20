@@ -1,0 +1,15 @@
+// Mi Cartera PRO V2 — transactional persistence boundary.
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.MiCarteraV2Store=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){'use strict';
+const sid=v=>String(v??'').trim();
+function assert(ok,msg){if(!ok)throw new Error(msg);}
+function canonical(v){if(Array.isArray(v))return '['+v.map(canonical).join(',')+']';if(v&&typeof v==='object')return '{'+Object.keys(v).sort().filter(k=>!['updatedAt','appliedAt'].includes(k)).map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';return JSON.stringify(v);}
+function fingerprint(operation){let h=2166136261,s=canonical({id:sid(operation.id),type:sid(operation.type),writes:operation.writes});for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0).toString(16).padStart(8,'0');}
+function createStore(adapter){assert(adapter&&typeof adapter.runAtomic==='function','ATOMIC_ADAPTER_REQUIRED');
+ async function execute(operation){assert(operation&&sid(operation.id),'OPERATION_ID_REQUIRED');assert(Array.isArray(operation.writes)&&operation.writes.length,'WRITES_REQUIRED');const fp=fingerprint(operation);return adapter.runAtomic(async tx=>{const opPath=`operations/${sid(operation.id)}`;const existing=await tx.get(opPath);if(existing&&!existing.deletedAt){assert(existing.fingerprint===fp,'OPERATION_ID_COLLISION');return {status:'ALREADY_APPLIED',operation:existing};}const now=new Date().toISOString(),prepared=[];for(const w of operation.writes){assert(w&&sid(w.path),'WRITE_PATH_REQUIRED');const current=await tx.get(w.path),cv=Number(current?.version||0);if(w.expectedVersion!=null)assert(cv===Number(w.expectedVersion),'VERSION_CONFLICT');if(w.kind==='create')assert(!current||current.tombstone,'DOCUMENT_ALREADY_EXISTS');const requested=w.data?.version;if(w.kind!=='delete')assert(requested==null||Number(requested)===cv+1,'INVALID_NEXT_VERSION');prepared.push({w,current,cv});}for(const {w,current,cv} of prepared){if(w.kind==='delete'){await tx.set(w.path,{...(current||{}),deletedAt:now,tombstone:true,version:cv+1,updatedAt:now});}else{await tx.set(w.path,{...(w.data||{}),version:cv+1,updatedAt:now});}}
+ const record={id:sid(operation.id),type:sid(operation.type),fingerprint:fp,status:'APPLIED',createdAt:operation.createdAt||now,appliedAt:now,writeCount:operation.writes.length};await tx.set(opPath,record);return {status:'APPLIED',operation:record};});}
+ return {execute};}
+function write(path,data,expectedVersion){return {kind:'set',path:sid(path),data,expectedVersion};}
+function create(path,data){return {kind:'create',path:sid(path),data,expectedVersion:0};}
+function tombstone(path,expectedVersion){return {kind:'delete',path:sid(path),expectedVersion};}
+return {createStore,write,create,tombstone,fingerprint};
+});
