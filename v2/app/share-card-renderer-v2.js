@@ -110,31 +110,13 @@
     return blob(cv);
   }
   function reminder(d,c){
-    const {cv,x}=canvas('RECORDATORIO DE PAGO','Un formato claro para mantener tu crédito al día',c);
-    const due=D.normalize?.(d?.date)||String(d?.date||'').slice(0,10);
-    const today=D.today?.()||new Date().toISOString().slice(0,10);
-    const overdue=Boolean(due&&due<today);
-    const state=overdue?'VENCIDA':'PENDIENTE';
-    const stateColor=overdue?'#b83232':'#087bd1';
-    metric(x,'Cuota pendiente',money(d?.amount),0,0,'#b83232');
-    metric(x,'Vencimiento',fmt(d?.date),1,0,'#17345f');
-    metric(x,'Estado',state,0,1,stateColor);
-    metric(x,'Tipo','Recordatorio',1,1,'#087bd1');
-
-    x.fillStyle='#e8f5fb';round(x,38,548,824,112,18);
-    txt(x,'Recuerda realizar tu pago a tiempo.',62,592,22,true,'#17345f');
-    txt(x,overdue?'Tu cuota figura vencida.':'Pequeños pagos, grandes metas.',62,625,16,false,'#17345f');
-
-    txt(x,'Detalle del pago',62,710,23,true);
-    x.fillStyle='#e8f5fb';round(x,38,735,824,170,18);
-    txt(x,'Concepto',62,775,15,true);txt(x,'Importe',430,775,15,true);txt(x,'Fecha',690,775,15,true);
-    txt(x,'Cuota pendiente',62,825,15);txt(x,money(d?.amount),430,825,15,false,'#b83232');txt(x,fmt(d?.date),690,825,15);
-
-    x.fillStyle='#fff';round(x,38,930,824,150,18);
-    txt(x,'¿Necesitas ayuda?',62,975,22,true,'#087bd1');
-    txt(x,'Comunícate con nosotros por WhatsApp para cualquier consulta.',62,1015,17,false,'#17345f');
-    txt(x,'PRÉSTAMO YA está contigo en cada paso.',62,1050,17,true,'#187536');
-    footer(x);return blob(cv);
+    const cv=document.createElement('canvas');cv.width=720;cv.height=1080;const x=cv.getContext('2d'),due=D.normalize?.(d?.date)||String(d?.date||'').slice(0,10),today=D.today?.()||localToday(),overdue=Boolean(due&&due<today),state=overdue?'VENCIDA':'PENDIENTE';
+    x.fillStyle='#f8fcff';x.fillRect(0,0,720,1080);x.fillStyle='#1197dc';round(x,18,18,684,126,18);txt(x,'▱  PRÉSTAMO YA',42,62,29,true,'#fff');txt(x,'Tu aliado en soluciones financieras',42,91,14,false,'#fff');txt(x,'RECORDATORIO DE PAGO',42,123,16,true,'#fff');
+    txt(x,'🔔',360,210,58,true,'#087bd1','center');txt(x,'Recordatorio de tu cuota',360,270,27,true,'#17345f','center');txt(x,'Estamos para ayudarte a mantener tu crédito al día.',360,305,15,false,'#17345f','center');
+    x.fillStyle='#eef8fd';round(x,36,340,648,118,18);txt(x,'Cliente',58,375,13,false,'#6b737b');txt(x,c?.name||d?.clientName||'Cliente',58,405,20,true);if(c?.phone)txt(x,'Tel. '+c.phone,430,405,14,false,'#17345f');
+    x.fillStyle='#fff5f3';round(x,36,486,648,190,18);txt(x,'Monto pendiente',58,526,13,false,'#6b737b');txt(x,money(d?.amount),58,562,29,true,'#b83232');txt(x,'Fecha de vencimiento',390,526,13,false,'#6b737b');txt(x,fmt(d?.date),390,558,19,true);txt(x,'Estado',58,618,13,false,'#6b737b');txt(x,state,58,648,19,true,overdue?'#b83232':'#087bd1');txt(x,'Tipo',390,618,13,false,'#6b737b');txt(x,'CUOTA',390,648,18,true);
+    x.fillStyle='#edf9f0';round(x,36,712,648,126,18);txt(x,'🌱',58,758,25,true,'#187536');txt(x,'Mantener tus pagos al día fortalece tu historial',102,752,15,true,'#187536');txt(x,'y nos permite seguir acompañándote con tu crédito.',102,780,15,true,'#187536');txt(x,'Si ya realizaste el pago, puedes ignorar este recordatorio.',102,814,12,false,'#4b6b58');
+    txt(x,'¡Gracias por tu confianza!',360,914,19,true,'#087bd1','center');txt(x,'PRÉSTAMO YA · CONFIANZA · COMPROMISO · TU PROGRESO',360,950,11,true,'#087bd1','center');x.fillStyle='#1197dc';x.beginPath();x.moveTo(18,980);x.quadraticCurveTo(180,1020,360,992);x.quadraticCurveTo(540,964,702,1004);x.lineTo(702,1062);x.lineTo(18,1062);x.closePath();x.fill();return blob(cv);
   }
   function blob(cv){return new Promise(r=>cv.toBlob(r,'image/png'))}
   root.MiCarteraV2ShareCard={proposal,credit,receipt,reminder,money,fmt,installmentStatus,creditTotals};
