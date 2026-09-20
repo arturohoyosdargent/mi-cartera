@@ -5,6 +5,7 @@ const controller=fs.readFileSync(path.join(app,'operational-controller.js'),'utf
 const proposal=fs.readFileSync(path.join(app,'proposal-share-v2.js'),'utf8');
 const credit=fs.readFileSync(path.join(app,'credit-detail-share-v2.js'),'utf8');
 const receipt=fs.readFileSync(path.join(app,'payment-receipt-v2.js'),'utf8');
+const preview=fs.readFileSync(path.join(app,'share-preview-v2.js'),'utf8');
 const renderer=fs.readFileSync(path.join(app,'share-card-renderer-v2.js'),'utf8');
 const reminder=fs.readFileSync(path.join(app,'collection-reminder-share-v2.js'),'utf8');
 const agenda=fs.readFileSync(path.join(app,'agenda-v2.js'),'utf8');
