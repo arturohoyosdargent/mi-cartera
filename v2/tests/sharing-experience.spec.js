@@ -48,6 +48,8 @@ assert.ok(cx.includes('https://wa.me/'),'central WhatsApp transport missing');
 assert.ok(agenda.includes('MiCarteraV2CollectionReminderShare.share'),'agenda must invoke unified reminder sharing');
 assert.ok(agenda.includes('📤 Compartir recordatorio'),'agenda must expose reminder share action');
 assert.ok(reminder.includes('navigator.share'),'reminder native share missing');
+assert.ok(reminder.includes("if(blob){try{const file=new File"),'reminder must attempt branded image regardless of phone availability');
+assert.ok(!reminder.includes('if(blob&&!hasPhone)'),'reminder must not bypass branded image merely because client has a phone');
 assert.ok(reminder.includes('MiCarteraV2CustomerExperience?.whatsapp'),'reminder WhatsApp fallback missing');
 assert.ok(reminder.includes('navigator.clipboard?.writeText'),'reminder clipboard fallback missing');
 assert.ok(reminder.includes("console.warn('V2 reminder clipboard fallback failed.'"),'reminder clipboard rejection must be handled');
