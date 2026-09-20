@@ -13,8 +13,13 @@ async function worker(expected){
  await navigator.serviceWorker.ready;
  let sw=reg.active||navigator.serviceWorker.controller;
  if(!sw)throw new Error('SERVICE_WORKER_NOT_ACTIVE');
+ // Prefer the registration's active worker. On installed PWAs, navigator.controller can
+ // temporarily remain attached to the previous worker after a fresh Hosting release.
  let build=await askBuild(sw);
  if(build!==expected){
+   if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
+   await Promise.race([new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})),wait(2500)]);
+   await reg.update();
    if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
    await Promise.race([new Promise(resolve=>navigator.serviceWorker.addEventListener('controllerchange',resolve,{once:true})),wait(2500)]);
    sw=reg.active||navigator.serviceWorker.controller;
