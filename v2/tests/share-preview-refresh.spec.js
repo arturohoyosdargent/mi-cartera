@@ -24,6 +24,9 @@ assert.ok(preview.includes('previewPayment'), 'payment receipts must be previewe
 assert.ok(preview.includes('const shareCredit=cards.shareCredit') && preview.includes('cards.shareCredit=id=>previewCredit(id)'), 'credit share action must be intercepted before sending');
 assert.ok(preview.includes('const remind=agenda.remind') && preview.includes('agenda.remind=id=>'), 'agenda reminder action must be intercepted before sending');
 assert.ok(durable.includes("root.MiCarteraV2SharePreview?.previewCredit?.(r.newCredit.id)"), 'both renewal flows must preview the newly created credit after durable save');
+assert.ok(durable.includes("panel.setAttribute('role','region')") && !durable.includes("panel.setAttribute('aria-modal','true')"), 'renewal form must stay inline with the selected credit instead of behaving as a detached modal');
+assert.ok(durable.includes("card.insertAdjacentElement('afterend',panel)"), 'renewal form must be anchored immediately after the selected credit card');
+assert.ok(durable.includes("position:'relative'") && !durable.includes("position:'fixed',zIndex:'10050'"), 'renewal form must not float globally over unrelated credits');
 assert.equal((durable.match(/root\.MiCarteraV2SharePreview\?\.previewCredit\?\.\(r\.newCredit\.id\)/g)||[]).length,2,'interest and capital renewal must both enter preview flow');
 assert.ok(durable.indexOf("await commit('INTEREST_RENEWAL'") < durable.indexOf("root.MiCarteraV2SharePreview?.previewCredit?.(r.newCredit.id)"), 'interest renewal preview must happen only after durable commit');
 assert.ok(durable.indexOf("await commit('REFINANCE'") < durable.lastIndexOf("root.MiCarteraV2SharePreview?.previewCredit?.(r.newCredit.id)"), 'capital renewal preview must happen only after durable commit');
