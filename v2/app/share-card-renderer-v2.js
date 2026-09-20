@@ -130,5 +130,5 @@
     txt(x,'¡Gracias por tu confianza!',360,914,19,true,'#087bd1','center');txt(x,'PRÉSTAMO YA · CONFIANZA · COMPROMISO · TU PROGRESO',360,950,11,true,'#087bd1','center');x.fillStyle='#1197dc';x.beginPath();x.moveTo(18,980);x.quadraticCurveTo(180,1020,360,992);x.quadraticCurveTo(540,964,702,1004);x.lineTo(702,1062);x.lineTo(18,1062);x.closePath();x.fill();return blob(cv);
   }
   function blob(cv){return new Promise(r=>cv.toBlob(r,'image/png'))}
-  root.MiCarteraV2ShareCard={proposal,credit,receipt,reminder,money,fmt,installmentStatus,creditTotals};
+  root.MiCarteraV2ShareCard={proposal,credit,receipt,reminder,money,fmt,installmentStatus,creditTotals,receiptInstallmentLabel};
 })(window);
