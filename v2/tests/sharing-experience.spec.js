@@ -64,3 +64,7 @@ assert.ok(preview.includes('Mensaje sugerido (puedes editarlo)'),'editable payme
 assert.ok(receipt.includes('editedMessage'),'payment share must accept edited message');
 assert.ok(receipt.includes('text:msg,files:[file]'),'payment share must send edited message with branded image');
 assert.ok(renderer.includes('Tus pagos puntuales nos ayudan a mantener tu crédito disponible'),'approved punctuality message missing from receipt image');
+
+assert.ok(renderer.includes('cv.width=720;cv.height=1080'),'receipt must use approved compact mobile canvas');
+assert.ok(renderer.includes("x.quadraticCurveTo(180,965,360,930)"),'receipt must preserve approved lower wave composition');
+assert.ok(renderer.includes("'¡Gracias por tu confianza!'"),'receipt trust closing missing');
