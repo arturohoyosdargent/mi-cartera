@@ -57,7 +57,7 @@
   async function share(){
     const d=draft(),client=findClient(d);let file=null;
     try{const cards=await ensureRenderer(),blob=await cards.proposal(d,client);if(blob)file=new File([blob],'prestamo-ya-propuesta-credito.png',{type:'image/png'})}catch(e){console.warn('V2 proposal image unavailable.',e)}
-    if(file&&navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({title:'Préstamo Ya · Propuesta de crédito',text:'Préstamo Ya · Revisa tu propuesta de crédito.',files:[file]});return 'file-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 proposal image sharing failed.',e)}}
+    if(file&&navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({title:'Préstamo Ya · Propuesta de crédito',files:[file]});return 'file-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 proposal image sharing failed.',e)}}
     if(file)throw new Error('Este dispositivo no permite adjuntar automáticamente la propuesta gráfica.');
     throw new Error('No se pudo generar la propuesta gráfica. No se enviará como texto.');
   }
