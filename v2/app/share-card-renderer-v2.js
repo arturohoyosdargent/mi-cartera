@@ -110,7 +110,10 @@
     if(cr){const t=creditTotals(cr);metric(x,'Total del crédito',money(t.total),0,3);metric(x,'Saldo actual',money(t.balance),1,3,'#b83232');}
     else {metric(x,'Estado','PAGO CONFIRMADO',0,3,'#187536');}
     const firstName=String(c?.name||'').trim().split(/\s+/)[0]||'cliente';
-    x.fillStyle='#e8f5fb';round(x,38,800,824,145,18);txt(x,`¡Gracias, ${firstName}!`,62,842,25,true,'#187536');txt(x,`Hemos recibido tu pago de ${money(p?.amount)} del ${fmt(p?.date)}.`,62,880,17,false);txt(x,'Gracias por tu puntualidad y confianza en PRÉSTAMO YA.',62,914,17,true,'#17345f');
+    x.fillStyle='#e8f5fb';round(x,38,760,824,190,18);
+    txt(x,'🤝',62,806,34,true,'#087bd1');txt(x,`¡Gracias, ${firstName}!`,118,806,27,true,'#17345f');
+    txt(x,'Hemos registrado correctamente tu pago.',62,846,18,false,'#17345f');
+    x.fillStyle='#edf9f0';round(x,62,870,776,62,14);txt(x,'🌱  Tus pagos puntuales nos ayudan a mantener tu crédito disponible',82,897,15,true,'#187536');txt(x,'y seguir creciendo juntos.',112,920,15,true,'#187536');
     footer(x);return blob(cv);
   }
   function reminder(d,c){
