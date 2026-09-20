@@ -37,4 +37,24 @@ function credit(id,capital,total=capital){return {id,clientId:'client-1',capital
  const r=F.allocateInstallment(c,{id:'p-existing',amount:180},360);
  assert.equal(r.payment.capitalAmount,150);assert.equal(r.payment.interestAmount,30);assert.equal(r.payment.capitalAmount+r.payment.interestAmount,r.payment.amount);assert.equal(F.principalBalance(r.credit),150);assert.equal(r.credit.status,F.STATUS.ACTIVE);
 }
+
+// Aislamiento por creditId: un cliente puede tener dos créditos y renovar solo el seleccionado.
+{
+ const a={...credit('multi-a',500,600),clientId:'same-client',principalPaid:400};
+ const b={...credit('multi-b',900,1080),clientId:'same-client',principalPaid:100};
+ const r=F.refinance(a,{newCreditId:'multi-a-new',newCapital:500,rate:20,date:'2026-09-20',freq:'weekly',term:4});
+ assert.equal(r.oldCredit.id,'multi-a');assert.equal(r.oldCredit.renewedTo,'multi-a-new');assert.equal(r.newCredit.renewedFrom,'multi-a');
+ assert.equal(r.previousBalance,100);assert.equal(r.cashDisbursed,400);
+ assert.equal(b.status,F.STATUS.ACTIVE);assert.equal(b.principalPaid,100);assert.equal(F.principalBalance(b),800);
+ assert.deepEqual(F.validateChain([r.oldCredit,r.newCredit,b]),[]);
+}
+// Renovación solo interés mantiene intacto el principal pendiente del crédito seleccionado.
+{
+ const a={...credit('interest-a',500,600),clientId:'same-client',principalPaid:100};
+ const b={...credit('interest-b',300,360),clientId:'same-client',principalPaid:0};
+ const r=F.interestRenewal(a,{newCreditId:'interest-a-new',paymentId:'interest-pay',interestAmount:80,date:'2026-09-20',rate:20,freq:'weekly',term:4});
+ assert.equal(r.newCredit.capital,400);assert.equal(r.newCredit.total,480);assert.equal(r.payment.creditId,'interest-a');assert.equal(r.payment.capitalAmount,0);
+ assert.equal(F.principalBalance(b),300);assert.equal(b.status,F.STATUS.ACTIVE);
+ assert.deepEqual(F.validateChain([r.oldCredit,r.newCredit,b]),[]);
+}
 console.log('V2 financial acceptance: PASS');
