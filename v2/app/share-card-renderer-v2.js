@@ -102,19 +102,22 @@
     footer(x);return blob(cv);
   }
   function receipt(p,c,cr){
-    const {cv,x}=canvas('COMPROBANTE DE PAGO','Tu pago fue registrado correctamente',c);
-    x.fillStyle='#e8f5fb';round(x,38,322,824,170,18);
-    txt(x,'MONTO RECIBIDO',62,365,17,true,'#6b737b');txt(x,money(p?.amount),62,425,42,true,'#087bd1');
-    txt(x,'Fecha',510,365,15,false,'#6b737b');txt(x,fmt(p?.date),510,400,22,true);
-    txt(x,'Concepto',510,442,15,false,'#6b737b');txt(x,p?.concept||'PAGO',510,477,20,true);
-    if(cr){const t=creditTotals(cr);metric(x,'Total del crédito',money(t.total),0,3);metric(x,'Saldo actual',money(t.balance),1,3,'#b83232');}
-    else {metric(x,'Estado','PAGO CONFIRMADO',0,3,'#187536');}
-    const firstName=String(c?.name||'').trim().split(/\s+/)[0]||'cliente';
-    x.fillStyle='#e8f5fb';round(x,38,760,824,190,18);
-    txt(x,'🤝',62,806,34,true,'#087bd1');txt(x,`¡Gracias, ${firstName}!`,118,806,27,true,'#17345f');
-    txt(x,'Hemos registrado correctamente tu pago.',62,846,18,false,'#17345f');
-    x.fillStyle='#edf9f0';round(x,62,870,776,62,14);txt(x,'🌱  Tus pagos puntuales nos ayudan a mantener tu crédito disponible',82,897,15,true,'#187536');txt(x,'y seguir creciendo juntos.',112,920,15,true,'#187536');
-    footer(x);return blob(cv);
+    const cv=document.createElement('canvas');cv.width=720;cv.height=1080;const x=cv.getContext('2d'),firstName=String(c?.name||'').trim().split(/\s+/)[0]||'cliente',t=cr?creditTotals(cr):null;
+    x.fillStyle='#f8fcff';x.fillRect(0,0,720,1080);
+    x.fillStyle='#1197dc';round(x,18,18,684,126,18);
+    txt(x,'▱  PRÉSTAMO YA',42,62,29,true,'#fff');txt(x,'Tu aliado en soluciones financieras',42,91,14,false,'#fff');txt(x,'COMPROBANTE DE PAGO',42,123,16,true,'#fff');
+    txt(x,'🤝',360,210,72,true,'#087bd1','center');txt(x,`¡Gracias, ${firstName}!`,360,268,31,true,'#17345f','center');txt(x,'Hemos registrado correctamente',360,300,17,false,'#17345f','center');txt(x,'tu pago.',360,324,17,false,'#17345f','center');
+    x.fillStyle='#eef8fd';round(x,36,350,648,292,18);
+    txt(x,'👤',58,393,21,true,'#087bd1');txt(x,'Cliente',94,382,13,false,'#6b737b');txt(x,c?.name||'Cliente',94,407,19,true);
+    txt(x,'▣',58,454,21,true,'#087bd1');txt(x,'Monto recibido',94,443,13,false,'#6b737b');txt(x,money(p?.amount),94,474,28,true,'#087bd1');
+    txt(x,'▣',58,525,21,true,'#087bd1');txt(x,'Fecha',94,514,13,false,'#6b737b');txt(x,fmt(p?.date),94,539,18,true);
+    txt(x,'▤',58,584,21,true,'#087bd1');txt(x,'Concepto',94,573,13,false,'#6b737b');txt(x,p?.concept||'PAGO',94,598,18,true);
+    if(t){txt(x,'Total del crédito',390,443,13,false,'#6b737b');txt(x,money(t.total),390,472,20,true,'#087bd1');txt(x,'Saldo actual',390,514,13,false,'#6b737b');txt(x,money(t.balance),390,543,20,true,'#b83232');}
+    x.fillStyle='#edf9f0';round(x,36,666,648,112,18);txt(x,'🌱',58,707,25,true,'#187536');txt(x,'Tus pagos puntuales nos ayudan',102,704,16,true,'#187536');txt(x,'a mantener tu crédito disponible',102,730,16,true,'#187536');txt(x,'y seguir creciendo juntos.',102,756,16,true,'#187536');
+    txt(x,'¡Gracias por tu confianza!',360,835,19,true,'#087bd1','center');txt(x,'PRÉSTAMO YA · CONFIANZA · COMPROMISO · TU PROGRESO',360,884,11,true,'#087bd1','center');
+    x.fillStyle='#1197dc';x.beginPath();x.moveTo(18,920);x.quadraticCurveTo(180,965,360,930);x.quadraticCurveTo(540,895,702,940);x.lineTo(702,1018);x.quadraticCurveTo(520,985,360,1012);x.quadraticCurveTo(180,1040,18,1002);x.closePath();x.fill();
+    txt(x,'Tu pago nos acerca a nuevas oportunidades.',360,974,14,true,'#fff','center');
+    return blob(cv);
   }
   function reminder(d,c){
     const {cv,x}=canvas('RECORDATORIO DE PAGO','Un formato claro para mantener tu crédito al día',c);
