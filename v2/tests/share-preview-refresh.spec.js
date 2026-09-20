@@ -35,5 +35,9 @@ assert.ok(refresh.includes('manualRefreshButton'), 'manual refresh button must b
 assert.ok(refresh.includes('MiCarteraV2CloudRehydration?.rehydrate'), 'refresh must rehydrate Cloud data when available');
 assert.ok(refresh.includes('Guarda el cliente o el crédito antes de actualizar'), 'refresh must protect unsaved forms');
 assert.ok(refresh.includes('location?.reload'), 'refresh must reload only after a new published PWA version is detected');
+assert.ok(refresh.includes('if(busy)return'), 'refresh must ignore duplicate taps while an update is already running');
+assert.ok(refresh.includes("if(unsaved())") && refresh.includes('actualización está bloqueada para proteger los datos'), 'refresh must never discard an unfinished client or credit form');
+assert.ok(refresh.includes("SKIPPED_PENDING_LOCAL_OPERATIONS") && refresh.includes('los datos locales se conservaron'), 'refresh must preserve local data while durable operations are pending');
+assert.ok(refresh.includes("auth?.ready&&root.MiCarteraV2CloudRehydration?.rehydrate"), 'Cloud rehydration must run only for an authorized ready session');
 
 console.log('V2 share preview and safe refresh: PASS');
