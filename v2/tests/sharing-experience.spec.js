@@ -32,12 +32,12 @@ assert.ok(credit.includes('navigator.share'),'credit detail native share missing
 assert.ok(credit.includes("return 'file-share'"),'credit detail branded file share missing');
 assert.ok(!credit.includes('MiCarteraV2CustomerExperience.whatsapp')&&!credit.includes('navigator.clipboard?.writeText'),'credit detail must not degrade to text-only sharing');
 assert.ok(credit.includes('status(q)'),'credit detail text must render installment status');
-assert.ok(renderer.includes("txt(x,'Estado',690,700"),'credit image schedule status column missing');
+assert.ok(renderer.includes("txt(x,'Estado',565,675"),'credit image schedule status column missing');
 assert.ok(renderer.includes('installmentStatus(q)'),'credit image must calculate installment status');
-assert.ok(renderer.includes("canvas('RECORDATORIO DE PAGO'"),'canonical renderer must provide reminder card');
-assert.ok(renderer.includes("metric(x,'Cuota pendiente'"),'reminder card must use the structured branded summary');
-assert.ok(renderer.includes("txt(x,'Detalle del pago'"),'reminder card must show a structured payment detail section');
-assert.ok(renderer.includes("metric(x,'Estado',state"),'reminder card must show the payment state');
+assert.ok(renderer.includes("'RECORDATORIO DE PAGO'")&&renderer.includes('function reminder(d,c)')&&renderer.includes('cv.width=720;cv.height=1080'),'canonical renderer must provide compact reminder card');
+assert.ok(renderer.includes("txt(x,'Monto pendiente'"),'reminder card must use the structured branded summary');
+assert.ok(renderer.includes("txt(x,'Fecha de vencimiento'"),'reminder card must show structured payment detail');
+assert.ok(renderer.includes("txt(x,state,58,648"),'reminder card must show the payment state');
 assert.ok(receipt.includes('COMPROBANTE DE PAGO'),'payment receipt title missing');
 assert.ok(receipt.includes('navigator.share'),'payment receipt native share missing');
 assert.ok(receipt.includes("return 'file-share'"),'payment receipt branded file share missing');
