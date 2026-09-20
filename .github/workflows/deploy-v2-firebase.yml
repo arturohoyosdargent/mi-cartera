@@ -1,0 +1,33 @@
+name: Deploy V2 Firebase Hosting
+on:
+  push:
+    branches: [reengineering-v2-final]
+    paths:
+      - 'v2/app/**'
+      - 'firebase.v2.json'
+      - '.firebaserc'
+      - '.github/workflows/deploy-v2-firebase.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  deploy-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify V2 package
+        run: |
+          node v2/tests/app-shell.spec.js
+          node v2/tests/pilot-config.spec.js
+          node v2/tests/share-preview-refresh.spec.js
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+      - name: Deploy isolated V2 Hosting
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          test -n "$FIREBASE_TOKEN" || (echo "FIREBASE_TOKEN secret is required" && exit 1)
+          firebase deploy --only hosting:v2 --project mi-cartera-d0d8c --config firebase.v2.json --token "$FIREBASE_TOKEN" --non-interactive
