@@ -109,7 +109,8 @@
     txt(x,'Concepto',510,442,15,false,'#6b737b');txt(x,p?.concept||'PAGO',510,477,20,true);
     if(cr){const t=creditTotals(cr);metric(x,'Total del crédito',money(t.total),0,3);metric(x,'Saldo actual',money(t.balance),1,3,'#b83232');}
     else {metric(x,'Estado','PAGO CONFIRMADO',0,3,'#187536');}
-    x.fillStyle='#e8f5fb';round(x,38,800,824,110,18);txt(x,'Pago confirmado',62,842,24,true,'#187536');txt(x,'Conserva este comprobante como constancia de tu operación.',62,878,17,false);
+    const firstName=String(c?.name||'').trim().split(/\s+/)[0]||'cliente';
+    x.fillStyle='#e8f5fb';round(x,38,800,824,145,18);txt(x,`¡Gracias, ${firstName}!`,62,842,25,true,'#187536');txt(x,`Hemos recibido tu pago de ${money(p?.amount)} del ${fmt(p?.date)}.`,62,880,17,false);txt(x,'Gracias por tu puntualidad y confianza en PRÉSTAMO YA.',62,914,17,true,'#17345f');
     footer(x);return blob(cv);
   }
   function reminder(d,c){
