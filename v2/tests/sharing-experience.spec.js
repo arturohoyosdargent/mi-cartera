@@ -41,7 +41,9 @@ assert.ok(receipt.includes('COMPROBANTE DE PAGO'),'payment receipt title missing
 assert.ok(receipt.includes('navigator.share'),'payment receipt native share missing');
 assert.ok(receipt.includes("return 'file-share'"),'payment receipt branded file share missing');
 assert.ok(!receipt.includes('MiCarteraV2CustomerExperience.whatsapp')&&!receipt.includes('navigator.clipboard?.writeText'),'payment receipt must not degrade to text-only sharing');
-assert.ok(receipt.includes('Pago registrado en Mi Cartera PRO V2'),'payment receipt confirmation missing');
+assert.ok(receipt.includes('Pago confirmado.'),'payment receipt confirmation missing');
+assert.ok(!receipt.includes('Operación: ${p?.id')&&!receipt.includes('Crédito: ${cr?.id'),'customer receipt text must not expose internal ids');
+assert.ok(!renderer.includes("metric(x,'Crédito',cr?.id")&&!renderer.includes("metric(x,'Operación',p?.id"),'customer receipt image must not expose internal ids');
 assert.ok(cx.includes('https://wa.me/'),'central WhatsApp transport missing');
 assert.ok(agenda.includes('MiCarteraV2CollectionReminderShare.share'),'agenda must invoke unified reminder sharing');
 assert.ok(agenda.includes('📤 Compartir recordatorio'),'agenda must expose reminder share action');
