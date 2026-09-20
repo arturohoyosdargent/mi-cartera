@@ -63,6 +63,8 @@ jobs:
         run: node v2/tests/functional-parity.spec.js
       - name: Customer sharing experience gate
         run: node v2/tests/sharing-experience.spec.js
+      - name: Renewal preview and safe refresh regression
+        run: node v2/tests/share-preview-refresh.spec.js
       - name: Pilot activation safety gate
         run: node v2/tests/pilot-config.spec.js
       - name: Cloud runtime pilot gate
