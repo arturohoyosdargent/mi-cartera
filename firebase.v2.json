@@ -1,24 +1,15 @@
 {
   "hosting": {
     "target": "v2",
-    "public": "v2/app",
-    "ignore": [
-      "firebase.v2.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "public": "v2",
+    "ignore": ["firebase.v2.json","**/.*","**/node_modules/**"],
     "headers": [
-      {
-        "source": "/service-worker.js",
-        "headers": [{"key":"Cache-Control","value":"no-cache, no-store, must-revalidate"}]
-      },
-      {
-        "source": "/manifest.webmanifest",
-        "headers": [{"key":"Content-Type","value":"application/manifest+json"}]
-      }
+      {"source":"/app/index.html","headers":[{"key":"Cache-Control","value":"no-cache, no-store, must-revalidate"}]},
+      {"source":"/app/release.json","headers":[{"key":"Cache-Control","value":"no-cache, no-store, must-revalidate"}]},
+      {"source":"/app/service-worker.js","headers":[{"key":"Cache-Control","value":"no-cache, no-store, must-revalidate"}]},
+      {"source":"/app/manifest.webmanifest","headers":[{"key":"Content-Type","value":"application/manifest+json"}]}
     ],
-    "rewrites": [
-      {"source":"**","destination":"/index.html"}
-    ]
+    "redirects": [{"source":"/","destination":"/app/index.html","type":302}],
+    "rewrites": []
   }
 }
