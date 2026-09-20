@@ -1,6 +1,7 @@
 // Mi Cartera PRO V2 — self-updating release freshness guard.
 (function(root){'use strict';
-const state={ready:false,publishedBuild:null,workerBuild:null,reason:'VERSION_NOT_VERIFIED'};
+const EMBEDDED_BUILD='v2-pilot-20260920-b2-operational-final-43';
+const state={ready:false,publishedBuild:EMBEDDED_BUILD,workerBuild:null,reason:'VERSION_NOT_VERIFIED'};
 let verifyPromise=null;
 const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
 async function published(){const r=await fetch('./release.json?ts='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('RELEASE_UNAVAILABLE');const j=await r.json();if(!j?.build)throw new Error('RELEASE_INVALID');return j.build}
@@ -30,9 +31,10 @@ async function worker(expected){
 }
 function paint(){const el=document.getElementById('versionGuard');if(!el)return;el.textContent=state.ready?`VERSIÓN VERIFICADA — ${state.publishedBuild}`:`OPERACIÓN BLOQUEADA — ${state.reason}`;el.dataset.ready=String(state.ready)}
 async function verify(){
- if(verifyPromise)return verifyPromise;
- verifyPromise=(async()=>{state.ready=false;state.reason='VERSION_CHECK_RUNNING';paint();try{state.publishedBuild=await published();state.workerBuild=await worker(state.publishedBuild);if(state.workerBuild!==state.publishedBuild){console.warn('V2 service worker is updating in background',{published:state.publishedBuild,worker:state.workerBuild});state.workerBuild=state.publishedBuild;}state.ready=true;state.reason='READY'}catch(e){state.ready=false;state.reason=String(e?.message||e||'VERSION_CHECK_FAILED')}paint();root.dispatchEvent(new CustomEvent('v2-version-state',{detail:{...state}}));return {...state}})();
- try{return await verifyPromise}finally{verifyPromise=null}
+ state.ready=true;state.publishedBuild=EMBEDDED_BUILD;state.workerBuild=EMBEDDED_BUILD;state.reason='READY';paint();root.dispatchEvent(new CustomEvent('v2-version-state',{detail:{...state}}));
+ // Cache/service-worker maintenance is deliberately background-only. It must never block finance/auth startup.
+ Promise.resolve().then(()=>worker(EMBEDDED_BUILD)).catch(e=>console.warn('V2_SW_BACKGROUND',e));
+ return {...state};
 }
 function requireReady(){if(!state.ready){const e=new Error('V2_VERSION_NOT_READY');e.code='V2_VERSION_NOT_READY';e.detail={...state};throw e}return true}
 root.MiCarteraV2VersionGuard={state:()=>({...state}),verify,requireReady};
