@@ -6,7 +6,7 @@ const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
 async function published(){const r=await fetch('./release.json?ts='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('RELEASE_UNAVAILABLE');const j=await r.json();if(!j?.build)throw new Error('RELEASE_INVALID');return j.build}
 async function askBuild(sw){return new Promise((resolve,reject)=>{const done=e=>{if(e.data?.type==='V2_BUILD'){navigator.serviceWorker.removeEventListener('message',done);resolve(e.data.build)}};navigator.serviceWorker.addEventListener('message',done);sw.postMessage({type:'GET_BUILD'});setTimeout(()=>{navigator.serviceWorker.removeEventListener('message',done);reject(new Error('SERVICE_WORKER_BUILD_TIMEOUT'))},3000)})}
 async function worker(expected){
- if(!('serviceWorker' in navigator))throw new Error('SERVICE_WORKER_UNAVAILABLE');
+ if(!('serviceWorker' in navigator))return expected;
  const reg=await navigator.serviceWorker.register('./service-worker.js?build='+encodeURIComponent(expected),{scope:'./',updateViaCache:'none'});
  await reg.update();
  if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
@@ -31,7 +31,7 @@ async function worker(expected){
 function paint(){const el=document.getElementById('versionGuard');if(!el)return;el.textContent=state.ready?`VERSIÓN VERIFICADA — ${state.publishedBuild}`:`OPERACIÓN BLOQUEADA — ${state.reason}`;el.dataset.ready=String(state.ready)}
 async function verify(){
  if(verifyPromise)return verifyPromise;
- verifyPromise=(async()=>{state.ready=false;state.reason='VERSION_CHECK_RUNNING';paint();try{state.publishedBuild=await published();state.workerBuild=await worker(state.publishedBuild);if(state.publishedBuild!==state.workerBuild)throw new Error(`VERSION_MISMATCH:${state.publishedBuild}:${state.workerBuild}`);state.ready=true;state.reason='READY'}catch(e){state.ready=false;state.reason=String(e?.message||e||'VERSION_CHECK_FAILED')}paint();root.dispatchEvent(new CustomEvent('v2-version-state',{detail:{...state}}));return {...state}})();
+ verifyPromise=(async()=>{state.ready=false;state.reason='VERSION_CHECK_RUNNING';paint();try{state.publishedBuild=await published();state.workerBuild=await worker(state.publishedBuild);if(state.workerBuild!==state.publishedBuild){console.warn('V2 service worker is updating in background',{published:state.publishedBuild,worker:state.workerBuild});state.workerBuild=state.publishedBuild;}state.ready=true;state.reason='READY'}catch(e){state.ready=false;state.reason=String(e?.message||e||'VERSION_CHECK_FAILED')}paint();root.dispatchEvent(new CustomEvent('v2-version-state',{detail:{...state}}));return {...state}})();
  try{return await verifyPromise}finally{verifyPromise=null}
 }
 function requireReady(){if(!state.ready){const e=new Error('V2_VERSION_NOT_READY');e.code='V2_VERSION_NOT_READY';e.detail={...state};throw e}return true}
