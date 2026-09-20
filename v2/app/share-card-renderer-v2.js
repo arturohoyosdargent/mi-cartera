@@ -58,26 +58,20 @@
     txt(x,'PRÉSTAMO YA · CONFIANZA · COMPROMISO · TU PROGRESO',450,1260,12,true,'#087bd1','center');
   }
   function proposal(d,c){
-    const {cv,x}=canvas('PROPUESTA DE CRÉDITO','¡Estamos listos para apoyarte!',c||d.client);
-    metric(x,'Monto del crédito',money(d.capital),0,0);
-    metric(x,'Cuota referencial',money(d.installment),1,0);
-    metric(x,'Plazo',`${d.term} cuotas`,0,1);
-    metric(x,'Total a pagar',money(d.total),1,1);
-    metric(x,'Tasa de interés',`${Number(d.rate||0)}%`,0,2);
-    metric(x,'Fecha de inicio',fmt(d.first),1,2);
-    x.fillStyle='#e8f5fb';round(x,38,615,824,94,18);
-    txt(x,'Tu esfuerzo hoy construye un mejor futuro.',62,655,21,true,'#17345f');
-    txt(x,'Pequeños pasos, grandes logros.',62,684,16,false,'#17345f');
-    txt(x,'Primeras cuotas',62,760,23,true);
-    txt(x,'#',65,805,15,true);txt(x,'Fecha',130,805,15,true);txt(x,'Cuota',430,805,15,true);txt(x,'Saldo',690,805,15,true);
-    const fallbackRows=Array.from({length:Math.max(0,Number(d.term)||0)},(_,i)=>({number:i+1,date:advance(d.first,i,d.freq),amount:i===Number(d.term)-1?Math.max(0,Number(d.total||0)-Number(d.installment||0)*Math.max(0,Number(d.term)-1)):Number(d.installment||0)}));
-    const rows=Array.isArray(d.schedule)&&d.schedule.length?d.schedule:fallbackRows;
-    let saldo=Number(d.total||0);
-    rows.slice(0,6).forEach((q,i)=>{
-      saldo=Math.max(0,saldo-Number(q.amount||0));const y=850+i*50,label=q.number??q.n??i+1;
-      txt(x,label,65,y,15);txt(x,fmt(q.date),130,y,15);txt(x,money(q.amount),430,y,15,false,q.extra?'#b83232':'#087bd1');txt(x,money(saldo),690,y,15);
-    });
-    footer(x);return blob(cv);
+    const cv=document.createElement('canvas');cv.width=720;cv.height=1080;const x=cv.getContext('2d'),client=c||d.client;
+    x.fillStyle='#f8fcff';x.fillRect(0,0,720,1080);
+    x.fillStyle='#1197dc';round(x,18,18,684,126,18);txt(x,'▱  PRÉSTAMO YA',42,62,29,true,'#fff');txt(x,'Tu aliado en soluciones financieras',42,91,14,false,'#fff');txt(x,'PROPUESTA DE CRÉDITO',42,123,16,true,'#fff');
+    txt(x,'🤝',360,205,66,true,'#087bd1','center');txt(x,'¡Estamos listos para apoyarte!',360,258,25,true,'#17345f','center');
+    x.fillStyle='#eef8fd';round(x,36,286,648,105,18);txt(x,'Cliente',58,320,13,false,'#6b737b');txt(x,client?.name||'Cliente',58,349,20,true);if(client?.phone)txt(x,'Tel. '+client.phone,430,349,14,false,'#17345f');
+    x.fillStyle='#eef8fd';round(x,36,414,648,214,18);
+    txt(x,'Monto del crédito',58,448,13,false,'#6b737b');txt(x,money(d.capital),58,480,27,true,'#087bd1');txt(x,'Cuota',390,448,13,false,'#6b737b');txt(x,money(d.installment),390,480,22,true,'#087bd1');
+    txt(x,'Plazo',58,522,13,false,'#6b737b');txt(x,`${d.term} cuotas`,58,550,19,true);txt(x,'Total a pagar',390,522,13,false,'#6b737b');txt(x,money(d.total),390,550,19,true,'#087bd1');
+    txt(x,'Interés',58,590,13,false,'#6b737b');txt(x,`${Number(d.rate||0)}%`,58,616,18,true);txt(x,'Primera cuota',390,590,13,false,'#6b737b');txt(x,fmt(d.first),390,616,18,true);
+    x.fillStyle='#edf9f0';round(x,36,650,648,84,18);txt(x,'🌱',58,697,24,true,'#187536');txt(x,'Tu esfuerzo de hoy construye nuevas oportunidades.',100,688,16,true,'#187536');txt(x,'Pequeños pasos, grandes logros.',100,714,14,false,'#187536');
+    txt(x,'Primeras cuotas',58,782,19,true);txt(x,'#',58,816,13,true);txt(x,'Fecha',112,816,13,true);txt(x,'Cuota',340,816,13,true);txt(x,'Saldo',535,816,13,true);
+    const fallbackRows=Array.from({length:Math.max(0,Number(d.term)||0)},(_,i)=>({number:i+1,date:advance(d.first,i,d.freq),amount:i===Number(d.term)-1?Math.max(0,Number(d.total||0)-Number(d.installment||0)*Math.max(0,Number(d.term)-1)):Number(d.installment||0)})),rows=Array.isArray(d.schedule)&&d.schedule.length?d.schedule:fallbackRows;let saldo=Number(d.total||0);
+    rows.slice(0,4).forEach((q,i)=>{saldo=Math.max(0,saldo-Number(q.amount||0));const y=850+i*38;txt(x,q.number??q.n??i+1,58,y,13);txt(x,fmt(q.date),112,y,13);txt(x,money(q.amount),340,y,13,false,'#087bd1');txt(x,money(saldo),535,y,13);});
+    txt(x,'¡Gracias por tu confianza!',360,1012,18,true,'#087bd1','center');x.fillStyle='#1197dc';x.fillRect(18,1034,684,28);return blob(cv);
   }
   function advance(first,i,freq){
     if(!i)return first;
