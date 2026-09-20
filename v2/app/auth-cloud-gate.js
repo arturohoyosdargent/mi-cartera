@@ -1,7 +1,8 @@
 // Mi Cartera PRO V2 — Firebase Auth + isolated V2 membership gate.
 // V2 never falls back to a fake local administrator: no membership means no cloud access.
 (function(root){'use strict';
-const ORG='v2-mi-cartera-pilot';
+const FALLBACK_ORG='v2-mi-cartera-pilot';
+function activeOrg(){return root.MiCarteraV2PilotConfig?.requestedOrg?.()||root.MiCarteraV2PilotConfig?.state?.config?.orgId||FALLBACK_ORG}
 const ROLES=['admin','supervisor','cobrador'];
 const state={ready:false,authenticated:false,member:false,uid:null,email:null,role:null,routeIds:[],reason:'WAITING_VERSION',mode:'CLOUD_AUTH',preserveLocal:true};
 let started=false,explicitLogout=false,unsubscribe=null,authWork=Promise.resolve();
@@ -36,7 +37,8 @@ async function evaluateUser(user){
   if(!fs?.db||!fs.doc||!fs.getDoc)return block('V2_FIRESTORE_NOT_READY');
   let snap;
   try{
-    const ref=fs.doc(fs.db,'orgs',ORG,'members',user.uid);
+    const orgId=activeOrg();
+    const ref=fs.doc(fs.db,'orgs',orgId,'members',user.uid);
     snap=await fs.getDoc(ref);
   }catch(error){return block('V2_MEMBERSHIP_READ_FAILED:'+String(error?.code||error?.message||error));}
   if(!snap?.exists?.())return block('V2_MEMBERSHIP_REQUIRED');
@@ -47,7 +49,8 @@ async function evaluateUser(user){
   try{
     const runtime=root.MiCarteraV2CloudRuntime;
     if(!runtime?.configure)throw new Error('V2_CLOUD_RUNTIME_NOT_READY');
-    runtime.configure({mode:'PILOT',cloudEnabled:true,allowRealWrites:true,orgId:ORG,actorId:user.uid,db:fs.db,doc:fs.doc,runTransaction:fs.runTransaction});
+    const orgId=activeOrg();
+    runtime.configure({mode:orgId===FALLBACK_ORG?'PILOT':'COMMERCIAL',cloudEnabled:true,allowRealWrites:true,orgId,actorId:user.uid,db:fs.db,doc:fs.doc,runTransaction:fs.runTransaction});
   }catch(error){return block('V2_CLOUD_NOT_READY:'+String(error?.code||error?.message||error));}
   emit();
   return {...state};
@@ -88,7 +91,9 @@ root.addEventListener('v2-version-state',e=>{
   else block('VERSION_NOT_VERIFIED',{authenticated:state.authenticated,uid:state.uid,email:state.email,preserveLocal:true});
 });
 root.MiCarteraV2AuthCloudGate={
-  ORG,
+  get ORG(){return activeOrg()},
+  FALLBACK_ORG,
+  activeOrg,
   ROLES,
   state:()=>({...state}),
   start,
