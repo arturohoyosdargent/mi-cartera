@@ -113,7 +113,7 @@
     txt(x,'▣',58,525,21,true,'#087bd1');txt(x,'Fecha',94,514,13,false,'#6b737b');txt(x,fmt(p?.date),94,539,18,true);
     txt(x,'▤',58,584,21,true,'#087bd1');txt(x,'Concepto',94,573,13,false,'#6b737b');txt(x,p?.concept||'PAGO',94,598,18,true);
     if(t){txt(x,'Total del crédito',390,443,13,false,'#6b737b');txt(x,money(t.total),390,472,20,true,'#087bd1');txt(x,'Saldo actual',390,514,13,false,'#6b737b');txt(x,money(t.balance),390,543,20,true,'#b83232');}
-    x.fillStyle='#edf9f0';round(x,36,666,648,112,18);txt(x,'🌱',58,707,25,true,'#187536');txt(x,'Tus pagos puntuales nos ayudan',102,704,16,true,'#187536');txt(x,'a mantener tu crédito disponible',102,730,16,true,'#187536');txt(x,'y seguir creciendo juntos.',102,756,16,true,'#187536');
+    x.fillStyle='#edf9f0';round(x,36,666,648,112,18);txt(x,'🌱',58,707,25,true,'#187536');txt(x,'Tus pagos puntuales nos ayudan a mantener tu crédito disponible',102,704,14,true,'#187536');txt(x,'y seguir creciendo juntos.',102,734,16,true,'#187536');
     txt(x,'¡Gracias por tu confianza!',360,835,19,true,'#087bd1','center');txt(x,'PRÉSTAMO YA · CONFIANZA · COMPROMISO · TU PROGRESO',360,884,11,true,'#087bd1','center');
     x.fillStyle='#1197dc';x.beginPath();x.moveTo(18,920);x.quadraticCurveTo(180,965,360,930);x.quadraticCurveTo(540,895,702,940);x.lineTo(702,1018);x.quadraticCurveTo(520,985,360,1012);x.quadraticCurveTo(180,1040,18,1002);x.closePath();x.fill();
     txt(x,'Tu pago nos acerca a nuevas oportunidades.',360,974,14,true,'#fff','center');
