@@ -57,3 +57,9 @@ assert.ok(reminder.includes("throw new Error(hasPhone?'REMINDER_SHARE_UNAVAILABL
 assert.ok(reminder.includes('REMINDER_SHARE_UNAVAILABLE_NO_PHONE'),'reminder no-phone fallback must remain explicit');
 for(const file of ['./proposal-share-v2.js','./credit-detail-share-v2.js','./payment-receipt-v2.js','./customer-experience-v2.js','./agenda-v2.js','./share-card-renderer-v2.js','./collection-reminder-share-v2.js'])assert.ok(sw.includes(file),`offline sharing shell missing ${file}`);
 console.log('V2 customer sharing experience: PASS');
+
+assert.ok(preview.includes('editableMessage:true'),'payment preview must expose editable suggested message');
+assert.ok(preview.includes('Mensaje sugerido (puedes editarlo)'),'editable payment message label missing');
+assert.ok(receipt.includes('editedMessage'),'payment share must accept edited message');
+assert.ok(receipt.includes('text:msg,files:[file]'),'payment share must send edited message with branded image');
+assert.ok(renderer.includes('Tus pagos puntuales nos ayudan a mantener tu crédito disponible'),'approved punctuality message missing from receipt image');
