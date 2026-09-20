@@ -107,8 +107,8 @@
     txt(x,'MONTO RECIBIDO',62,365,17,true,'#6b737b');txt(x,money(p?.amount),62,425,42,true,'#087bd1');
     txt(x,'Fecha',510,365,15,false,'#6b737b');txt(x,fmt(p?.date),510,400,22,true);
     txt(x,'Concepto',510,442,15,false,'#6b737b');txt(x,p?.concept||'PAGO',510,477,20,true);
-    metric(x,'Crédito',cr?.id||p?.creditId||'-',0,3);metric(x,'Operación',p?.id||'-',1,3);
-    if(cr){const t=creditTotals(cr);metric(x,'Total del crédito',money(t.total),0,4);metric(x,'Saldo actual',money(t.balance),1,4,'#b83232');}
+    if(cr){const t=creditTotals(cr);metric(x,'Total del crédito',money(t.total),0,3);metric(x,'Saldo actual',money(t.balance),1,3,'#b83232');}
+    else {metric(x,'Estado','PAGO CONFIRMADO',0,3,'#187536');}
     x.fillStyle='#e8f5fb';round(x,38,800,824,110,18);txt(x,'Pago confirmado',62,842,24,true,'#187536');txt(x,'Conserva este comprobante como constancia de tu operación.',62,878,17,false);
     footer(x);return blob(cv);
   }
