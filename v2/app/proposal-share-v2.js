@@ -55,15 +55,11 @@
   }
 
   async function share(){
-    const d=draft(),text=message(d),client=findClient(d);let file=null;
-    try{const cards=await ensureRenderer(),blob=await cards.proposal(d,client);if(blob)file=new File([blob],'prestamo-ya-propuesta-credito.png',{type:'image/png'})}catch(e){console.warn('V2 proposal image unavailable; continuing with text share.',e)}
-    /* WhatsApp-first: preserve direct client routing before generic file share. */
-    const hasPhone=Boolean(String(client?.phone||'').trim());
-    if(file&&!hasPhone&&navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({title:'Préstamo Ya · Propuesta de crédito',text:'Préstamo Ya · Revisa tu propuesta de crédito.',files:[file]});return 'file-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 proposal image sharing failed; continuing with fallback.',e)}}if(hasPhone&&root.MiCarteraV2CustomerExperience?.whatsapp){try{root.MiCarteraV2CustomerExperience.whatsapp(client,text);return 'whatsapp'}catch(e){console.warn('V2 direct WhatsApp share failed; continuing with fallback.',e)}}
-    if(hasPhone&&root.MiCarteraV2CustomerExperience?.whatsapp){try{root.MiCarteraV2CustomerExperience.whatsapp(client,text);return 'whatsapp'}catch(e){console.warn('V2 WhatsApp proposal fallback failed; continuing.',e)}}
-    if(navigator.share){try{await navigator.share({title:'Préstamo Ya · Propuesta de crédito',text});return 'native-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 native proposal sharing failed; continuing with clipboard.',e)}}
-    if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(text);alert(hasPhone?'Propuesta copiada. El crédito todavía NO fue creado.':'El cliente no tiene teléfono registrado. La propuesta quedó copiada para compartirla por otro medio. El crédito todavía NO fue creado.');return 'clipboard'}
-    throw Object.assign(new Error(hasPhone?'No se pudo compartir la propuesta.':'No se pudo compartir la propuesta y el cliente no tiene teléfono registrado.'),{code:hasPhone?'PROPOSAL_SHARE_UNAVAILABLE':'PROPOSAL_SHARE_UNAVAILABLE_NO_PHONE'});
+    const d=draft(),client=findClient(d);let file=null;
+    try{const cards=await ensureRenderer(),blob=await cards.proposal(d,client);if(blob)file=new File([blob],'prestamo-ya-propuesta-credito.png',{type:'image/png'})}catch(e){console.warn('V2 proposal image unavailable.',e)}
+    if(file&&navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({title:'Préstamo Ya · Propuesta de crédito',text:'Préstamo Ya · Revisa tu propuesta de crédito.',files:[file]});return 'file-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 proposal image sharing failed.',e)}}
+    if(file)throw new Error('Este dispositivo no permite adjuntar automáticamente la propuesta gráfica.');
+    throw new Error('No se pudo generar la propuesta gráfica. No se enviará como texto.');
   }
 
   root.MiCarteraV2ProposalShare={draft,message,findClient,ensureRenderer,share};
