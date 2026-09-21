@@ -100,6 +100,7 @@ async function rehydrate(){
 }
 function clearOnLogout(e){
   if(e?.detail?.authenticated!==false)return;
+  if(root.navigator?.onLine===false)return;
   if(e?.detail?.preserveLocal===true){
     const local=readLocal();
     // Sign-out hides the active session but intentionally retains all local V2
