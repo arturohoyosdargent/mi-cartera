@@ -68,8 +68,8 @@
     txt(x,'Juntos hacemos tus metas posibles.',62,1217,14,false,'#17345f');
     txt(x,'PRÉSTAMO YA · CONFIANZA · COMPROMISO · TU PROGRESO',450,1260,12,true,'#087bd1','center');
   }
-  function proposal(d,c){
-    const cv=document.createElement('canvas');cv.width=720;cv.height=1080;const x=cv.getContext('2d'),client=c||d.client;
+  function proposal(d,clientArg){
+    const cv=document.createElement('canvas');cv.width=720;cv.height=1080;const x=cv.getContext('2d'),client=clientArg||d.client;
     x.fillStyle='#f8fcff';x.fillRect(0,0,720,1080);
     x.fillStyle='#1197dc';round(x,18,18,684,126,18);x.strokeStyle='#fff';x.lineWidth=3;x.strokeRect(42,43,24,18);x.beginPath();x.moveTo(48,49);x.lineTo(60,49);x.moveTo(48,56);x.lineTo(57,56);x.stroke();txt(x,'PRÉSTAMO YA',78,62,29,true,'#fff');txt(x,'Tu aliado en soluciones financieras',42,91,14,false,'#fff');txt(x,d.kind==='renewal'?'PROPUESTA DE RENOVACIÓN':'PROPUESTA DE CRÉDITO',42,123,16,true,'#fff');
     x.fillStyle='#e8f5fb';x.beginPath();x.arc(360,205,42,0,Math.PI*2);x.fill();x.strokeStyle='#087bd1';x.lineWidth=5;x.beginPath();x.moveTo(326,205);x.lineTo(348,190);x.lineTo(370,209);x.lineTo(394,191);x.stroke();txt(x,'¡Estamos listos para apoyarte!',360,258,25,true,'#17345f','center');
