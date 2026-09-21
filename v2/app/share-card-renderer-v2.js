@@ -42,7 +42,18 @@
     if(client?.phone)txt(x,'Teléfono: '+client.phone,500,250,17,false,'#17345f');
     return {cv,x};
   }
-  function round(x,a,b,w,h,r){x.beginPath();x.roundRect(a,b,w,h,r);x.fill()}
+  function round(x,a,b,w,h,r){
+    x.beginPath();
+    if(typeof x.roundRect==='function'){x.roundRect(a,b,w,h,r);}
+    else{
+      const q=Math.max(0,Math.min(Number(r)||0,w/2,h/2));
+      x.moveTo(a+q,b);x.lineTo(a+w-q,b);x.quadraticCurveTo(a+w,b,a+w,b+q);
+      x.lineTo(a+w,b+h-q);x.quadraticCurveTo(a+w,b+h,a+w-q,b+h);
+      x.lineTo(a+q,b+h);x.quadraticCurveTo(a,b+h,a,b+h-q);
+      x.lineTo(a,b+q);x.quadraticCurveTo(a,b,a+q,b);
+    }
+    x.closePath();x.fill();
+  }
   function txt(x,s,a,b,z=18,bold=false,color='#17345f',align='left'){
     x.fillStyle=color;x.font=`${bold?'700':'400'} ${z}px Arial`;x.textAlign=align;x.fillText(String(s??''),a,b);
   }
@@ -126,6 +137,18 @@
     x.fillStyle='#edf9f0';round(x,36,712,648,126,18);x.strokeStyle='#187536';x.lineWidth=3;x.beginPath();x.moveTo(70,770);x.lineTo(70,742);x.quadraticCurveTo(52,746,55,730);x.quadraticCurveTo(72,730,70,748);x.quadraticCurveTo(88,744,88,728);x.quadraticCurveTo(70,730,70,752);x.stroke();txt(x,'Mantener tus pagos al día fortalece tu historial',102,752,15,true,'#187536');txt(x,'y nos permite seguir acompañándote con tu crédito.',102,780,15,true,'#187536');txt(x,'Si ya realizaste el pago, puedes ignorar este recordatorio.',102,814,12,false,'#4b6b58');
     txt(x,'¡Gracias por tu confianza!',360,914,19,true,'#087bd1','center');txt(x,'PRÉSTAMO YA · CONFIANZA · COMPROMISO · TU PROGRESO',360,950,11,true,'#087bd1','center');x.fillStyle='#1197dc';x.beginPath();x.moveTo(18,980);x.quadraticCurveTo(180,1020,360,992);x.quadraticCurveTo(540,964,702,1004);x.lineTo(702,1062);x.lineTo(18,1062);x.closePath();x.fill();return blob(cv);
   }
-  function blob(cv){return new Promise(r=>cv.toBlob(r,'image/png'))}
+  function blob(cv){
+    return new Promise((resolve,reject)=>{
+      try{
+        if(typeof cv.toBlob==='function'){
+          cv.toBlob(b=>b?resolve(b):reject(new Error('CANVAS_BLOB_EMPTY')),'image/png');
+          return;
+        }
+        const data=cv.toDataURL('image/png'),parts=data.split(','),bin=atob(parts[1]),bytes=new Uint8Array(bin.length);
+        for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+        resolve(new Blob([bytes],{type:'image/png'}));
+      }catch(e){reject(e)}
+    })
+  }
   root.MiCarteraV2ShareCard={proposal,credit,receipt,reminder,money,fmt,installmentStatus,creditTotals,receiptInstallmentLabel,receiptInstallmentDate};
 })(window);
