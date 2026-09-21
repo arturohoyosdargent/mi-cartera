@@ -1,6 +1,6 @@
 // Mi Cartera PRO V2 — self-updating release freshness guard.
 (function(root){'use strict';
-const EMBEDDED_BUILD='v2-pilot-20260920-b2-operational-final-47';
+const EMBEDDED_BUILD='v2-pilot-20260921-b2-renewal-image-49';
 const state={ready:false,publishedBuild:EMBEDDED_BUILD,workerBuild:null,reason:'VERSION_NOT_VERIFIED'};
 let verifyPromise=null;
 const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
