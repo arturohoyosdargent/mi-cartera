@@ -28,8 +28,8 @@ assert.ok(proposal.includes('navigator.share'),'proposal native share missing');
 assert.ok(proposal.includes("return 'file-share'"),'proposal branded file share missing');
 assert.ok(!proposal.includes('MiCarteraV2CustomerExperience.whatsapp')&&!proposal.includes('navigator.clipboard?.writeText'),'proposal must not degrade to text-only sharing');
 assert.ok(proposal.includes('El crédito NO queda registrado'),'proposal mutation warning missing');
-assert.ok(preview.includes("send:()=>whatsapp(c,message)"),'credit detail preview must route directly to WhatsApp text');
-assert.ok(preview.includes("https://wa.me/"),'direct WhatsApp transport missing from preview');
+assert.ok(preview.includes("send:()=>fileShare(file,'Préstamo Ya · Detalle del crédito','')"),'credit detail preview must share the prebuilt graphical PNG');
+assert.ok(preview.includes("root.navigator.share({title,text:String(text||''),files:[file]})"),'native graphical file transport missing from preview');
 assert.ok(credit.includes('status(q)'),'credit detail text must render installment status');
 assert.ok(renderer.includes("txt(x,'Estado',565,675"),'credit image schedule status column missing');
 assert.ok(renderer.includes('installmentStatus(q)'),'credit image must calculate installment status');
@@ -38,7 +38,7 @@ assert.ok(renderer.includes("txt(x,'Monto pendiente'"),'reminder card must use t
 assert.ok(renderer.includes("txt(x,'Fecha de vencimiento'"),'reminder card must show structured payment detail');
 assert.ok(renderer.includes("txt(x,state,58,648"),'reminder card must show the payment state');
 assert.ok(receipt.includes('COMPROBANTE DE PAGO'),'payment receipt title missing');
-assert.ok(preview.includes("send:(edited)=>whatsapp(c,edited)"),'payment receipt preview must route edited text directly to WhatsApp');
+assert.ok(preview.includes("send:(edited)=>fileShare(file,'Préstamo Ya · Comprobante de pago',edited)"),'payment receipt preview must share the prebuilt graphical PNG with the edited message');
 assert.ok(preview.includes("const outgoing=editable?String(modal.querySelector('#v2SharePreviewMessage')?.value||''):text;close();"),'edited payment text must be captured before modal close');
 assert.ok(receipt.includes('Pago confirmado.'),'payment receipt confirmation missing');
 assert.ok(!receipt.includes('Operación: ${p?.id')&&!receipt.includes('Crédito: ${cr?.id'),'customer receipt text must not expose internal ids');
@@ -60,7 +60,7 @@ console.log('V2 customer sharing experience: PASS');
 assert.ok(preview.includes('editableMessage:true'),'payment preview must expose editable suggested message');
 assert.ok(preview.includes('Mensaje sugerido (puedes editarlo)'),'editable payment message label missing');
 assert.ok(preview.includes('editableMessage:true'),'payment preview must accept edited message');
-assert.ok(preview.includes("send:(edited)=>whatsapp(c,edited)"),'payment preview must send edited message by WhatsApp');
+assert.ok(preview.includes("send:(edited)=>fileShare(file,'Préstamo Ya · Comprobante de pago',edited)"),'payment preview must share edited message together with the graphical PNG');
 assert.ok(renderer.includes('Tus pagos puntuales nos ayudan a mantener tu crédito disponible'),'approved punctuality message missing from receipt image');
 
 assert.ok(renderer.includes('cv.width=720;cv.height=1080'),'receipt must use approved compact mobile canvas');
