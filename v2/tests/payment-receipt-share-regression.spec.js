@@ -14,7 +14,7 @@ assert.ok(receipt.includes("return 'clipboard'"),'clipboard fallback missing');
 assert.ok(receipt.includes('RECEIPT_SHARE_UNAVAILABLE_NO_PHONE'),'no-phone terminal error must remain explicit');
 
 // Payment history must expose the same receipt action so a recorded payment can be resent.
-assert.ok(cards.includes('MiCarteraV2PaymentReceipt.share(p,c,cr)'),'payment history receipt action missing');
+assert.ok(cards.includes('MiCarteraV2SharePreview?.previewPayment?.(paymentId)')||cards.includes('MiCarteraV2PaymentReceipt.share(p,c,cr)'),'payment history receipt action missing');
 assert.ok(cards.includes('Comprobante'),'payment history receipt button missing');
 
 console.log('V2 payment receipt share regression: PASS');
