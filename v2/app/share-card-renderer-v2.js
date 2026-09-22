@@ -152,3 +152,4 @@
   }
   root.MiCarteraV2ShareCard={proposal,credit,receipt,reminder,money,fmt,installmentStatus,creditTotals,receiptInstallmentLabel,receiptInstallmentDate};
 })(window);
+
