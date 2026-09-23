@@ -1,68 +1,51 @@
 {
   "hosting": {
     "target": "v2",
-    "public": "v2/app",
+    "public": "v2",
     "ignore": [
       "firebase.v2.json",
       "**/.*",
       "**/node_modules/**"
     ],
+    "redirects": [
+      {
+        "source": "/",
+        "destination": "/app/",
+        "type": 302
+      }
+    ],
     "headers": [
       {
-        "source": "/index.html",
+        "source": "/app/index.html",
         "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-store, no-cache, must-revalidate, max-age=0"
-          },
-          {
-            "key": "Clear-Site-Data",
-            "value": "\"cache\""
-          }
+          {"key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, max-age=0"},
+          {"key": "Clear-Site-Data", "value": "\"cache\""}
         ]
       },
       {
-        "source": "/operational-shell.html",
+        "source": "/app/operational-shell.html",
+        "headers": [{"key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, max-age=0"}]
+      },
+      {
+        "source": "/app/release.json",
+        "headers": [{"key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, max-age=0"}]
+      },
+      {
+        "source": "/app/manifest.webmanifest",
+        "headers": [{"key": "Content-Type", "value": "application/manifest+json"}, {"key": "Cache-Control", "value": "no-store, max-age=0"}]
+      },
+      {
+        "source": "/app/service-worker.js",
         "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-store, no-cache, must-revalidate, max-age=0"
-          }
+          {"key": "Cache-Control", "value": "no-store, no-cache, must-revalidate, max-age=0"},
+          {"key": "Service-Worker-Allowed", "value": "/app/"}
         ]
       },
       {
-        "source": "/release.json",
+        "source": "/app/**/*.@(js|css|html)",
         "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-store, no-cache, must-revalidate, max-age=0"
-          }
-        ]
-      },
-      {
-        "source": "/service-worker.js",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-store, no-cache, must-revalidate, max-age=0"
-          },
-          {
-            "key": "Service-Worker-Allowed",
-            "value": "/"
-          }
-        ]
-      },
-      {
-        "source": "**/*.@(js|css|html)",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-store, max-age=0"
-          },
-          {
-            "key": "X-Mi-Cartera-Version",
-            "value": "v2"
-          }
+          {"key": "Cache-Control", "value": "no-store, max-age=0"},
+          {"key": "X-Mi-Cartera-Version", "value": "v2"}
         ]
       }
     ],
