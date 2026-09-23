@@ -1,0 +1,6 @@
+// Mi Cartera PRO V2 — clients-only clean-start transformer. Pure/read-only.
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.MiCarteraV2ClientImport=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){'use strict';
+const sid=v=>String(v??'').trim();
+function build(source){const rows=Array.isArray(source?.clients)?source.clients:[];const seen=new Set(),issues=[],clients=[];for(const c of rows){const id=sid(c?.id||c?.__firestoreId);if(!id){issues.push({severity:'ERROR',code:'CLIENT_MISSING_ID'});continue}if(seen.has(id)){issues.push({severity:'ERROR',code:'DUPLICATE_CLIENT_ID',clientId:id});continue}seen.add(id);const name=sid(c.name||c.nombre);if(!name){issues.push({severity:'ERROR',code:'CLIENT_MISSING_NAME',clientId:id});continue}clients.push({id,name,document:sid(c.document||c.dni||c.documento),phone:sid(c.phone||c.telefono),address:sid(c.address||c.direccion),routeId:sid(c.routeId||c.rutaId),version:1,migrationSource:'V1_CLIENT_ONLY',legacyClientId:id});}
+return {mode:'CLIENTS_ONLY_CLEAN_START',canImport:issues.every(x=>x.severity!=='ERROR'),sourceCount:rows.length,importCount:clients.length,clients,credits:[],payments:[],operations:[],issues};}
+return {build};});

@@ -1,0 +1,26 @@
+{
+  "hosting": {
+    "site": "mi-cartera-d0d8c",
+    "public": ".",
+    "ignore": [
+      "firebase*.json",
+      ".firebaserc",
+      "**/.*",
+      "**/node_modules/**",
+      "functions/**",
+      "scripts/**",
+      "tests/**",
+      "v2/**",
+      "*.md",
+      "package*.json"
+    ],
+    "headers": [
+      {
+        "source": "/index.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      }
+    ]
+  }
+}
