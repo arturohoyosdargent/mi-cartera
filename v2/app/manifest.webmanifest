@@ -1,9 +1,9 @@
 {
   "name": "Mi Cartera PRO V2",
   "short_name": "Cartera V2",
-  "id": "/",
-  "start_url": "/operational-shell.html",
-  "scope": "/",
+  "id": "/app/",
+  "start_url": "/app/operational-shell.html",
+  "scope": "/app/",
   "display": "standalone",
   "display_override": [
     "window-controls-overlay",
@@ -13,6 +13,7 @@
   "background_color": "#f5f7f6",
   "theme_color": "#17201b",
   "description": "Mi Cartera PRO V2 — aplicación independiente de validación",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "./icon-192.png",
