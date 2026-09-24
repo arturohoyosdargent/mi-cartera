@@ -10,3 +10,7 @@ assert.equal(typeof root.MiCarteraV2DurableActions?.setPromise,'function');
 root.MiCarteraV2OperationCommitGate={submit:async()=>({status:'COMMITTED'})};
 assert.equal(typeof root.MiCarteraV2DurableActions?.renewInterest,'function');
 console.log('durable late commit-gate runtime: PASS');
+
+// Shell must load durable actions as a real parser-blocking script before cards; no document.write loader.
+{const shell=fs.readFileSync('v2/app/operational-shell.html','utf8');const d=shell.indexOf('src="durable-actions-v2.js?v=');const cards=shell.indexOf('src="operational-cards-v2.js?v=');assert(d>0&&cards>d);assert(!/document\.write\([^\n]*durable-actions-v2/.test(shell));assert(shell.includes('v2-pilot-20260924-b2-stable-5'));}
+console.log('deterministic durable shell order: PASS');
