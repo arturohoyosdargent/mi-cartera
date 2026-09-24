@@ -24,7 +24,7 @@ async function worker(expected){
 }
 function paint(){const el=document.getElementById('versionGuard');if(!el)return;el.textContent=state.ready?`VERSIÓN VERIFICADA — ${state.publishedBuild}`:`OPERACIÓN BLOQUEADA — ${state.reason}`;el.dataset.ready=String(state.ready)}
 async function verify(){state.ready=false;state.reason='VERSION_CHECK_RUNNING';paint();try{state.publishedBuild=await published();state.workerBuild=await worker(state.publishedBuild);if(state.publishedBuild!==state.workerBuild)throw new Error(`VERSION_MISMATCH:${state.publishedBuild}:${state.workerBuild}`);state.ready=true;state.reason='READY'}catch(e){state.ready=false;state.reason=String(e?.message||e||'VERSION_CHECK_FAILED')}paint();root.dispatchEvent(new CustomEvent('v2-version-state',{detail:{...state}}));return {...state}}
-function requireReady(){if(!state.ready){const e=new Error('V2_VERSION_NOT_READY');e.code='V2_VERSION_NOT_READY';e.detail={...state};throw e}return true}
-root.MiCarteraV2VersionGuard={state:()=>({...state}),verify,requireReady};
+async function ensureReady(){if(state.ready)return true;const checked=await verify();if(!checked.ready){const e=new Error('V2_VERSION_NOT_READY');e.code='V2_VERSION_NOT_READY';e.detail={...checked};throw e}return true}function requireReady(){if(!state.ready){const e=new Error('V2_VERSION_NOT_READY');e.code='V2_VERSION_NOT_READY';e.detail={...state};throw e}return true}
+root.MiCarteraV2VersionGuard={state:()=>({...state}),verify,ensureReady,requireReady};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',verify);else verify();
 })(window);
