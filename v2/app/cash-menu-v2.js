@@ -52,7 +52,7 @@
     panel.querySelector('#v2CashDate').value=localDate();
     panel.querySelector('[data-close]').onclick=()=>panel.remove();
     panel.querySelector('[data-save]').onclick=async()=>{
-      const action=root.V2UI?.manualCash;if(typeof action!=='function')return alert('Las acciones de caja V2 todavía no están disponibles.');
+      let action=root.MiCarteraV2WriteActions?.manualCash||root.V2UI?.manualCash;if(typeof action!=='function'){try{await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='write-actions-stable12.js?runtime='+Date.now();s.onload=resolve;s.onerror=reject;document.head.appendChild(s)});action=root.MiCarteraV2WriteActions?.manualCash}catch{}}if(typeof action!=='function')return alert('Las acciones de caja V2 todavía no están disponibles.');
       const payload={date:panel.querySelector('#v2CashDate').value,amount:panel.querySelector('#v2CashAmount').value,category:panel.querySelector('#v2CashCategory').value,concept:panel.querySelector('#v2CashConcept').value,observation:panel.querySelector('#v2CashObservation').value};
       if(!payload.amount)return alert('Ingresa el monto.'); if(!payload.concept)return alert('Ingresa el detalle.');
       try{await action(type,payload);panel.remove();renderSummary();renderHistory()}catch(e){}
