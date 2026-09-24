@@ -96,7 +96,8 @@
     const qs=Array.isArray(cr?.schedule)?cr.schedule:[];
     const total=Number(p?.totalInstallments||qs.length||0);
     if(!total)return 'CUOTA';
-    const explicit=Number(p?.installmentNumber||p?.installmentNo||p?.quotaNumber||0);
+    const from=Number(p?.installmentFrom||0),to=Number(p?.installmentTo||0),explicit=Number(p?.installmentNumber||p?.installmentNo||p?.quotaNumber||0);
+    if(from>0&&to>from)return `CUOTAS ${Math.min(total,from)}–${Math.min(total,to)} DE ${total}`;
     let current=explicit>0?Math.min(total,explicit):0;
     if(!current&&qs.length){
       const amount=Math.max(0,Number(p?.amount||0));
