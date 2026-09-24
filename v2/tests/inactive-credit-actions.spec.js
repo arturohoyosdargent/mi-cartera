@@ -21,8 +21,8 @@ assert.deepEqual(dup({credits:[base,{...exact,status:'PAID'}]},base),[],'paid hi
 const source=fs.readFileSync('v2/app/operational-cards-v2.js','utf8');
 assert.ok(source.includes('data-credit-id="${esc(cr.id)}"'),'each rendered credit card must expose its own creditId');
 assert.ok(source.includes("button('🔄 Renovar solo interés','MiCarteraV2Cards.renewInterest',cr.id)")&&source.includes("button('♻ Renovar capital','MiCarteraV2Cards.refinance',cr.id)"),'both renewal buttons must pass the selected card creditId');
-assert.ok(source.includes("durableFn('renewInterest')")&&source.includes("(id)}catch(e)"),'interest renewal card action must recover runtime and forward the selected creditId');
-assert.ok(source.includes("durableFn('refinance')"),'capital renewal card action must recover runtime and forward the selected creditId');
+assert.ok(source.includes("renewalFn('renewInterest')")&&source.includes("(id)}catch(e)"),'interest renewal card action must recover runtime and forward the selected creditId');
+assert.ok(source.includes("renewalFn('refinance')"),'capital renewal card action must recover runtime and forward the selected creditId');
 assert.ok(source.includes("type:'CREDIT_DUPLICATE_CONSOLIDATE'")&&source.includes("action:'CREDIT_DUPLICATE_CONSOLIDATED'"),'duplicate credit consolidation must be durable and audited');
 assert.ok(source.includes("if(sourcePayments.length||targetPayments.length)throw new Error"),'automatic consolidation must be blocked whenever either credit has payments');
 assert.ok(source.includes("collection:'credits',kind:'delete'"),'only the confirmed duplicate credit may be tombstoned');
