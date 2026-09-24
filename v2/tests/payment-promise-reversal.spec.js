@@ -25,3 +25,5 @@ const agendaPromise=read('v2/app/agenda-v2.js');assert.ok(agendaPromise.includes
 
 // Android runtime regression: critical writes must never depend directly on V2UI durable bootstrap.
 assert.ok(cards.includes("MiCarteraV2Cards.collect")&&cards.includes("writeFn('collect')")&&cards.includes("writeFn('reversePayment')"),'collect and reversal must use self-healing write runtime');
+
+const diagnostics=read('v2/app/runtime-diagnostics-v2.js');assert.ok(diagnostics.includes("addEventListener('error'")&&diagnostics.includes("addEventListener('unhandledrejection'"),'runtime diagnostics must persist synchronous script errors and unhandled promise rejections');
