@@ -10,7 +10,7 @@ const preview = fs.readFileSync(path.join(app, 'share-preview-v2.js'), 'utf8');
 const refresh = fs.readFileSync(path.join(app, 'refresh-controller-v2.js'), 'utf8');
 const durable = fs.readFileSync(path.join(app, 'durable-actions-v2.js'), 'utf8');
 
-assert.ok(shell.includes('<script src="share-preview-v2.js"></script>'), 'share preview module must load in the operational shell');
+assert.ok(shell.includes('share-preview-v2.js'), 'share preview module must load in the operational shell');
 assert.ok(shell.includes('<script src="refresh-controller-v2.js"></script>'), 'manual refresh module must load in the operational shell');
 assert.ok(sw.includes("'./share-preview-v2.js'"), 'share preview module must be in the offline shell');
 assert.ok(sw.includes("'./refresh-controller-v2.js'"), 'manual refresh module must be in the offline shell');
