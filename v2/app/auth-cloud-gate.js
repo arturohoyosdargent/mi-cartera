@@ -1,7 +1,8 @@
 // Mi Cartera PRO V2 — Firebase Auth + isolated V2 membership gate.
 // V2 never falls back to a fake local administrator: no membership means no cloud access.
 (function(root){'use strict';
-const FALLBACK_ORG='v2-mi-cartera-pilot';
+const ORG='v2-mi-cartera-pilot';
+const FALLBACK_ORG=ORG;
 function activeOrg(){return root.MiCarteraV2PilotConfig?.requestedOrg?.()||root.MiCarteraV2PilotConfig?.state?.config?.orgId||FALLBACK_ORG}
 const ROLES=['admin','supervisor','cobrador'];
 const state={ready:false,authenticated:false,member:false,uid:null,email:null,role:null,routeIds:[],reason:'WAITING_VERSION',mode:'CLOUD_AUTH',preserveLocal:true};
@@ -38,7 +39,7 @@ async function evaluateUser(user){
   let snap;
   try{
     const orgId=activeOrg();
-    const ref=fs.doc(fs.db,'orgs',orgId,'members',user.uid);
+    const ref=orgId===ORG?fs.doc(fs.db,'orgs',ORG,'members',user.uid):fs.doc(fs.db,'orgs',orgId,'members',user.uid);
     snap=await fs.getDoc(ref);
   }catch(error){return block('V2_MEMBERSHIP_READ_FAILED:'+String(error?.code||error?.message||error));}
   if(!snap?.exists?.())return block('V2_MEMBERSHIP_REQUIRED');
