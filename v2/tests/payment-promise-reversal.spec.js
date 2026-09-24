@@ -1,9 +1,9 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const read=p=>fs.readFileSync(p,'utf8');
-const durable=read('v2/app/durable-actions-stable6.js'),cards=read('v2/app/operational-cards-v2.js'),guard=read('v2/app/version-guard.js'),gate=read('v2/app/operation-commit-gate.js'),shell=read('v2/app/operational-shell.html');
-assert.match(durable,/async function setPromise\(creditId\)/);
-assert.match(durable,/PAYMENT_PROMISE_CREATED/);
-assert.match(durable,/PAYMENT_PROMISE_CANCELLED/);
+const durable=read('v2/app/durable-actions-stable6.js'),promise=read('v2/app/promise-actions-stable11.js'),cards=read('v2/app/operational-cards-v2.js'),guard=read('v2/app/version-guard.js'),gate=read('v2/app/operation-commit-gate.js'),shell=read('v2/app/operational-shell.html');
+assert.match(promise,/async function setPromise\(creditId\)/);
+assert.match(promise,/PAYMENT_PROMISE_CREATED/);
+assert.match(promise,/PAYMENT_PROMISE_CANCELLED/);
 assert.match(cards,/MiCarteraV2Cards\.setPromise/);
 assert.match(cards,/MiCarteraV2Cards=\{setPromise,cancelPromise,promiseState,reversePayment/);
 assert.match(durable,/async function reversePayment\(paymentId\)/);
