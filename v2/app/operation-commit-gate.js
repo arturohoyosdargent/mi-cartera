@@ -4,6 +4,7 @@ async function submit({bridge,versionGuard,authGate,operation,onStatus}){
   if(!versionGuard)throw new Error('V2_VERSION_GUARD_MISSING');
   if(versionGuard.ensureReady)await versionGuard.ensureReady();else versionGuard.requireReady();
   if(!authGate)throw new Error('V2_AUTH_GATE_MISSING');
+  if(authGate.state?.().ready!==true&&authGate.refreshMembership)await authGate.refreshMembership();
   authGate.requireReady();
   if(!bridge)throw new Error('V2_SYNC_BRIDGE_MISSING');
   if(typeof bridge.status==='function'&&bridge.status()?.configured===false)throw Object.assign(new Error('V2_CLOUD_SYNC_NOT_CONFIGURED'),{code:'V2_CLOUD_SYNC_NOT_CONFIGURED'});
