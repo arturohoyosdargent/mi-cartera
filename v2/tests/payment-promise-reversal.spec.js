@@ -5,7 +5,7 @@ assert.match(promise,/async function setPromise\(creditId\)/);
 assert.match(promise,/PAYMENT_PROMISE_CREATED/);
 assert.match(promise,/PAYMENT_PROMISE_CANCELLED/);
 assert.match(cards,/MiCarteraV2Cards\.setPromise/);
-assert.match(cards,/MiCarteraV2Cards=\{setPromise,cancelPromise,promiseState,reversePayment/);
+assert.match(cards,/MiCarteraV2Cards=\{setPromise,cancelPromise,promiseState,collect,saveCredit,reversePayment/);
 assert.match(writes,/async function reversePayment\(paymentId\)/);
 assert.match(writes,/PAYMENT_REVERSED/);
 assert.match(gate,/await versionGuard\.ensureReady\(\)/);
