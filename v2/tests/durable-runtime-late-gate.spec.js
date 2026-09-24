@@ -1,0 +1,12 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const code=fs.readFileSync('v2/app/durable-actions-v2.js','utf8');
+const document={getElementById:()=>null,addEventListener:()=>{},querySelector:()=>null,body:{appendChild:()=>{}}};
+const root={MiCarteraV2Financial:{money:n=>Number(n)||0,STATUS:{ACTIVE:'ACTIVO'}},MiCarteraV2Schedule:{generate:()=>[]},MiCarteraV2AccessAudit:{ROLES:{ADMIN:'ADMIN'},requirePermission:()=>true,event:x=>x},MiCarteraV2AuthCloudGate:{},addEventListener:()=>{}};
+root.window=root;root.document=document;root.localStorage={getItem:()=>null,setItem:()=>{}};root.alert=()=>{};root.confirm=()=>false;root.prompt=()=>null;root.Date=Date;root.Math=Math;root.JSON=JSON;
+vm.runInNewContext(code,root);
+assert.equal(typeof root.MiCarteraV2DurableActions?.renewInterest,'function');
+assert.equal(typeof root.MiCarteraV2DurableActions?.refinance,'function');
+assert.equal(typeof root.MiCarteraV2DurableActions?.setPromise,'function');
+root.MiCarteraV2OperationCommitGate={submit:async()=>({status:'COMMITTED'})};
+assert.equal(typeof root.MiCarteraV2DurableActions?.renewInterest,'function');
+console.log('durable late commit-gate runtime: PASS');
