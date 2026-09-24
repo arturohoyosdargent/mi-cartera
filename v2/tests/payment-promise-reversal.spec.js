@@ -20,3 +20,5 @@ console.log('payment promise/reversal/write-gate regression: OK');
 
 assert.ok(writes.includes('addClient')&&writes.includes('addCredit')&&writes.includes('collect')&&writes.includes('manualCash'),'stable-12 isolated write runtime must expose client, credit, payment and cash actions');
 assert.ok(cards.includes('MiCarteraV2WriteActions?.reversePayment'),'payment reversal card must use isolated write runtime');
+
+const agendaPromise=read('v2/app/agenda-v2.js');assert.ok(agendaPromise.includes("kind:'PROMISE'")&&agendaPromise.includes('COMPROMISO DE PAGO'),'agenda must surface promises separately from contractual debt');assert.ok(agendaPromise.includes("dues=list.filter(x=>x.kind!=='PROMISE')"),'promise amounts must not inflate contractual collection totals');
