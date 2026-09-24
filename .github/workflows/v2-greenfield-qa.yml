@@ -1,7 +1,7 @@
 name: V2 Greenfield QA
 on:
   push:
-    branches: [v2-greenfield-app, reengineering-v2, reengineering-v2-integrated, reengineering-v2-final]
+    branches: [v2-greenfield-app, reengineering-v2, reengineering-v2-integrated, reengineering-v2-final, qa-stable1-write-gate-20260924]
     paths: ['v2/**', 'firestore.rules', '.github/workflows/v2-greenfield-qa.yml']
   pull_request:
     paths: ['v2/**', 'firestore.rules', '.github/workflows/v2-greenfield-qa.yml']
@@ -73,6 +73,8 @@ jobs:
         run: node v2/tests/auth-cloud-gate.spec.js
       - name: Read-only pilot preflight
         run: node v2/tests/preflight.spec.js
+      - name: Payment promise and reversal regression
+        run: node v2/tests/payment-promise-reversal.spec.js
       - name: Pilot runtime consistency gate
         run: node v2/tests/pilot-runtime-consistency.spec.js
       - name: Canonical branch smoke
