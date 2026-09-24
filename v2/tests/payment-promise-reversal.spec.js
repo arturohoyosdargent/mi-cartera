@@ -22,3 +22,6 @@ assert.ok(writes.includes('addClient')&&writes.includes('addCredit')&&writes.inc
 assert.ok(cards.includes('MiCarteraV2WriteActions?.reversePayment'),'payment reversal card must use isolated write runtime');
 
 const agendaPromise=read('v2/app/agenda-v2.js');assert.ok(agendaPromise.includes("kind:'PROMISE'")&&agendaPromise.includes('COMPROMISO DE PAGO'),'agenda must surface promises separately from contractual debt');assert.ok(agendaPromise.includes("dues=list.filter(x=>x.kind!=='PROMISE')"),'promise amounts must not inflate contractual collection totals');
+
+// Android runtime regression: critical writes must never depend directly on V2UI durable bootstrap.
+assert.ok(cards.includes("MiCarteraV2Cards.collect")&&cards.includes("writeFn('collect')")&&cards.includes("writeFn('reversePayment')"),'collect and reversal must use self-healing write runtime');
