@@ -57,7 +57,7 @@ async function evaluateUser(user){
   return {...state};
 }
 async function start(){
-  if(started)return {...state};
+  if(started){const user=root.firebaseAuthV2?.auth?.currentUser;if(user&&!state.ready&&versionReady())return evaluateUser(user);return {...state};}
   if(!versionReady())return block('VERSION_NOT_VERIFIED');
   const fb=root.firebaseAuthV2;
   if(!fb?.auth||typeof fb.onAuthStateChanged!=='function')return block('FIREBASE_AUTH_NOT_READY');
