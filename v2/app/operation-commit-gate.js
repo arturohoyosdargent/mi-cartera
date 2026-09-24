@@ -2,7 +2,7 @@
 (function(root){'use strict';
 async function submit({bridge,versionGuard,authGate,operation,onStatus}){
   if(!versionGuard)throw new Error('V2_VERSION_GUARD_MISSING');
-  versionGuard.requireReady();
+  if(versionGuard.ensureReady)await versionGuard.ensureReady();else versionGuard.requireReady();
   if(!authGate)throw new Error('V2_AUTH_GATE_MISSING');
   authGate.requireReady();
   if(!bridge)throw new Error('V2_SYNC_BRIDGE_MISSING');
