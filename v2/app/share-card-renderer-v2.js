@@ -71,7 +71,7 @@
     const yShift=d.kind==='renewal'?58:0;txt(x,'Primeras cuotas',58,782+yShift,19,true);txt(x,'#',58,816+yShift,13,true);txt(x,'Fecha',112,816+yShift,13,true);txt(x,'Cuota',340,816+yShift,13,true);txt(x,'Saldo',535,816+yShift,13,true);
     const fallbackRows=Array.from({length:Math.max(0,Number(d.term)||0)},(_,i)=>({number:i+1,date:advance(d.first,i,d.freq),amount:i===Number(d.term)-1?Math.max(0,Number(d.total||0)-Number(d.installment||0)*Math.max(0,Number(d.term)-1)):Number(d.installment||0)})),rows=Array.isArray(d.schedule)&&d.schedule.length?d.schedule:fallbackRows;let saldo=Number(d.total||0);
     rows.slice(0,4).forEach((q,i)=>{saldo=Math.max(0,saldo-Number(q.amount||0));const y=850+yShift+i*38;txt(x,q.number??q.n??i+1,58,y,13);txt(x,fmt(q.date),112,y,13);txt(x,money(q.amount),340,y,13,false,'#087bd1');txt(x,money(saldo),535,y,13);});
-    const thankY=d.kind==='renewal'?1040:1012;txt(x,'¡Gracias por tu confianza!',360,thankY,18,true,'#087bd1','center');x.fillStyle='#1197dc';x.fillRect(18,1052,684,18);return blob(cv);
+    const lastRowY=850+yShift+Math.max(0,Math.min(4,rows.length)-1)*38,thankY=d.kind==='renewal'?Math.max(1048,lastRowY+34):1012;txt(x,'¡Gracias por tu confianza!',360,thankY,18,true,'#087bd1','center');x.fillStyle='#1197dc';x.fillRect(18,Math.min(1070,thankY+12),684,14);return blob(cv);
   }
   function advance(first,i,freq){
     if(!i)return first;
