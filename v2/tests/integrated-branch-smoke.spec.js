@@ -25,7 +25,7 @@ const S=require('../core/schedule-engine.js');
   assert.ok(release && Object.keys(release).length>0,'V2 canonical release metadata is required');
 
   const sw=fs.readFileSync(path.join(appRoot,'service-worker.js'),'utf8');
-  assert.ok(sw.length>0,'V2 canonical service worker must not be empty');assert.ok(sw.includes(`const BUILD='${release.build}'`),'smoke: release and service worker builds must match');const shell=fs.readFileSync(path.join(appRoot,'operational-shell.html'),'utf8');for(const asset of ['version-guard.js','auth-cloud-gate.js','cloud-rehydration-v2.js','login-v2.js','durable-actions-stable6.js','renewal-actions-stable10.js'])assert.ok(new RegExp(`src="${asset.replace(/\\./g,'\\\\.')}((?:\\?v=[^\"]+)?)"`).test(shell),`smoke: operational shell missing ${asset}`);
+  assert.ok(sw.length>0,'V2 canonical service worker must not be empty');assert.ok(sw.includes(`const BUILD='${release.build}'`),'smoke: release and service worker builds must match');const shell=fs.readFileSync(path.join(appRoot,'operational-shell.html'),'utf8');for(const asset of ['version-guard.js','auth-cloud-gate.js','cloud-rehydration-v2.js','login-v2.js','durable-actions-stable6.js','renewal-actions-stable10.js','promise-actions-stable11.js'])assert.ok(new RegExp(`src="${asset.replace(/\\./g,'\\\\.')}((?:\\?v=[^\"]+)?)"`).test(shell),`smoke: operational shell missing ${asset}`);
 
   console.log('V2 integrated branch smoke: PASS');
 })();
