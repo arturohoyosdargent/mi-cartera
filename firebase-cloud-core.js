@@ -195,6 +195,9 @@ async function pullCloud(){
   }
 
   dedupeClients(true);
+  saveCloudDb();
+  normalize();
+  renderAll();
 }async function pushList(name,list){for(const item of list||[]){if(!item||item.id==null)continue;const payload=addMeta({...item});if(name==='routes'){payload.routeId=String(item.id);if(payload.collectorUid)payload.collectorUid=String(payload.collectorUid);if(payload.collectorId)payload.collectorId=String(payload.collectorId);}
 if(name==='payments'){payload.userId=payload.userId||auth.currentUser.uid;if(!payload.routeId){const cr=(db.credits||[]).find(c=>String(c.id)===String(payload.creditId));payload.routeId=cr?.routeId||null;}}await setDoc(doc(fs,`orgs/${orgId}/${name}`,String(item.id)),payload,{merge:true});}}
 async function pushLocalAllowed(){if(!currentProfile)return;if(canAll()){for(const n of ['routes','clients','credits','payments','cashClosures','approvals','capital','entries','expenses','audit'])await pushList(n,db[n]);}else{const ids=routeIds().map(String);await pushList('clients',(db.clients||[]).filter(c=>ids.includes(String(c.routeId))));await pushList('payments',(db.payments||[]).map(p=>{const cr=(db.credits||[]).find(c=>String(c.id)===String(p.creditId));return {...p,userId:auth.currentUser.uid,routeId:p.routeId||cr?.routeId||null};}).filter(p=>p.routeId&&ids.includes(String(p.routeId))));await pushList('cashClosures',(db.cashClosures||[]).filter(x=>x.userId===auth.currentUser.uid));await pushList('approvals',(db.approvals||[]).filter(x=>x.requestedByUid===auth.currentUser.uid));}}
