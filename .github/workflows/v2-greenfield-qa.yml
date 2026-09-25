@@ -67,12 +67,15 @@ jobs:
         run: node v2/tests/sharing-experience.spec.js
       - name: Renewal preview and safe refresh regression
         run: node v2/tests/share-preview-refresh.spec.js
+      - name: Safe pre-payment renewal edit regression
+        run: node v2/tests/renewal-edit-preserves-origin.spec.js
       - name: Pilot activation safety gate
         run: node v2/tests/pilot-config.spec.js
       - name: Cloud runtime pilot gate
         run: node v2/tests/cloud-pilot-runtime.spec.js
       - name: Authenticated Cloud fail-closed gate
-        run: node v2/tests/auth-cloud-gate.spec.js
+        run: |
+          node v2/tests/auth-cloud-gate.spec.js
           node v2/tests/auth-version-recovery.spec.js
       - name: Read-only pilot preflight
         run: node v2/tests/preflight.spec.js
