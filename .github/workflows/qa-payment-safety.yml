@@ -1,0 +1,16 @@
+name: QA Payment Safety
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'payment-safety-v1.js'
+      - 'qa-payment-safety-test.js'
+      - '.github/workflows/qa-payment-safety.yml'
+  workflow_dispatch:
+jobs:
+  payment-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute payment safety regression
+        run: node qa-payment-safety-test.js
