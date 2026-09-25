@@ -1,0 +1,40 @@
+name: Hotfix write runtime
+on:
+  push:
+    branches: [post-final4-business]
+    paths: ['.github/workflows/hotfix-write-runtime.yml']
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: post-final4-business
+      - name: Fix invalid nullish/logical mixing
+        run: |
+          python3 - <<'PY'
+          p='v2/app/write-actions-stable12.js'
+          s=open(p,encoding='utf-8').read()
+          old="Number(q.balance??q.amount||0)"
+          n=s.count(old)
+          print('targets',n)
+          if n < 1: raise SystemExit('expected invalid expression not found')
+          s=s.replace(old,"Number((q.balance??q.amount)||0)")
+          open(p,'w',encoding='utf-8').write(s)
+          PY
+      - name: Browser parse gate
+        run: node --check v2/app/write-actions-stable12.js
+      - name: Existing V2 tests
+        run: |
+          if [ -f package.json ]; then npm test --if-present; fi
+          if [ -f v2/tests/write-runtime-browser-contract.spec.js ]; then node v2/tests/write-runtime-browser-contract.spec.js; fi
+      - name: Commit verified hotfix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add v2/app/write-actions-stable12.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(v2): repair payment runtime parser blocker'
+          git push origin HEAD:post-final4-business
