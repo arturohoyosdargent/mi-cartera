@@ -22,6 +22,8 @@ jobs:
           if [ "$bad" -ne 0 ]; then exit 1; fi
       - name: Ejecutar regresión de conciliación financiera
         run: node financial-reconciliation-smoke-test.js
+      - name: Ejecutar regresión de integridad financiera
+        run: node qa-financial-integrity-test.js
       - name: Validar JavaScript embebido en index.html
         run: |
           python - <<'PY'
@@ -115,7 +117,7 @@ jobs:
           PY
       - name: Verificar estructura Cloud y conciliación
         run: |
-          for f in firebase-config.js firebase-cloud.js firebase-cloud-core.js sync-queue-v3.js client-sync-repair.js financial-integrity-v1.js financial-reconciliation-core-v1.js financial-reconciliation-smoke-test.js firestore.rules firebase.json functions/index.js; do test -f "$f"; done
+          for f in firebase-config.js firebase-cloud.js firebase-cloud-core.js sync-queue-v3.js client-sync-repair.js financial-integrity-v1.js financial-reconciliation-core-v1.js financial-reconciliation-smoke-test.js qa-financial-integrity-test.js firestore.rules firebase.json functions/index.js; do test -f "$f"; done
           echo 'QA Cloud/finanzas OK'
       - name: Publicar diagnóstico de sintaxis
         if: ${{ always() }}
