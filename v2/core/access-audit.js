@@ -1,0 +1,7 @@
+// Mi Cartera PRO V2 — minimal RBAC + append-only audit events.
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.MiCarteraV2AccessAudit=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){'use strict';
+const ROLES={ADMIN:'ADMIN',COBRADOR:'COBRADOR',LECTURA:'LECTURA'};const MATRIX={ADMIN:['CLIENT_WRITE','CREDIT_WRITE','PAYMENT_WRITE','CASH_WRITE','REPORT_READ','AUDIT_READ','USER_ADMIN'],COBRADOR:['CLIENT_WRITE','PAYMENT_WRITE','REPORT_READ'],LECTURA:['REPORT_READ']};
+function can(role,permission){return (MATRIX[String(role||'')]||[]).includes(String(permission||''));}
+function requirePermission(role,permission){if(!can(role,permission)){const e=new Error('PERMISSION_DENIED:'+permission);e.code='PERMISSION_DENIED';throw e;}return true;}
+function event(input){if(!input?.action)throw new Error('AUDIT_ACTION_REQUIRED');return Object.freeze({id:String(input.id||('audit-'+Date.now())),at:String(input.at||new Date().toISOString()),actorId:String(input.actorId||'local-validation'),role:String(input.role||ROLES.ADMIN),action:String(input.action),entityType:String(input.entityType||''),entityId:String(input.entityId||''),operationId:String(input.operationId||''),detail:input.detail?JSON.parse(JSON.stringify(input.detail)):null});}
+return {ROLES,can,requirePermission,event};});
