@@ -1,0 +1,10 @@
+const fs=require('fs'),assert=require('assert');
+const rel=JSON.parse(fs.readFileSync('v2/app/release.json','utf8'));
+const sw=fs.readFileSync('v2/app/service-worker.js','utf8');
+const sh=fs.readFileSync('v2/app/operational-shell.html','utf8');
+const da=fs.readFileSync('v2/app/durable-actions-v2.js','utf8');
+assert.equal(rel.build,'v2-pilot-20260924-b2-stable-3');
+assert.ok(sw.includes("const BUILD='"+rel.build+"'"));
+assert.ok(sh.includes('durable-actions-v2.js?v='+rel.build));
+assert.ok(da.includes('renewInterest,refinance'));
+console.log('stable-3 runtime candidate: PASS');
