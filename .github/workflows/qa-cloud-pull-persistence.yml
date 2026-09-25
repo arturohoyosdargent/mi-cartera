@@ -1,0 +1,17 @@
+name: QA Cloud Pull Persistence
+on:
+  push:
+    branches: [v2-prueba-avance-25sep]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  cloud-pull-persistence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify pullCloud persistence contract
+        run: node qa-cloud-pull-persistence-test.js

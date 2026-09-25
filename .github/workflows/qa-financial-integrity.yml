@@ -1,0 +1,16 @@
+name: QA Financial Integrity
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'financial-integrity-v1.js'
+      - 'qa-financial-integrity-test.js'
+      - '.github/workflows/qa-financial-integrity.yml'
+  workflow_dispatch:
+jobs:
+  financial-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute financial integrity regression
+        run: node qa-financial-integrity-test.js

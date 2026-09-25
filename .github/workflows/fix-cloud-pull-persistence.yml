@@ -1,0 +1,35 @@
+name: Fix Cloud Pull Persistence
+on:
+  push:
+    branches: [v2-prueba-avance-25sep]
+    paths:
+      - '.github/workflows/fix-cloud-pull-persistence.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v2-prueba-avance-25sep
+      - name: Apply minimal pullCloud persistence fix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('firebase-cloud-core.js')
+          s=p.read_text()
+          old="  dedupeClients(true);\n}async function pushList"
+          new="  dedupeClients(true);\n  saveCloudDb();\n  normalize();\n  renderAll();\n}async function pushList"
+          if old not in s:
+              raise SystemExit('Expected pullCloud tail not found; refusing broad edit')
+          p.write_text(s.replace(old,new,1))
+          PY
+          node qa-cloud-pull-persistence-test.js
+      - name: Commit verified fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firebase-cloud-core.js
+          git commit -m "Fix: persist and render pullCloud merge"
+          git push origin HEAD:v2-prueba-avance-25sep
