@@ -1,0 +1,39 @@
+name: V2 Pilot Package
+on:
+  push:
+    branches: [reengineering-v2-final]
+    paths: ['v2/**', '.github/workflows/v2-pilot-package.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package-v2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify V2 release gates
+        run: |
+          node v2/tests/app-shell.spec.js
+          node v2/tests/pilot-config.spec.js
+          node v2/tests/cloud-pilot-runtime.spec.js
+          node v2/tests/preflight.spec.js
+          node v2/tests/pilot-runtime-consistency.spec.js
+          node v2/tests/integrated-branch-smoke.spec.js
+      - name: Build isolated V2 package
+        run: |
+          mkdir -p dist/mi-cartera-pro-v2
+          cp -R v2/app dist/mi-cartera-pro-v2/app
+          cp -R v2/core dist/mi-cartera-pro-v2/core
+          cp -R v2/cloud dist/mi-cartera-pro-v2/cloud
+          cp v2/RELEASE-GATE.md dist/mi-cartera-pro-v2/RELEASE-GATE.md
+          printf '%s\n' "source_branch=reengineering-v2-final" "source_sha=${GITHUB_SHA}" > dist/mi-cartera-pro-v2/SOURCE.txt
+      - name: Upload isolated V2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mi-cartera-pro-v2-pilot-${{ github.sha }}
+          path: dist/mi-cartera-pro-v2
+          if-no-files-found: error
+          retention-days: 14

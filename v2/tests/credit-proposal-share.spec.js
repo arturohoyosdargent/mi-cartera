@@ -1,0 +1,11 @@
+const assert=require('assert');const fs=require('fs');const p=require('path');const src=fs.readFileSync(p.join(__dirname,'../app/credit-form-parity-v2.js'),'utf8');
+assert(src.includes('creditProposalShare'),'credit form must expose a proposal share action');
+assert(src.includes('function proposalText(c)'),'credit proposal must have a deterministic text builder');
+for(const field of ['Capital: S/','Interés:','Total: S/','Cuotas:','Monto por cuota: S/','Primera cuota:','Última cuota:'])assert(src.includes(field),`proposal must include ${field}`);
+assert(src.includes('MiCarteraV2CustomerExperience?.whatsapp'),'proposal must use the shared WhatsApp customer experience path');
+assert(src.includes("return 'whatsapp'"),'WhatsApp must be a first-class proposal share result');
+assert(src.includes('navigator.share'),'proposal must retain native share fallback');
+assert(src.includes('navigator.clipboard?.writeText'),'proposal must retain clipboard fallback');
+assert(src.indexOf('MiCarteraV2CustomerExperience?.whatsapp')<src.indexOf('navigator.share'),'proposal must prioritize WhatsApp before native share');
+assert(src.includes('Revisa estas condiciones antes de aceptar el crédito.'),'proposal must explicitly precede customer acceptance');
+console.log('credit-proposal-share.spec.js PASS');
