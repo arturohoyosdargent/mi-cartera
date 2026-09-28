@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "mi-cartera-d0d8c"
+  },
   "targets": {
     "mi-cartera-d0d8c": {
       "hosting": {
