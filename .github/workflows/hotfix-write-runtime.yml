@@ -1,4 +1,4 @@
-name: Restore Codex V2 runtime and full QA
+name: Restore Codex V2 runtime complete QA
 on:
   push:
     branches: [post-final4-business]
@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Restore Codex resilient action facade and repair parser blockers
+      - name: Restore verified runtime files
         run: |
           set -e
           git show bd07e4348779989e9472ba8a2ff4e883b6a6bc6b:v2/app/operational-cards-v2.js > v2/app/operational-cards-v2.js
@@ -32,13 +32,17 @@ jobs:
           open(p,'w',encoding='utf-8').write(s.replace(old,new))
           p='v2/app/service-worker.js'; s=open(p,encoding='utf-8').read()
           s=s.replace("'./durable-actions-v2.js'","'./durable-actions-stable6.js'")
+          anchor="'./durable-actions-stable6.js'"
+          extras=["'./renewal-actions-stable10.js'","'./promise-actions-stable11.js'","'./write-actions-stable12.js'"]
+          for x in extras:
+            if x not in s: s=s.replace(anchor,anchor+','+x)
           open(p,'w',encoding='utf-8').write(s)
           PY
-      - name: Parse every V2 JavaScript file
+      - name: Parse all V2 JavaScript
         run: |
           set -e
           while IFS= read -r -d '' f; do node --check "$f"; done < <(find v2/app v2/core v2/cloud -type f -name '*.js' -print0)
-      - name: Run every V2 regression test
+      - name: Run complete V2 regression suite
         run: |
           set -e
           for f in v2/tests/*.spec.js; do echo "=== $f ==="; node "$f"; done
@@ -48,5 +52,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add v2/app/operational-cards-v2.js v2/app/durable-actions-stable6.js v2/app/durable-actions-v2.js v2/app/write-actions-stable12.js v2/app/operational-shell.html v2/app/service-worker.js
           git diff --cached --quiet && exit 0
-          git commit -m 'fix(v2): restore Codex resilient runtime after complete green QA'
+          git commit -m 'fix(v2): restore Codex runtime and complete offline action cache'
           git push origin HEAD:post-final4-business
