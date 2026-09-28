@@ -1,4 +1,4 @@
-name: Repair only failed V2 promise agenda regression
+name: Repair only remaining V2 promise regression
 on:
   push:
     branches: [post-final4-business]
@@ -16,20 +16,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Restore only the known-good promise-aware agenda
+      - name: Restore only two known-good files implicated by the failed regression
         run: |
           set -e
-          SOURCE=bd07e4348779989e9472ba8a2ff4e883b6a6bc6b
-          git show "$SOURCE:v2/app/agenda-v2.js" > v2/app/agenda-v2.js
-      - name: Parse only corrected agenda
-        run: node --check v2/app/agenda-v2.js
+          CARDS=3fe9d4c69d57bddb6d9f55c60da5493d88bde8e9
+          AGENDA=bd07e4348779989e9472ba8a2ff4e883b6a6bc6b
+          git show "$CARDS:v2/app/operational-cards-v2.js" > v2/app/operational-cards-v2.js
+          git show "$AGENDA:v2/app/agenda-v2.js" > v2/app/agenda-v2.js
+      - name: Parse only corrected files
+        run: |
+          node --check v2/app/operational-cards-v2.js
+          node --check v2/app/agenda-v2.js
       - name: Re-run only the previously failing regression
         run: node v2/tests/payment-promise-reversal.spec.js
-      - name: Commit only corrected agenda after targeted PASS
+      - name: Commit only the two corrected files after targeted PASS
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add v2/app/agenda-v2.js
+          git add v2/app/operational-cards-v2.js v2/app/agenda-v2.js
           git diff --cached --quiet && exit 0
-          git commit -m 'fix(v2): restore promise-aware agenda after targeted regression'
+          git commit -m 'fix(v2): restore approved promise cards and agenda after targeted regression'
           git push origin HEAD:post-final4-business
