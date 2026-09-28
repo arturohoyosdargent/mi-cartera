@@ -21,7 +21,7 @@ jobs:
           set -e
           RUNTIME=bd07e4348779989e9472ba8a2ff4e883b6a6bc6b
           CARDS=3fe9d4c69d57bddb6d9f55c60da5493d88bde8e9
-          git show "$CARDS:v2/app/operational-cards-v2.js" > v2/app/operational-cards-v2.js
+          for f in operational-cards-v2.js agenda-v2.js; do git show "$CARDS:v2/app/$f" > "v2/app/$f"; done
           for f in operational-shell.html service-worker.js release.json durable-actions-stable6.js renewal-actions-stable10.js promise-actions-stable11.js write-actions-stable12.js; do git show "$RUNTIME:v2/app/$f" > "v2/app/$f"; done
           python3 - <<'PY'
           import re
@@ -43,7 +43,7 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add v2/app/operational-cards-v2.js v2/app/operational-shell.html v2/app/service-worker.js v2/app/release.json v2/app/durable-actions-stable6.js v2/app/durable-actions-v2.js v2/app/renewal-actions-stable10.js v2/app/promise-actions-stable11.js v2/app/write-actions-stable12.js
+          git add v2/app/operational-cards-v2.js v2/app/agenda-v2.js v2/app/operational-shell.html v2/app/service-worker.js v2/app/release.json v2/app/durable-actions-stable6.js v2/app/durable-actions-v2.js v2/app/renewal-actions-stable10.js v2/app/promise-actions-stable11.js v2/app/write-actions-stable12.js
           git diff --cached --quiet && exit 0
           git commit -m 'fix(v2): restore Codex self-healing integrated runtime after exhaustive QA'
           git push origin HEAD:post-final4-business
