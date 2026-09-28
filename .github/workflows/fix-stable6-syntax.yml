@@ -1,0 +1,52 @@
+name: Fix stable6 syntax
+on:
+  push:
+    branches: [post-final4-business]
+    paths:
+      - '.github/workflows/fix-stable6-syntax.yml'
+      - 'v2/app/durable-actions-stable6.js'
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: post-final4-business
+      - name: Repair only invalid nullish/logical mixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('v2/app/durable-actions-stable6.js')
+          s=p.read_text()
+          replacements={
+            "Number(q.balance??q.amount||0)":"Number(q.balance??q.amount??0)",
+          }
+          changed=0
+          for old,new in replacements.items():
+              n=s.count(old)
+              if n:
+                  s=s.replace(old,new)
+                  changed+=n
+          if not changed:
+              print('No invalid stable6 nullish/logical mix remains')
+          else:
+              p.write_text(s)
+              print(f'Repaired {changed} invalid expression(s)')
+          PY
+          node --check v2/app/durable-actions-stable6.js
+      - name: Commit repair if needed
+        shell: bash
+        run: |
+          if git diff --quiet -- v2/app/durable-actions-stable6.js; then
+            echo 'No repair commit needed'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add v2/app/durable-actions-stable6.js
+          git commit -m 'fix(v2): repair stable6 nullish syntax'
+          git push origin HEAD:post-final4-business
