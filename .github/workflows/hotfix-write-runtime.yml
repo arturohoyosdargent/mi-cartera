@@ -1,4 +1,4 @@
-name: Hotfix renewal runtime
+name: Hotfix V2 runtime and renewal
 on:
   push:
     branches: [post-final4-business]
@@ -15,36 +15,47 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Restore verified renewal runtime recovery
+      - name: Repair known parser blockers and restore verified renewal recovery
         run: |
           python3 - <<'PY'
+          files=['v2/app/durable-actions-stable6.js','v2/app/durable-actions-v2.js','v2/app/write-actions-stable12.js']
+          bad="Number(q.balance??q.amount||0)"
+          good="Number((q.balance??q.amount)||0)"
+          total=0
+          for p in files:
+            s=open(p,encoding='utf-8').read()
+            n=s.count(bad)
+            if n:
+              print(p,'parser fixes',n)
+              s=s.replace(bad,good)
+              open(p,'w',encoding='utf-8').write(s)
+              total+=n
+          print('total parser fixes',total)
           p='v2/app/operational-cards-v2.js'
           s=open(p,encoding='utf-8').read()
           old="function renew(id){const fn=root.MiCarteraV2DurableActions?.openRenewal;if(typeof fn!=='function')return alert('Renovación no disponible. Actualiza la aplicación.');return fn(id)}function renewInterest(id){const fn=root.MiCarteraV2DurableActions?.renewInterest;if(typeof fn!=='function')return alert('Renovación no disponible. Actualiza la aplicación.');return fn(id)}function refinance(id){const fn=root.MiCarteraV2DurableActions?.refinance;if(typeof fn!=='function')return alert('Renovación no disponible. Actualiza la aplicación.');return fn(id)}"
           new="let renewalReload=null;async function renewalFn(name){let fn=root.MiCarteraV2RenewalActions?.[name];if(typeof fn==='function')return fn;if(!renewalReload)renewalReload=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='renewal-actions-stable10.js?runtime='+Date.now();s.onload=resolve;s.onerror=()=>reject(new Error('No se pudo cargar renovación.'));document.head.appendChild(s)}).finally(()=>{renewalReload=null});await renewalReload;fn=root.MiCarteraV2RenewalActions?.[name];if(typeof fn!=='function')throw new Error('No se pudo iniciar renovación.');return fn}async function renew(id){try{return (await renewalFn('openRenewal'))(id)}catch(e){alert(e.message)}}async function renewInterest(id){try{return (await renewalFn('renewInterest'))(id)}catch(e){alert(e.message)}}async function refinance(id){try{return (await renewalFn('refinance'))(id)}catch(e){alert(e.message)}}"
           n=s.count(old)
           print('renewal targets',n)
-          if n != 1: raise SystemExit('expected exactly one current renewal block')
+          if n != 1: raise SystemExit('expected exactly one renewal block')
           s=s.replace(old,new)
           open(p,'w',encoding='utf-8').write(s)
           PY
       - name: JavaScript syntax gate
         run: |
-          find v2/app v2/core v2/cloud -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+          set -e
+          while IFS= read -r -d '' f; do node --check "$f"; done < <(find v2/app v2/core v2/cloud -type f -name '*.js' -print0)
       - name: Renewal regression first
         run: node v2/tests/inactive-credit-actions.spec.js
       - name: Full V2 regression suite
         run: |
           set -e
-          for f in v2/tests/*.spec.js; do
-            echo "=== $f ==="
-            node "$f"
-          done
+          for f in v2/tests/*.spec.js; do echo "=== $f ==="; node "$f"; done
       - name: Commit only after all tests pass
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add v2/app/operational-cards-v2.js
+          git add v2/app/durable-actions-stable6.js v2/app/durable-actions-v2.js v2/app/write-actions-stable12.js v2/app/operational-cards-v2.js
           git diff --cached --quiet && exit 0
-          git commit -m 'fix(v2): restore renewal runtime recovery after full QA'
+          git commit -m 'fix(v2): repair runtime parser and renewal recovery after full QA'
           git push origin HEAD:post-final4-business
