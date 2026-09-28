@@ -1,4 +1,4 @@
-name: Restore Codex V2 coherent snapshot exhaustive QA
+name: Restore Codex V2 final candidate QA
 on:
   push:
     branches: [post-final4-business]
@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Restore coherent Codex snapshot and repair parser defects
+      - name: Build final candidate from Codex snapshot
         run: |
           set -e
           REF=bd07e4348779989e9472ba8a2ff4e883b6a6bc6b
@@ -24,11 +24,14 @@ jobs:
             git show "$REF:v2/app/$f" > "v2/app/$f"
           done
           python3 - <<'PY'
+          import re
           files=['v2/app/durable-actions-stable6.js','v2/app/durable-actions-v2.js','v2/app/write-actions-stable12.js','v2/app/renewal-actions-stable10.js','v2/app/promise-actions-stable11.js']
           bad="Number(q.balance??q.amount||0)"; good="Number((q.balance??q.amount)||0)"
           for p in files:
-            s=open(p,encoding='utf-8').read(); n=s.count(bad)
-            if n: s=s.replace(bad,good); open(p,'w',encoding='utf-8').write(s)
+            s=open(p,encoding='utf-8').read(); s=s.replace(bad,good); open(p,'w',encoding='utf-8').write(s)
+          p='v2/app/operational-shell.html'; s=open(p,encoding='utf-8').read()
+          s=re.sub(r'durable-actions-stable6\.js\?v=[^"\']+', 'durable-actions-stable6.js?v=v2-pilot-20260924-b2-stable-6', s)
+          open(p,'w',encoding='utf-8').write(s)
           PY
       - name: Parse every V2 JavaScript file
         run: |
@@ -44,5 +47,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add v2/app/operational-cards-v2.js v2/app/operational-shell.html v2/app/service-worker.js v2/app/release.json v2/app/durable-actions-stable6.js v2/app/durable-actions-v2.js v2/app/renewal-actions-stable10.js v2/app/promise-actions-stable11.js v2/app/write-actions-stable12.js
           git diff --cached --quiet && exit 0
-          git commit -m 'fix(v2): restore coherent Codex runtime snapshot after exhaustive QA'
+          git commit -m 'fix(v2): validated Codex runtime candidate passes exhaustive QA'
           git push origin HEAD:post-final4-business
