@@ -1,0 +1,5 @@
+// Mi Cartera PRO V2 — shared sync error classification. Prevents permanent/conflict failures from retry loops.
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.MiCarteraV2SyncErrors=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){'use strict';
+function text(e){return String(e?.code||'')+' '+String(e?.message||e||'');}
+function classify(e){const s=text(e).toUpperCase();if(/VERSION_CONFLICT|FAILED_PRECONDITION|ABORTED_CONFLICT/.test(s))return {kind:'CONFLICT',retry:false};if(/OPERATION_ID_COLLISION|PERMISSION_DENIED|UNAUTHENTICATED|INVALID_ARGUMENT|NOT_FOUND/.test(s))return {kind:'PERMANENT',retry:false};if(/RESOURCE_EXHAUSTED|UNAVAILABLE|DEADLINE_EXCEEDED|\bABORTED\b|NETWORK|OFFLINE/.test(s))return {kind:'RETRYABLE',retry:true};return {kind:'PERMANENT',retry:false};}
+return {classify};});

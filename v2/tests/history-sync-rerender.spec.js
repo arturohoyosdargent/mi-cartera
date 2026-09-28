@@ -1,0 +1,10 @@
+const assert=require('assert');const fs=require('fs');const path=require('path');
+const src=fs.readFileSync(path.join(__dirname,'../app/operational-controller.js'),'utf8');
+assert(src.includes("window.addEventListener('mi-cartera-v2-sync',onSync)"),'controller must rerender after successful operational sync');
+assert(src.includes("window.addEventListener('storage',render)"),'controller must rerender when another tab/device-local context changes persisted state');
+assert(/function onSync\(e\)\{if\(e\?\.detail\?\.ok===false\)return;render\(\)\}/.test(src),'failed sync must not be presented as successfully reconstructed history');
+assert(/function render\(\)\{try\{state=\{\.\.\.state,\.\.\.JSON\.parse\(localStorage\.getItem\(K\)\|\|'\{\}'\)\}\}/.test(src),'render must reload persisted state before rebuilding history');
+assert(src.includes("for(const k of ['clients','credits','payments','cashMovements','audit'])"),'history reconstruction must normalize all operational collections');
+assert(src.includes("state.payments.slice().reverse()"),'payment history must rebuild from persisted payments in newest-first order');
+assert(src.includes("root.MiCarteraV2Cards?.renderPayments?.()"),'card payment history must rerender after reconstructed state is loaded');
+console.log('history-sync-rerender.spec.js PASS');

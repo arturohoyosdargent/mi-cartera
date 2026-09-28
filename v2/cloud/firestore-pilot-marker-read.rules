@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // V2 pilot marker: public read-only readiness marker. No financial data lives on this document.
+    match /orgs/v2-mi-cartera-pilot {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

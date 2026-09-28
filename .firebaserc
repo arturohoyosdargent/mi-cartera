@@ -1,0 +1,13 @@
+{
+  "projects": {},
+  "targets": {
+    "mi-cartera-d0d8c": {
+      "hosting": {
+        "v2": [
+          "mi-cartera-pro-v2"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

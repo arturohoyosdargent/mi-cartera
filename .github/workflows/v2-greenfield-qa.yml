@@ -1,0 +1,89 @@
+# production-candidate-trigger: renewal-cache-fix
+name: V2 Greenfield QA
+on:
+  workflow_dispatch:
+  push:
+    branches: [v2-greenfield-app, reengineering-v2, reengineering-v2-integrated, reengineering-v2-final, qa-stable1-write-gate-20260924, post-final4-business]
+    paths: ['v2/**', 'firestore.rules', '.github/workflows/v2-greenfield-qa.yml']
+  pull_request:
+    paths: ['v2/**', 'firestore.rules', '.github/workflows/v2-greenfield-qa.yml']
+jobs:
+  financial-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Financial engine acceptance cases
+        run: node v2/tests/financial-engine.spec.js
+      - name: Collection report allocation regression
+        run: node v2/tests/report-installment-splits.spec.js
+      - name: Inactive credit collection actions regression
+        run: node v2/tests/inactive-credit-actions.spec.js
+      - name: Atomic transaction idempotency
+        run: node v2/tests/transaction-store.spec.js
+      - name: Offline operation queue
+        run: node v2/tests/offline-operation-queue.spec.js
+      - name: Structured sync error policy
+        run: node v2/tests/sync-errors.spec.js
+      - name: Runtime reconnect and replay
+        run: node v2/tests/runtime-retry.spec.js
+      - name: Deterministic installment schedules
+        run: node v2/tests/schedule-engine.spec.js
+      - name: Access control and immutable audit
+        run: node v2/tests/access-audit.spec.js
+      - name: Operational RBAC integration
+        run: node v2/tests/operational-rbac.spec.js
+      - name: Operational cloud sync boundary
+        run: node v2/tests/operational-sync.spec.js
+      - name: Durable operation acceptance before local commit
+        run: node v2/tests/operation-commit-gate.spec.js
+      - name: Durable controller mutation contract
+        run: node v2/tests/controller-durable-commit.spec.js
+      - name: Firestore operational paths and authorization fields
+        run: node v2/tests/firestore-operational-paths.spec.js
+      - name: Real offline operational replay
+        run: node v2/tests/offline-operational-integration.spec.js
+      - name: Alfredo Elias and network end-to-end safety
+        run: node v2/tests/end-to-end-safety.spec.js
+      - name: V2 Firestore pilot namespace isolation
+        run: node v2/tests/firestore-v2-rules.spec.js
+      - name: Integrated Firestore V1 V2 isolation
+        run: node v2/tests/firestore-integrated-isolation.spec.js
+      - name: Legacy migration corruption audit
+        run: node v2/tests/legacy-audit.spec.js
+      - name: Shadow migration reconciliation gate
+        run: node v2/tests/shadow-plan.spec.js
+      - name: Clients-only clean-start gate
+        run: node v2/tests/client-import.spec.js
+      - name: Opening credits validation gate
+        run: node v2/tests/opening-credit-validator.spec.js
+      - name: Independent installable app shell
+        run: node v2/tests/app-shell.spec.js
+      - name: Functional parity phase 1
+        run: node v2/tests/functional-parity.spec.js
+      - name: Customer sharing experience gate
+        run: node v2/tests/sharing-experience.spec.js
+      - name: Renewal preview and safe refresh regression
+        run: node v2/tests/share-preview-refresh.spec.js
+      - name: Safe pre-payment renewal edit regression
+        run: node v2/tests/renewal-edit-preserves-origin.spec.js
+      - name: Pilot activation safety gate
+        run: node v2/tests/pilot-config.spec.js
+      - name: Cloud runtime pilot gate
+        run: node v2/tests/cloud-pilot-runtime.spec.js
+      - name: Authenticated Cloud fail-closed gate
+        run: |
+          node v2/tests/auth-cloud-gate.spec.js
+          node v2/tests/auth-version-recovery.spec.js
+      - name: Read-only pilot preflight
+        run: node v2/tests/preflight.spec.js
+      - name: Payment promise and reversal regression
+        run: node v2/tests/payment-promise-reversal.spec.js
+      - name: Pilot runtime consistency gate
+        run: node v2/tests/pilot-runtime-consistency.spec.js
+      - name: Browser write runtime contract
+        run: node v2/tests/write-runtime-browser-contract.spec.js
+      - name: Canonical branch smoke
+        run: node v2/tests/integrated-branch-smoke.spec.js

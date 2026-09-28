@@ -1,0 +1,10 @@
+const assert=require('assert');const A=require('../core/access-audit');
+assert.equal(A.can(A.ROLES.ADMIN,'CREDIT_WRITE'),true);
+assert.equal(A.can(A.ROLES.COBRADOR,'PAYMENT_WRITE'),true);
+assert.equal(A.can(A.ROLES.COBRADOR,'CREDIT_WRITE'),false);
+assert.equal(A.can(A.ROLES.LECTURA,'PAYMENT_WRITE'),false);
+assert.equal(A.can(A.ROLES.LECTURA,'REPORT_READ'),true);
+assert.throws(()=>A.requirePermission(A.ROLES.LECTURA,'CASH_WRITE'),/PERMISSION_DENIED:CASH_WRITE/);
+const e=A.event({id:'audit-test',at:'2026-09-16T00:00:00.000Z',actorId:'u1',role:A.ROLES.ADMIN,action:'PAYMENT_RECORDED',entityType:'PAYMENT',entityId:'p1',operationId:'op1',detail:{amount:120}});
+assert.equal(e.action,'PAYMENT_RECORDED');assert.equal(e.detail.amount,120);assert.equal(Object.isFrozen(e),true);
+console.log('operational-rbac.spec.js PASS');
