@@ -1,4 +1,4 @@
-name: Hotfix write runtime
+name: Hotfix renewal runtime
 on:
   push:
     branches: [post-final4-business]
@@ -6,35 +6,45 @@ on:
 permissions:
   contents: write
 jobs:
-  fix:
+  fix-and-verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: post-final4-business
-      - name: Fix invalid nullish/logical mixing
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Restore verified renewal runtime recovery
         run: |
           python3 - <<'PY'
-          p='v2/app/write-actions-stable12.js'
+          p='v2/app/operational-cards-v2.js'
           s=open(p,encoding='utf-8').read()
-          old="Number(q.balance??q.amount||0)"
+          old="function renew(id){const fn=root.MiCarteraV2DurableActions?.openRenewal;if(typeof fn!=='function')return alert('Renovación no disponible. Actualiza la aplicación.');return fn(id)}function renewInterest(id){const fn=root.MiCarteraV2DurableActions?.renewInterest;if(typeof fn!=='function')return alert('Renovación no disponible. Actualiza la aplicación.');return fn(id)}function refinance(id){const fn=root.MiCarteraV2DurableActions?.refinance;if(typeof fn!=='function')return alert('Renovación no disponible. Actualiza la aplicación.');return fn(id)}"
+          new="let renewalReload=null;async function renewalFn(name){let fn=root.MiCarteraV2RenewalActions?.[name];if(typeof fn==='function')return fn;if(!renewalReload)renewalReload=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='renewal-actions-stable10.js?runtime='+Date.now();s.onload=resolve;s.onerror=()=>reject(new Error('No se pudo cargar renovación.'));document.head.appendChild(s)}).finally(()=>{renewalReload=null});await renewalReload;fn=root.MiCarteraV2RenewalActions?.[name];if(typeof fn!=='function')throw new Error('No se pudo iniciar renovación.');return fn}async function renew(id){try{return (await renewalFn('openRenewal'))(id)}catch(e){alert(e.message)}}async function renewInterest(id){try{return (await renewalFn('renewInterest'))(id)}catch(e){alert(e.message)}}async function refinance(id){try{return (await renewalFn('refinance'))(id)}catch(e){alert(e.message)}}"
           n=s.count(old)
-          print('targets',n)
-          if n < 1: raise SystemExit('expected invalid expression not found')
-          s=s.replace(old,"Number((q.balance??q.amount)||0)")
+          print('renewal targets',n)
+          if n != 1: raise SystemExit('expected exactly one current renewal block')
+          s=s.replace(old,new)
           open(p,'w',encoding='utf-8').write(s)
           PY
-      - name: Browser parse gate
-        run: node --check v2/app/write-actions-stable12.js
-      - name: Existing V2 tests
+      - name: JavaScript syntax gate
         run: |
-          if [ -f package.json ]; then npm test --if-present; fi
-          if [ -f v2/tests/write-runtime-browser-contract.spec.js ]; then node v2/tests/write-runtime-browser-contract.spec.js; fi
-      - name: Commit verified hotfix
+          find v2/app v2/core v2/cloud -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+      - name: Renewal regression first
+        run: node v2/tests/inactive-credit-actions.spec.js
+      - name: Full V2 regression suite
+        run: |
+          set -e
+          for f in v2/tests/*.spec.js; do
+            echo "=== $f ==="
+            node "$f"
+          done
+      - name: Commit only after all tests pass
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add v2/app/write-actions-stable12.js
+          git add v2/app/operational-cards-v2.js
           git diff --cached --quiet && exit 0
-          git commit -m 'fix(v2): repair payment runtime parser blocker'
+          git commit -m 'fix(v2): restore renewal runtime recovery after full QA'
           git push origin HEAD:post-final4-business
