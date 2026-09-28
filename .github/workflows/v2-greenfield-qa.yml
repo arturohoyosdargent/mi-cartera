@@ -61,6 +61,8 @@ jobs:
         run: node v2/tests/opening-credit-validator.spec.js
       - name: Independent installable app shell
         run: node v2/tests/app-shell.spec.js
+      - name: Firebase hosting layout and Service Worker assets
+        run: node v2/tests/hosting-layout.spec.js
       - name: Functional parity phase 1
         run: node v2/tests/functional-parity.spec.js
       - name: Customer sharing experience gate
