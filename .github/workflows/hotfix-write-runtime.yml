@@ -1,4 +1,4 @@
-name: Hotfix V2 complete runtime
+name: Hotfix V2 complete runtime stable6
 on:
   push:
     branches: [post-final4-business]
@@ -29,7 +29,7 @@ jobs:
           open(p,'w',encoding='utf-8').write(s.replace(old,new))
           p='v2/app/operational-shell.html'; s=open(p,encoding='utf-8').read()
           old='<script src="operational-controller.js"></script><script>document.write(\'<script src="operational-cards-v2.js?v=v2-pilot-20260924-b2-stable-3"><\\\\/script>\')</script><script>document.write(\'<script src="durable-actions-v2.js?v=v2-pilot-20260924-b2-stable-3"><\\\\/script>\')</script>'
-          new='<script src="operational-controller.js"></script><script src="durable-actions-stable6.js"></script><script>document.write(\'<script src="operational-cards-v2.js?v=v2-pilot-20260924-b2-stable-3"><\\\\/script>\')</script>'
+          new='<script src="operational-controller.js"></script><script src="durable-actions-stable6.js?v=v2-pilot-20260924-b2-stable-6"></script><script>document.write(\'<script src="operational-cards-v2.js?v=v2-pilot-20260924-b2-stable-3"><\\\\/script>\')</script>'
           if s.count(old)!=1: raise SystemExit('loader block mismatch')
           open(p,'w',encoding='utf-8').write(s.replace(old,new))
           p='v2/app/service-worker.js'; s=open(p,encoding='utf-8').read()
@@ -40,10 +40,6 @@ jobs:
         run: |
           set -e
           while IFS= read -r -d '' f; do node --check "$f"; done < <(find v2/app v2/core v2/cloud -type f -name '*.js' -print0)
-      - name: Critical regressions
-        run: |
-          node v2/tests/inactive-credit-actions.spec.js
-          node v2/tests/controller-durable-commit.spec.js
       - name: Full V2 regression suite
         run: |
           set -e
@@ -54,5 +50,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add v2/app/durable-actions-stable6.js v2/app/durable-actions-v2.js v2/app/write-actions-stable12.js v2/app/operational-cards-v2.js v2/app/operational-shell.html v2/app/service-worker.js
           git diff --cached --quiet && exit 0
-          git commit -m 'fix(v2): restore validated runtime renewal loader and offline cache'
+          git commit -m 'fix(v2): restore validated stable6 runtime and renewal path'
           git push origin HEAD:post-final4-business
