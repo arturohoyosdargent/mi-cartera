@@ -8,30 +8,25 @@ on:
 permissions:
   contents: read
 jobs:
-  enumerate:
-    runs-on: ubuntu-latest
-    outputs:
-      files: ${{ steps.files.outputs.files }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: files
-        shell: bash
-        run: |
-          python - <<'PY' >> "$GITHUB_OUTPUT"
-          import json
-          from pathlib import Path
-          files=sorted(str(p) for p in Path('.').rglob('*.js') if 'node_modules' not in p.parts and '.git' not in p.parts)
-          print('files='+json.dumps(files,separators=(',',':')))
-          PY
   syntax:
-    needs: enumerate
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 20
-      matrix:
-        file: ${{ fromJSON(needs.enumerate.outputs.files) }}
     steps:
       - uses: actions/checkout@v4
       - name: Node syntax check
-        run: node --check "${{ matrix.file }}"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY' > /tmp/js-files.txt
+          from pathlib import Path
+          for p in sorted(Path('.').rglob('*.js')):
+              if 'node_modules' not in p.parts and '.git' not in p.parts:
+                  print(p)
+          PY
+          count=0
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            echo "Checking $file"
+            node --check "$file"
+            count=$((count+1))
+          done < /tmp/js-files.txt
+          echo "Syntax OK: $count JavaScript files checked"
