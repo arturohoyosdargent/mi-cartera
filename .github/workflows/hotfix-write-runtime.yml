@@ -1,4 +1,4 @@
-name: Restore complete Codex V2 runtime
+name: Restore Codex V2 snapshot with parser repair
 on:
   push:
     branches: [post-final4-business]
@@ -16,13 +16,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Restore complete validated Codex runtime snapshot
+      - name: Restore Codex snapshot and repair known parser defect
         run: |
           set -e
           REF=bd07e4348779989e9472ba8a2ff4e883b6a6bc6b
           for f in operational-cards-v2.js operational-shell.html service-worker.js durable-actions-stable6.js renewal-actions-stable10.js promise-actions-stable11.js write-actions-stable12.js; do
             git show "$REF:v2/app/$f" > "v2/app/$f"
           done
+          python3 - <<'PY'
+          files=['v2/app/durable-actions-stable6.js','v2/app/write-actions-stable12.js','v2/app/renewal-actions-stable10.js','v2/app/promise-actions-stable11.js']
+          bad="Number(q.balance??q.amount||0)"; good="Number((q.balance??q.amount)||0)"
+          for p in files:
+            s=open(p,encoding='utf-8').read(); n=s.count(bad)
+            if n: print(p,'parser fixes',n); s=s.replace(bad,good); open(p,'w',encoding='utf-8').write(s)
+          PY
       - name: Parse every V2 JavaScript file
         run: |
           set -e
@@ -37,5 +44,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add v2/app/operational-cards-v2.js v2/app/operational-shell.html v2/app/service-worker.js v2/app/durable-actions-stable6.js v2/app/renewal-actions-stable10.js v2/app/promise-actions-stable11.js v2/app/write-actions-stable12.js
           git diff --cached --quiet && exit 0
-          git commit -m 'fix(v2): restore complete Codex validated runtime snapshot'
+          git commit -m 'fix(v2): restore Codex snapshot with parser repair after full QA'
           git push origin HEAD:post-final4-business
