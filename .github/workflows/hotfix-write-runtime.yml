@@ -1,4 +1,4 @@
-name: Restore Codex V2 runtime complete QA
+name: Restore complete Codex V2 runtime
 on:
   push:
     branches: [post-final4-business]
@@ -16,41 +16,26 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Restore verified runtime files
+      - name: Restore complete validated Codex runtime snapshot
         run: |
           set -e
-          git show bd07e4348779989e9472ba8a2ff4e883b6a6bc6b:v2/app/operational-cards-v2.js > v2/app/operational-cards-v2.js
-          python3 - <<'PY'
-          files=['v2/app/durable-actions-stable6.js','v2/app/durable-actions-v2.js','v2/app/write-actions-stable12.js']
-          bad="Number(q.balance??q.amount||0)"; good="Number((q.balance??q.amount)||0)"
-          for p in files:
-            s=open(p,encoding='utf-8').read(); s=s.replace(bad,good); open(p,'w',encoding='utf-8').write(s)
-          p='v2/app/operational-shell.html'; s=open(p,encoding='utf-8').read()
-          old='<script src="operational-controller.js"></script><script>document.write(\'<script src="operational-cards-v2.js?v=v2-pilot-20260924-b2-stable-3"><\\\\/script>\')</script><script>document.write(\'<script src="durable-actions-v2.js?v=v2-pilot-20260924-b2-stable-3"><\\\\/script>\')</script>'
-          new='<script src="operational-controller.js"></script><script src="durable-actions-stable6.js?v=v2-pilot-20260924-b2-stable-6"></script><script>document.write(\'<script src="operational-cards-v2.js?v=v2-pilot-20260924-b2-stable-3"><\\\\/script>\')</script>'
-          if s.count(old)!=1: raise SystemExit('loader block mismatch')
-          open(p,'w',encoding='utf-8').write(s.replace(old,new))
-          p='v2/app/service-worker.js'; s=open(p,encoding='utf-8').read()
-          s=s.replace("'./durable-actions-v2.js'","'./durable-actions-stable6.js'")
-          anchor="'./durable-actions-stable6.js'"
-          extras=["'./renewal-actions-stable10.js'","'./promise-actions-stable11.js'","'./write-actions-stable12.js'"]
-          for x in extras:
-            if x not in s: s=s.replace(anchor,anchor+','+x)
-          open(p,'w',encoding='utf-8').write(s)
-          PY
-      - name: Parse all V2 JavaScript
+          REF=bd07e4348779989e9472ba8a2ff4e883b6a6bc6b
+          for f in operational-cards-v2.js operational-shell.html service-worker.js durable-actions-stable6.js renewal-actions-stable10.js promise-actions-stable11.js write-actions-stable12.js; do
+            git show "$REF:v2/app/$f" > "v2/app/$f"
+          done
+      - name: Parse every V2 JavaScript file
         run: |
           set -e
           while IFS= read -r -d '' f; do node --check "$f"; done < <(find v2/app v2/core v2/cloud -type f -name '*.js' -print0)
-      - name: Run complete V2 regression suite
+      - name: Run every V2 regression test
         run: |
           set -e
           for f in v2/tests/*.spec.js; do echo "=== $f ==="; node "$f"; done
-      - name: Commit only after complete green suite
+      - name: Commit only after every test passes
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add v2/app/operational-cards-v2.js v2/app/durable-actions-stable6.js v2/app/durable-actions-v2.js v2/app/write-actions-stable12.js v2/app/operational-shell.html v2/app/service-worker.js
+          git add v2/app/operational-cards-v2.js v2/app/operational-shell.html v2/app/service-worker.js v2/app/durable-actions-stable6.js v2/app/renewal-actions-stable10.js v2/app/promise-actions-stable11.js v2/app/write-actions-stable12.js
           git diff --cached --quiet && exit 0
-          git commit -m 'fix(v2): restore Codex runtime and complete offline action cache'
+          git commit -m 'fix(v2): restore complete Codex validated runtime snapshot'
           git push origin HEAD:post-final4-business
