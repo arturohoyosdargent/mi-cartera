@@ -1,4 +1,4 @@
-name: Restore Codex V2 final candidate QA
+name: Validate Codex V2 integrated runtime
 on:
   push:
     branches: [post-final4-business]
@@ -16,12 +16,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Build final candidate from Codex snapshot
+      - name: Assemble integrated Codex candidate
         run: |
           set -e
-          REF=bd07e4348779989e9472ba8a2ff4e883b6a6bc6b
-          for f in operational-cards-v2.js operational-shell.html service-worker.js release.json durable-actions-stable6.js renewal-actions-stable10.js promise-actions-stable11.js write-actions-stable12.js; do
-            git show "$REF:v2/app/$f" > "v2/app/$f"
+          RUNTIME=bd07e4348779989e9472ba8a2ff4e883b6a6bc6b
+          CARDS=f8d7bf0caf2d448ffb8084af2f9a0ba5cd63a12b
+          git show "$CARDS:v2/app/operational-cards-v2.js" > v2/app/operational-cards-v2.js
+          for f in operational-shell.html service-worker.js release.json durable-actions-stable6.js renewal-actions-stable10.js promise-actions-stable11.js write-actions-stable12.js; do
+            git show "$RUNTIME:v2/app/$f" > "v2/app/$f"
           done
           python3 - <<'PY'
           import re
@@ -47,5 +49,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add v2/app/operational-cards-v2.js v2/app/operational-shell.html v2/app/service-worker.js v2/app/release.json v2/app/durable-actions-stable6.js v2/app/durable-actions-v2.js v2/app/renewal-actions-stable10.js v2/app/promise-actions-stable11.js v2/app/write-actions-stable12.js
           git diff --cached --quiet && exit 0
-          git commit -m 'fix(v2): validated Codex runtime candidate passes exhaustive QA'
+          git commit -m 'fix(v2): integrate Codex promise UI with validated runtime after exhaustive QA'
           git push origin HEAD:post-final4-business
