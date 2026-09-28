@@ -8,7 +8,7 @@ const sw = fs.readFileSync(path.join(app, 'service-worker.js'), 'utf8');
 const release = JSON.parse(fs.readFileSync(path.join(app, 'release.json'), 'utf8'));
 const preview = fs.readFileSync(path.join(app, 'share-preview-v2.js'), 'utf8');
 const refresh = fs.readFileSync(path.join(app, 'refresh-controller-v2.js'), 'utf8');
-const durable = fs.readFileSync(path.join(app, 'durable-actions-v2.js'), 'utf8');
+const durable = fs.readFileSync(path.join(app, 'renewal-actions-stable10.js'), 'utf8');
 
 assert.ok(shell.includes('share-preview-v2.js'), 'share preview module must load in the operational shell');
 assert.ok(shell.includes('<script src="refresh-controller-v2.js"></script>'), 'manual refresh module must load in the operational shell');
