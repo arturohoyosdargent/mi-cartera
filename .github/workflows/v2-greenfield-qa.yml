@@ -6,6 +6,7 @@ on:
     branches: [main, v2-greenfield-app, reengineering-v2, reengineering-v2-integrated, reengineering-v2-final, qa-stable1-write-gate-20260924, post-final4-business]
     paths: ['v2/**', 'firestore.rules', '.github/workflows/v2-greenfield-qa.yml']
   pull_request:
+    branches: [main]
     paths: ['v2/**', 'firestore.rules', '.github/workflows/v2-greenfield-qa.yml']
 jobs:
   financial-regression:
