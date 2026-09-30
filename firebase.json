@@ -4,7 +4,7 @@
                   },
     "hosting":  {
                     "target":  "v2",
-                    "public":  "v2/app",
+                    "public":  "v2",
                     "ignore":  [
                                    "firebase.json",
                                    "**/.*",
