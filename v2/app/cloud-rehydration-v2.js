@@ -1,6 +1,6 @@
 // Mi Cartera PRO V2 — authenticated Cloud <-> local rehydration for the isolated pilot.
-// Existing local V2 rows are uploaded only when their ID is absent in Cloud; Cloud rows win
-// on an ID collision. This preserves local work without overwriting another device's data.
+// Cloud is authoritative after all pending local operations have been acknowledged.
+// Missing Cloud rows must stay deleted on this device; never resurrect stale local copies.
 (function(root){'use strict';
 const ORG='v2-mi-cartera-pilot',K='mi-cartera-v2-validation-state';
 const MAP={clients:'clients',credits:'credits',payments:'payments',entries:'cashMovements',expenses:'cashMovements',audit:'audit'};
@@ -81,13 +81,15 @@ async function rehydrate(){
   const names=Object.keys(MAP).filter(n=>!MANAGER_ONLY.has(n)||managers(auth));
   let rows=await Promise.all(names.map(n=>readCollection(n,auth)));
   const local=readLocal();
-  const upload=await pushLocalMissing(local,names,rows,auth);
-  if(upload.written)rows=await Promise.all(names.map(n=>readCollection(n,auth)));
+  // pending() above is the write-safety gate. Once it is clear, Cloud is authoritative.
+  // Do not upload local rows merely because they are absent remotely: that absence may be
+  // a deletion already synchronized by another device.
+  const upload={written:0,failed:0,available:false};
   const manager=managers(auth);
   const next={...local,clients:[],credits:[],payments:[],cashMovements:manager?[]:(Array.isArray(local.cashMovements)?local.cashMovements:[]),audit:[]};
   for(let i=0;i<names.length;i++){
     const name=names[i],target=MAP[name];
-    const effective=manager&&upload.available?mergeMissing(rows[i],localRows(local,name)):rows[i];
+    const effective=rows[i];
     if(target==='cashMovements')next[target].push(...effective);
     else next[target]=effective;
   }

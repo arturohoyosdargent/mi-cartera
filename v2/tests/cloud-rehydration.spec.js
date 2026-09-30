@@ -12,6 +12,13 @@ async function main(){
  assert.equal((await window.MiCarteraV2CloudRehydration.rehydrate()).status,'REHYDRATED');
  const d=JSON.parse(local.dump('mi-cartera-v2-validation-state'));assert.equal(d.clients.length,1);assert.equal(d.clients[0].id,'c1');assert(!d.clients.some(x=>x.tombstone===true),'tombstoned Cloud clients must stay hidden');assert.equal(d.credits[0].id,'cr1');assert.equal(d.payments[0].id,'p1');assert.equal(d.cashMovements.length,2);assert.equal(d.audit.length,1);assert.equal(d.audit[0].id,'a1');assert.equal(d.credits[0].schedule[0].status,'PAGADA');assert.equal(d.credits[0].schedule[0].balance,0);assert.equal(d.credits[0].schedule[1].status,'PARCIAL');assert.equal(d.credits[0].schedule[1].paid,20);assert.equal(d.credits[0].schedule[1].balance,40);assert.equal(d.credits[0].schedule[2].balance,60);
  local.setItem('mi-cartera-v2-cloud-operations',JSON.stringify([{status:'PENDIENTE'}]));assert.equal((await window.MiCarteraV2CloudRehydration.rehydrate()).status,'SKIPPED_PENDING_LOCAL_OPERATIONS');
+ // Cross-device delete regression: a stale admin device must not resurrect a row deleted in Cloud.
+ local.setItem('mi-cartera-v2-validation-state',JSON.stringify({clients:[{id:'stale-deleted-on-phone'},{id:'c1'}],credits:[{id:'stale-credit-deleted-on-phone'},{id:'cr1'}],payments:[{id:'p1'}],cashMovements:[],audit:[]}));
+ assert.equal((await window.MiCarteraV2CloudRehydration.rehydrate()).status,'REHYDRATED');
+ const crossDevice=JSON.parse(local.dump('mi-cartera-v2-validation-state'));
+ assert(!crossDevice.clients.some(x=>x.id==='stale-deleted-on-phone'),'stale client deleted on another device must not be resurrected');
+ assert(!crossDevice.credits.some(x=>x.id==='stale-credit-deleted-on-phone'),'stale credit deleted on another device must not be resurrected');
+ assert.equal(crossDevice.clients.length,1);assert.equal(crossDevice.credits.length,1);
  // Second-device regression: a repeated authenticated hydration must replace, not duplicate, Cloud rows.
  assert.equal((await window.MiCarteraV2CloudRehydration.rehydrate()).status,'SKIPPED_PENDING_LOCAL_OPERATIONS');
  local.setItem('mi-cartera-v2-cloud-operations','[]');
