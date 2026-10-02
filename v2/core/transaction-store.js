@@ -32,14 +32,14 @@ function createStore(adapter){assert(adapter&&typeof adapter.runAtomic==='functi
  }
  for(const {w,current,cv,reversalPath} of prepared){
    if(reversalPath){
-     await tx.set(reversalPath,{id:reversalPath.slice('payments/'.length),recordType:'PAYMENT_REVERSAL',reversesPaymentId:w.path.slice('payments/'.length),creditId:current.creditId||'',userId:current.userId||'',routeId:current.routeId||'',operationId:sid(operation.id),reversedAt:now,tombstone:true,version:1,updatedAt:now});
+     await tx.set(reversalPath,{id:reversalPath.slice('payments/'.length),recordType:'PAYMENT_REVERSAL',reversesPaymentId:w.path.slice('payments/'.length),creditId:current.creditId||'',userId:current.userId||'',routeId:current.routeId||'',workerId:current.workerId||'',operationId:sid(operation.id),reversedAt:now,tombstone:true,version:1,updatedAt:now});
    }else if(w.kind==='delete'){
      await tx.set(w.path,{...(current||{}),deletedAt:now,tombstone:true,version:cv+1,updatedAt:now});
    }else{
      await tx.set(w.path,{...(w.data||{}),version:cv+1,updatedAt:now});
    }
  }
- const record={id:sid(operation.id),type:sid(operation.type),fingerprint:fp,status:'APPLIED',createdAt:operation.createdAt||now,appliedAt:now,writeCount:operation.writes.length};await tx.set(opPath,record);return {status:'APPLIED',operation:record};});}
+ const record={id:sid(operation.id),type:sid(operation.type),actorId:sid(operation.actorId),fingerprint:fp,status:'APPLIED',createdAt:operation.createdAt||now,appliedAt:now,writeCount:operation.writes.length};await tx.set(opPath,record);return {status:'APPLIED',operation:record};});}
  return {execute};}
 function write(path,data,expectedVersion){return {kind:'set',path:sid(path),data,expectedVersion};}
 function create(path,data){return {kind:'create',path:sid(path),data,expectedVersion:0};}

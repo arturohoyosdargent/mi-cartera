@@ -8,7 +8,7 @@ const RETRY_KEY='mi-cartera-v2-cloud-quota-retry-after',QUOTA_WAIT=300000;
 const readState={lastSuccessAt:0,lastError:null,nextAttemptAt:0};
 try{const retry=Number(root.localStorage.getItem(RETRY_KEY)||0);if(retry>Date.now()&&retry<=Date.now()+QUOTA_WAIT){readState.nextAttemptAt=retry;readState.lastError='RESOURCE_EXHAUSTED'}}catch{}
 function isQuota(error){return /RESOURCE[-_ ]EXHAUSTED|QUOTA/i.test(String(error?.code||'')+' '+String(error?.message||error||''))}
-const MAP={clients:'clients',credits:'credits',payments:'payments',entries:'cashMovements',expenses:'cashMovements',audit:'audit'};
+const MAP={clients:'clients',credits:'credits',payments:'payments',entries:'cashMovements',expenses:'cashMovements',audit:'audit',routes:'commercial'};
 const MANAGER_ONLY=new Set(['entries','expenses','audit']);
 const clone=v=>JSON.parse(JSON.stringify(v));
 const managers=auth=>['admin','supervisor'].includes(String(auth?.role||''));
@@ -43,7 +43,10 @@ async function readCollection(name,auth){
   const f=root.firestoreV2;
   if(!f?.db||!f?.collection||!f?.getDocs)throw new Error('V2_FIRESTORE_READ_NOT_READY');
   const base=f.collection(f.db,'orgs',ORG,name),refs=[];
-  if(auth.role==='cobrador'){
+  if(auth.role==='gestor'){
+    if(!auth.workerId||!f.query||!f.where)throw new Error('V2_WORKER_SCOPE_REQUIRED');
+    refs.push(f.query(base,f.where(name==='audit'?'actorId':'workerId','==',name==='audit'?auth.uid:auth.workerId)));
+  }else if(auth.role==='cobrador'){
     if(!f.query||!f.where)throw new Error('V2_FIRESTORE_QUERY_NOT_READY');
     if(name==='payments')refs.push(f.query(base,f.where('userId','==',auth.uid)));
     else if(name==='clients'||name==='credits')for(const rid of (auth.routeIds||[]))refs.push(f.query(base,f.where('routeId','==',rid)));
@@ -55,6 +58,14 @@ async function readCollection(name,auth){
     const deadline=new Promise((_,reject)=>{if(typeof setTimeout==='function')timer=setTimeout(()=>reject(Object.assign(Error('NETWORK_TIMEOUT: se conservaron los datos locales'),{code:'deadline-exceeded'})),8000)});
     let snap;try{snap=await Promise.race([f.getDocs(ref),deadline])}finally{if(typeof clearTimeout==='function')clearTimeout(timer)}
     snap.forEach(d=>{const raw=d.data()||{};const data={...raw,id:raw.id||d.id};if(!seen.has(String(data.id))){seen.add(String(data.id));out.push(data)}});
+  }
+  if(name==='routes'&&auth.role==='gestor'){
+    if(!f.doc||!f.getDoc)throw new Error('V2_ROUTE_READ_NOT_READY');
+    for(const rid of auth.routeIds||[]){
+      let timer;const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('NETWORK_TIMEOUT')),8000)});
+      let snap;try{snap=await Promise.race([f.getDoc(f.doc(f.db,'orgs',ORG,'routes',rid)),deadline])}finally{clearTimeout(timer)}
+      if(snap.exists()){const raw=snap.data(),data={...raw,id:raw.id||snap.id};if(data.recordType==='ROUTE'&&!seen.has(data.id)){seen.add(data.id);out.push(data)}}
+    }
   }
   return out;
 }
@@ -71,21 +82,21 @@ async function rehydrateOnce(){
   if(pending())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
   const local=readLocal(),snapshot=JSON.stringify(local),previous=owner(),sameOwner=!previous||previous===auth.uid;
   const stale=()=>JSON.stringify(readLocal())!==snapshot||root.MiCarteraV2AuthCloudGate?.requireReady?.()?.uid!==auth.uid;
-  const names=Object.keys(MAP).filter(n=>!MANAGER_ONLY.has(n)||managers(auth));
+  const names=Object.keys(MAP).filter(n=>!MANAGER_ONLY.has(n)||managers(auth)||auth.role==='gestor');
   let rows=await Promise.all(names.map(n=>readCollection(n,auth)));
   if(pending()||stale())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
   const upload={written:0,failed:0,available:false};
   if(upload.written)rows=await Promise.all(names.map(n=>readCollection(n,auth)));
   if(pending()||stale())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
   const manager=managers(auth);
-  const next={...local,clients:[],credits:[],payments:[],cashMovements:[],audit:[]};
+  const next={...local,clients:[],credits:[],payments:[],cashMovements:[],audit:[],commercial:[]};
   for(let i=0;i<names.length;i++){
     const name=names[i],target=MAP[name];
     const effective=rows[i];
     const reversed=name==='payments'?new Set(effective.filter(x=>x.recordType==='PAYMENT_REVERSAL'&&x.reversesPaymentId).map(x=>String(x.reversesPaymentId))):new Set();
     const alive=effective.filter(x=>x.tombstone!==true&&x.recordType!=='PAYMENT_REVERSAL'&&!reversed.has(rowId(x)));if(target==='cashMovements')next[target].push(...alive);else next[target]=alive;
   }
-  next.session={...(local.session||{}),actorId:auth.uid,role:auth.role,routeIds:Array.isArray(auth.routeIds)?auth.routeIds:[]};
+  next.session={...(local.session||{}),actorId:auth.uid,role:auth.role,routeIds:Array.isArray(auth.routeIds)?auth.routeIds:[],workerId:auth.workerId||''};
   if(!sameOwner)root.localStorage.setItem('mi-cartera-v2-preserved-state:'+previous,snapshot);
   root.localStorage.setItem('mi-cartera-v2-preserved-state:'+(previous||auth.uid),snapshot);
   root.localStorage.setItem(K,JSON.stringify(clone(next)));
@@ -101,7 +112,7 @@ async function rehydrate(){
   // with a durable pending operation cannot wait for a Cloud snapshot to do it.
   const auth=root.MiCarteraV2AuthCloudGate?.state?.();
   if(auth?.ready&&auth.uid&&owner()===auth.uid&&!foreignPending(auth.uid)){
-    const local=readLocal(),session={...(local.session||{}),actorId:auth.uid,role:auth.role,routeIds:Array.isArray(auth.routeIds)?auth.routeIds:[]};
+    const local=readLocal(),session={...(local.session||{}),actorId:auth.uid,role:auth.role,routeIds:Array.isArray(auth.routeIds)?auth.routeIds:[],workerId:auth.workerId||''};
     if(JSON.stringify(local.session)!==JSON.stringify(session)){
       root.localStorage.setItem(K,JSON.stringify({...local,session}));
       dispatch('mi-cartera-v2-sync',{ok:true,source:'verified-local-session'});
@@ -148,7 +159,7 @@ function clearOnLogout(e){
     root.MiCarteraV2Agenda?.render?.();root.MiCarteraV2DashboardParity?.render?.();root.MiCarteraV2AdminParity?.render?.();
     return;
   }
-  const local=readLocal(),next={...local,clients:[],credits:[],payments:[],cashMovements:[],audit:[],session:null};
+  const local=readLocal(),next={...local,clients:[],credits:[],payments:[],cashMovements:[],audit:[],commercial:[],session:null};
   root.localStorage.setItem(K,JSON.stringify(next));
   dispatch('mi-cartera-v2-sync',{ok:true,source:'logout-clear'});
   root.MiCarteraV2Agenda?.render?.();root.MiCarteraV2DashboardParity?.render?.();root.MiCarteraV2AdminParity?.render?.();

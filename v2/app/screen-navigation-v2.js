@@ -22,6 +22,9 @@ function syncVisibility(){
     document.getElementById('v2RenewalHub')?.remove();
     document.getElementById('v2BackupPanel')?.remove();
     document.getElementById('partnerForm')?.remove();
+    root.MiCarteraV2ClientShare?.close?.();
+    document.getElementById('v2CommercialForm')?.remove();
+    document.getElementById('v2InspectionDetail')?.replaceChildren();
   }
 }
 function guardShow(){
@@ -31,7 +34,7 @@ function guardShow(){
   guarded.__v2SessionViewGuard=true;root.show=guarded;
 }
 function go(target){if(typeof root.show==='function')root.show(target||HOME)}
-function close(){const active=document.querySelector('.page.active')?.id||'';const parent={clientForm:'clients',creditForm:'credits',agenda:'home',collections:'home',cash:'more',reports:'more',security:'more',admin:'more',more:'home',clients:'home',credits:'home'}[active]||HOME;go(parent)}
+function close(){const active=document.querySelector('.page.active')?.id||'';const parent={inspection:'more',commercial:'more',clientForm:'clients',creditForm:'credits',agenda:'home',collections:'home',cash:'more',reports:'more',security:'more',admin:'more',more:'home',clients:'home',credits:'home'}[active]||HOME;go(parent)}
 function install(){
   guardShow();syncVisibility();
   document.querySelectorAll('main .page').forEach(page=>{if(page.id===HOME||page.querySelector(':scope > .screen-toolbar'))return;const bar=document.createElement('div');bar.className='screen-toolbar';bar.innerHTML='<button type="button" class="btn screen-close" aria-label="Cerrar pantalla">✕ Cerrar</button><button type="button" class="btn screen-home" aria-label="Ir al inicio">⌂ Inicio</button>';bar.querySelector('.screen-close').addEventListener('click',close);bar.querySelector('.screen-home').addEventListener('click',()=>go(HOME));page.prepend(bar)});
