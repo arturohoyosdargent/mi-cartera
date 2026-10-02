@@ -32,12 +32,12 @@ assert.ok(credit.includes('navigator.share'),'credit detail native share missing
 assert.ok(credit.includes("return 'file-share'"),'credit detail branded file share missing');
 assert.ok(!credit.includes('MiCarteraV2CustomerExperience.whatsapp')&&!credit.includes('navigator.clipboard?.writeText'),'credit detail must not degrade to text-only sharing');
 assert.ok(credit.includes('status(q)'),'credit detail text must render installment status');
-assert.ok(renderer.includes("txt(x,'Estado',565,675"),'credit image schedule status column missing');
+assert.ok(renderer.includes("'Restante','Estado'"),'credit image schedule status column missing');
 assert.ok(renderer.includes('installmentStatus(q)'),'credit image must calculate installment status');
 assert.ok(renderer.includes("'RECORDATORIO DE PAGO'")&&renderer.includes('function reminder(d,c)')&&renderer.includes('cv.width=720;cv.height=1080'),'canonical renderer must provide compact reminder card');
-assert.ok(renderer.includes("txt(x,'Monto pendiente'"),'reminder card must use the structured branded summary');
-assert.ok(renderer.includes("txt(x,'Fecha de vencimiento'"),'reminder card must show structured payment detail');
-assert.ok(renderer.includes("txt(x,state,58,648"),'reminder card must show the payment state');
+assert.ok(renderer.includes("'Monto pendiente',money(d?.amount)"),'reminder card must use the structured branded summary');
+assert.ok(renderer.includes("'Fecha de vencimiento',fmt(d?.date)"),'reminder card must show structured payment detail');
+assert.ok(renderer.includes("['Estado',state"),'reminder card must show the payment state');
 assert.ok(receipt.includes('COMPROBANTE DE PAGO'),'payment receipt title missing');
 assert.ok(receipt.includes('navigator.share'),'payment receipt native share missing');
 assert.ok(receipt.includes("return 'file-share'"),'payment receipt branded file share missing');
@@ -66,5 +66,5 @@ assert.ok(receipt.includes('text:msg,files:[file]'),'payment share must send edi
 assert.ok(renderer.includes('Tus pagos puntuales nos ayudan a mantener tu crédito disponible'),'approved punctuality message missing from receipt image');
 
 assert.ok(renderer.includes('cv.width=720;cv.height=1080'),'receipt must use approved compact mobile canvas');
-assert.ok(renderer.includes("x.quadraticCurveTo(180,965,360,930)"),'receipt must preserve approved lower wave composition');
+assert.ok(renderer.includes("x.quadraticCurveTo(180,cv.height-12,360,cv.height-31)"),'receipt must preserve approved lower wave composition');
 assert.ok(renderer.includes("'¡Gracias por tu confianza!'"),'receipt trust closing missing');
