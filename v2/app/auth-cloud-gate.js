@@ -4,7 +4,7 @@
 const ORG='v2-mi-cartera-pilot';
 const FALLBACK_ORG=ORG;
 function activeOrg(){return root.MiCarteraV2PilotConfig?.requestedOrg?.()||root.MiCarteraV2PilotConfig?.state?.config?.orgId||FALLBACK_ORG}
-const ROLES=['admin','supervisor','cobrador'];
+const ROLES=[...['admin','supervisor','cobrador'],'gestor'];
 const state={ready:false,authenticated:false,member:false,uid:null,email:null,role:null,routeIds:[],reason:'WAITING_VERSION',mode:'CLOUD_AUTH',preserveLocal:true,nextMembershipAttemptAt:0};
 let started=false,explicitLogout=false,unsubscribe=null,authWork=Promise.resolve(),membershipFlight=null;
 function emit(){if(typeof root.dispatchEvent!=='function')return;const C=root.CustomEvent;if(C)root.dispatchEvent(new C('v2-auth-cloud-state',{detail:{...state}}));}
@@ -16,7 +16,7 @@ function block(reason,extra={}){
     uid:extra.uid??(extra.authenticated===true?state.uid:null),
     email:extra.email??(extra.authenticated===true?state.email:null),
     role:null,
-    routeIds:[],
+    routeIds:[],workerId:null,
     reason,
     nextMembershipAttemptAt:extra.nextMembershipAttemptAt||0,
     mode:'CLOUD_AUTH',
@@ -63,7 +63,17 @@ async function evaluateUserOnce(user){
   const member=snap.data()||{};
   if(member.active!==true){localStorage.removeItem('v2-member:'+activeOrg()+':'+user.uid);return block('V2_MEMBERSHIP_INACTIVE',identity);}
   if(!ROLES.includes(String(member.role||''))){localStorage.removeItem('v2-member:'+activeOrg()+':'+user.uid);return block('V2_ROLE_INVALID',identity);}if(root.navigator.onLine!==false)localStorage.setItem('v2-member:'+activeOrg()+':'+user.uid,JSON.stringify({at:Date.now(),member}));
-  Object.assign(state,{ready:true,authenticated:true,member:true,uid:user.uid,email:user.email||member.email||null,role:String(member.role),routeIds:Array.isArray(member.routeIds)?member.routeIds:[],reason:'CLOUD_AUTH_READY',mode:'CLOUD_AUTH',preserveLocal:false});
+  if(member.role==='gestor'){
+    if(!member.workerId||!Array.isArray(member.routeIds)||!member.routeIds.length)return block('V2_WORKER_SCOPE_REQUIRED',identity);
+    if(root.navigator.onLine===false)return block('V2_WORKER_ONLINE_REQUIRED',identity);
+    try{
+      const worker=await fs.getDoc(fs.doc(fs.db,'orgs',activeOrg(),'routes',member.workerId)),w=worker.exists()?worker.data():{};
+      const route=w.routeId?await fs.getDoc(fs.doc(fs.db,'orgs',activeOrg(),'routes',w.routeId)):null;
+      if(w.recordType!=='WORKER'||w.active!==true||w.authUid!==user.uid||!member.routeIds.includes(w.routeId)||!route?.exists?.()||route.data().active!==true)return block('V2_WORKER_INACTIVE_OR_UNLINKED',identity);
+    }catch(error){return block('V2_WORKER_READ_FAILED:'+String(error?.code||error?.message||error),identity)}
+    if(root.firebaseAuthV2?.auth?.currentUser?.uid!==user.uid||!versionReady())return {...state};
+  }
+  Object.assign(state,{ready:true,authenticated:true,member:true,uid:user.uid,email:user.email||member.email||null,role:String(member.role),routeIds:Array.isArray(member.routeIds)?member.routeIds:[],workerId:member.role==='gestor'?member.workerId:null,reason:'CLOUD_AUTH_READY',mode:'CLOUD_AUTH',preserveLocal:false});
   try{
     const runtime=root.MiCarteraV2CloudRuntime;
     if(!runtime?.configure)throw new Error('V2_CLOUD_RUNTIME_NOT_READY');

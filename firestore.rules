@@ -33,6 +33,32 @@ service cloud.firestore {
     function v2Manager(orgId) { return v2Active(orgId) && v2Me(orgId).role in ['admin','supervisor']; }
     function v2Collector(orgId) { return v2Active(orgId) && v2Me(orgId).role == 'cobrador'; }
     function v2AssignedRoute(orgId, rid) { return v2Active(orgId) && v2Me(orgId).routeIds is list && rid in v2Me(orgId).routeIds; }
+    // A commercial worker is a separately provisioned membership, never a self-assigned role.
+    function v2WorkerMember(orgId) { return v2Active(orgId) && v2Me(orgId).role == 'gestor' && v2Me(orgId).workerId is string; }
+    function v2WorkerLive(orgId) {
+      let worker = get(/databases/$(database)/documents/orgs/$(orgId)/routes/$(v2Me(orgId).workerId)).data;
+      return v2WorkerMember(orgId) && worker.recordType == 'WORKER' && worker.active == true
+        && worker.authUid == request.auth.uid && v2AssignedRoute(orgId, worker.routeId)
+        && get(/databases/$(database)/documents/orgs/$(orgId)/routes/$(worker.routeId)).data.active == true;
+    }
+    function v2Owned(orgId, data) { return v2WorkerLive(orgId) && data.workerId == v2Me(orgId).workerId && v2AssignedRoute(orgId, data.routeId); }
+    function v2WorkerRead(orgId, data) { return v2WorkerLive(orgId) && data.workerId == v2Me(orgId).workerId; }
+    function v2WorkerCash(orgId, data, collection) {
+      return v2Owned(orgId, data) && data.cashAccountId == v2Me(orgId).workerId && data.amount > 0 && (
+        (collection == 'entries' && data.type == 'INGRESO' && data.concept in ['COBRO_CUOTA','COBRO_INTERES']
+          && !exists(/databases/$(database)/documents/orgs/$(orgId)/payments/$(data.ref))
+          && getAfter(/databases/$(database)/documents/orgs/$(orgId)/payments/$(data.ref)).data.workerId == data.workerId
+          && getAfter(/databases/$(database)/documents/orgs/$(orgId)/payments/$(data.ref)).data.userId == request.auth.uid
+          && getAfter(/databases/$(database)/documents/orgs/$(orgId)/payments/$(data.ref)).data.cashMovementId == data.id
+          && getAfter(/databases/$(database)/documents/orgs/$(orgId)/payments/$(data.ref)).data.amount == data.amount)
+        || (collection == 'expenses' && data.type == 'EGRESO' && data.concept in ['DESEMBOLSO_CREDITO','DESEMBOLSO_REFINANCIAMIENTO']
+          && !exists(/databases/$(database)/documents/orgs/$(orgId)/credits/$(data.ref))
+          && getAfter(/databases/$(database)/documents/orgs/$(orgId)/credits/$(data.ref)).data.workerId == data.workerId
+          && getAfter(/databases/$(database)/documents/orgs/$(orgId)/credits/$(data.ref)).data.disbursementMovementId == data.id
+          && ((data.concept == 'DESEMBOLSO_CREDITO' && data.amount == getAfter(/databases/$(database)/documents/orgs/$(orgId)/credits/$(data.ref)).data.capital)
+            || (data.concept == 'DESEMBOLSO_REFINANCIAMIENTO' && data.amount == getAfter(/databases/$(database)/documents/orgs/$(orgId)/credits/$(data.ref)).data.netDisbursement)))
+      );
+    }
 
     // V2 isolated pilot readiness marker. Read-only and contains no financial records.
     match /orgs/v2-mi-cartera-pilot {
@@ -52,21 +78,39 @@ service cloud.firestore {
       allow create: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && v2AssignedRoute(orgId, request.resource.data.routeId)));
       allow update: if v2Org(orgId) && v2Manager(orgId);
       allow delete: if false;
+      allow get: if v2WorkerLive(orgId) && (!exists(/databases/$(database)/documents/orgs/$(orgId)/clients/$(id)) || v2Owned(orgId, resource.data));
+      allow list: if v2WorkerRead(orgId, resource.data);
+      allow create: if v2Owned(orgId, request.resource.data);
+      allow update: if v2Owned(orgId, resource.data) && v2Owned(orgId, request.resource.data)
+        && request.resource.data.routeId == resource.data.routeId && request.resource.data.workerId == resource.data.workerId;
     }
     match /orgs/{orgId}/credits/{id} {
       allow read: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && v2AssignedRoute(orgId, resource.data.routeId)));
       allow create, update: if v2Org(orgId) && v2Manager(orgId);
       allow delete: if false;
+      allow get: if v2WorkerLive(orgId) && (!exists(/databases/$(database)/documents/orgs/$(orgId)/credits/$(id)) || v2Owned(orgId, resource.data));
+      allow list: if v2WorkerRead(orgId, resource.data);
+      allow create: if v2Owned(orgId, request.resource.data)
+        && getAfter(/databases/$(database)/documents/orgs/$(orgId)/clients/$(request.resource.data.clientId)).data.workerId == v2Me(orgId).workerId;
+      allow update: if v2Owned(orgId, resource.data) && v2Owned(orgId, request.resource.data)
+        && request.resource.data.clientId == resource.data.clientId && request.resource.data.workerId == resource.data.workerId
+        && request.resource.data.routeId == resource.data.routeId;
     }
     match /orgs/{orgId}/payments/{id} {
       allow read: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && resource.data.userId == request.auth.uid));
       allow create: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && request.resource.data.userId == request.auth.uid && v2AssignedRoute(orgId, request.resource.data.routeId)));
       allow update, delete: if false;
+      allow get: if v2WorkerLive(orgId) && (!exists(/databases/$(database)/documents/orgs/$(orgId)/payments/$(id)) || v2Owned(orgId, resource.data));
+      allow list: if v2WorkerRead(orgId, resource.data);
+      allow create: if v2Owned(orgId, request.resource.data) && request.resource.data.userId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/orgs/$(orgId)/credits/$(request.resource.data.creditId)).data.workerId == v2Me(orgId).workerId;
     }
     match /orgs/{orgId}/audit/{id} {
       allow read: if v2Org(orgId) && v2Manager(orgId);
       allow create: if v2Org(orgId) && v2Active(orgId);
       allow update, delete: if false;
+      allow get: if v2WorkerLive(orgId) && (!exists(/databases/$(database)/documents/orgs/$(orgId)/audit/$(id)) || resource.data.actorId == request.auth.uid);
+      allow list: if v2WorkerLive(orgId) && resource.data.actorId == request.auth.uid;
     }
     // Idempotency records for the V2 transactional sync boundary. They are
     // isolated from V1 and cannot be deleted by the browser.
@@ -74,10 +118,22 @@ service cloud.firestore {
       allow read: if v2Org(orgId) && v2Manager(orgId);
       allow create, update: if v2Org(orgId) && v2Manager(orgId);
       allow delete: if false;
+      allow get: if v2WorkerLive(orgId) && (!exists(/databases/$(database)/documents/orgs/$(orgId)/operations/$(id)) || resource.data.actorId == request.auth.uid);
+      allow create: if v2WorkerLive(orgId) && request.resource.data.actorId == request.auth.uid;
     }
     match /orgs/{orgId}/{collection}/{id} {
       allow read, create, update: if v2Org(orgId) && v2Manager(orgId) && collection in ['capital','entries','expenses','cashClosures','routes'];
       allow delete: if false;
+      allow get: if collection in ['entries','expenses'] && v2WorkerLive(orgId)
+        && (!exists(/databases/$(database)/documents/orgs/$(orgId)/$(collection)/$(id)) || v2Owned(orgId, resource.data));
+      allow list: if collection in ['entries','expenses'] && v2WorkerRead(orgId, resource.data);
+      allow create: if collection in ['entries','expenses'] && v2WorkerCash(orgId, request.resource.data, collection);
+      allow update: if collection == 'entries' && v2Owned(orgId, resource.data) && request.resource.data.tombstone == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tombstone','deletedAt','version','updatedAt'])
+        && getAfter(/databases/$(database)/documents/orgs/$(orgId)/payments/$("reversal-" + resource.data.ref)).data.reversesPaymentId == resource.data.ref;
+      allow get: if collection == 'routes' && v2WorkerMember(orgId)
+        && (id == v2Me(orgId).workerId || v2AssignedRoute(orgId, id) || resource.data.workerId == v2Me(orgId).workerId);
+      allow list: if collection == 'routes' && v2WorkerLive(orgId) && resource.data.workerId == v2Me(orgId).workerId;
     }
 
     // Legacy V1 rules remain unchanged in behavior, but explicitly exclude the V2 pilot org

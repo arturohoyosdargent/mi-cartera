@@ -93,5 +93,8 @@
       }
     ],
     "rewrites": []
+  },
+  "firestore": {
+    "rules": "firestore.rules"
   }
 }
