@@ -1,0 +1,2 @@
+const {test}=require('node:test'),a=require('node:assert/strict'),{boot}=require('./dom-harness.cjs');
+test('local cash changes refresh partner net capital in the same tab',async()=>{const h=await boot();try{h.load('core/partner-loans.js');h.load('app/partner-loans-ui.js');h.load('app/refresh-controller-v2.js');h.w.MiCarteraPartners.install();const d=h.get();d.cashMovements.push({id:'cash-test',type:'INGRESO',amount:100});h.set(d);h.w.MiCarteraV2Refresh.render();a.match(h.w.document.getElementById('partnerBalanceSummary').textContent,/100\.00/);}finally{h.close()}});
