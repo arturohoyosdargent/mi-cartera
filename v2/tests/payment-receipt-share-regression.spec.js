@@ -1,20 +1,3 @@
-const assert=require('assert'),fs=require('fs'),path=require('path');
-const receipt=fs.readFileSync(path.join(__dirname,'../app/payment-receipt-v2.js'),'utf8');
-const cards=fs.readFileSync(path.join(__dirname,'../app/operational-cards-v2.js'),'utf8');
-
-// Receipt sharing must never mutate payment state; it only renders/shares an already-recorded payment.
-assert.ok(receipt.includes('Read/share only; never records a payment.'),'receipt module must remain read/share only');
-assert.ok(receipt.includes('if(!p)throw new Error(\'PAYMENT_REQUIRED\')'),'receipt requires a persisted payment');
-
-// Preserve the complete mobile/desktop sharing fallback chain.
-assert.ok(receipt.includes("return 'file-share'"),'image/file share missing');
-assert.ok(receipt.includes("return 'whatsapp'"),'WhatsApp fallback missing');
-assert.ok(receipt.includes("return 'native-share'"),'native text share fallback missing');
-assert.ok(receipt.includes("return 'clipboard'"),'clipboard fallback missing');
-assert.ok(receipt.includes('RECEIPT_SHARE_UNAVAILABLE_NO_PHONE'),'no-phone terminal error must remain explicit');
-
-// Payment history must expose the same receipt action so a recorded payment can be resent.
-assert.ok(cards.includes('MiCarteraV2PaymentReceipt.share(p,c,cr)'),'payment history receipt action missing');
-assert.ok(cards.includes('Comprobante'),'payment history receipt button missing');
-
-console.log('V2 payment receipt share regression: PASS');
+const assert=require('assert'),fs=require('fs');
+const receipt=fs.readFileSync('v2/app/payment-receipt-v2.js','utf8'),cards=fs.readFileSync('v2/app/operational-cards-v2.js','utf8');
+assert(receipt.includes('Read/share only; never records a payment.'));assert(receipt.includes("if(!p)throw new Error('PAYMENT_REQUIRED')"));assert(receipt.includes("return 'file-share'"));assert(receipt.includes("return 'download'"),'desktop must retain a graphical receipt fallback');assert(receipt.includes('link.download=file.name'));assert(!receipt.includes("return 'whatsapp'")&&!receipt.includes("return 'clipboard'"),'approved graphical receipt must not silently become text');assert(cards.includes('MiCarteraV2PaymentReceipt.share(p,c,cr)'));assert(cards.includes('Comprobante'));console.log('graphical receipt share contract: PASS');

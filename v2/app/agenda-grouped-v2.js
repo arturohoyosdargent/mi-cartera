@@ -1,6 +1,6 @@
 // Mi Cartera PRO V2 — agenda grouped by client with visible overdue detail.
 (function(root){
-  'use strict';
+  'use strict';function searchMatch(value,query){const normalize=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(),needle=normalize(query),text=normalize(value);if(text.includes(needle))return true;const digits=/^[+\d\s().-]+$/.test(needle)?needle.replace(/\D/g,''):'';return !!digits&&text.replace(/\D/g,'').includes(digits)}
 
   const KEY = 'mi-cartera-v2-validation-state';
   const D = root.MiCarteraV2Dates || {};
@@ -99,7 +99,7 @@
       routeSelect.innerHTML = '<option value="">Todas las rutas</option>' + routes.map(item => `<option value="${esc(item)}">${esc(item)}</option>`).join('');
       routeSelect.value = routes.includes(route) ? route : '';
     }
-    const list = all.filter(row => row.date >= from && row.date <= to && (!route || row.route === route) && (!query || String(row.client.name || '').toLowerCase().includes(query) || String(row.client.phone || '').includes(query)));
+    const list = all.filter(row => row.date >= from && row.date <= to && (!route || row.route === route) && (!query || searchMatch(row.client.name,query) || searchMatch(row.client.phone,query)));
     root.__v2Agenda = list;
     const groups = groupByClient(list);
     const total = list.reduce((sum, row) => sum + row.amount, 0);

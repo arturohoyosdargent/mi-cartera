@@ -6,7 +6,7 @@ const vm = require('vm');
 const app = path.join(__dirname, '../app');
 const creditSource = fs.readFileSync(path.join(app, 'credit-form-parity-v2.js'), 'utf8');
 const customerSource = fs.readFileSync(path.join(app, 'customer-experience-v2.js'), 'utf8');
-const durableSource = fs.readFileSync(path.join(app, 'durable-actions-v2.js'), 'utf8');
+const durableSource = fs.readFileSync(path.join(app, 'durable-actions-stable6.js'), 'utf8');
 
 const elements = new Map();
 const document = {

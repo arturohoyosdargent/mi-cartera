@@ -51,11 +51,17 @@
       '<label>Observación<textarea id="v2CashObservation" rows="2" placeholder="Opcional"></textarea></label><button type="button" class="btn '+(income?'green':'')+'" data-save>Guardar movimiento</button>';
     panel.querySelector('#v2CashDate').value=localDate();
     panel.querySelector('[data-close]').onclick=()=>panel.remove();
-    panel.querySelector('[data-save]').onclick=async()=>{
-      const action=root.V2UI?.manualCash;if(typeof action!=='function')return alert('Las acciones de caja V2 todavía no están disponibles.');
+    const saveButton=panel.querySelector('[data-save]');
+    let saving=false;
+    saveButton.onclick=async()=>{
+      if(saving)return;
+      saving=true;saveButton.disabled=true;
+      try{
+      let action=root.MiCarteraV2WriteActions?.manualCash||root.V2UI?.manualCash;if(typeof action!=='function'){try{await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='write-actions-stable12.js?runtime='+Date.now();s.onload=resolve;s.onerror=reject;document.head.appendChild(s)});action=root.MiCarteraV2WriteActions?.manualCash}catch{}}if(typeof action!=='function')return alert('Las acciones de caja V2 todavía no están disponibles.');
       const payload={date:panel.querySelector('#v2CashDate').value,amount:panel.querySelector('#v2CashAmount').value,category:panel.querySelector('#v2CashCategory').value,concept:panel.querySelector('#v2CashConcept').value,observation:panel.querySelector('#v2CashObservation').value};
       if(!payload.amount)return alert('Ingresa el monto.'); if(!payload.concept)return alert('Ingresa el detalle.');
       try{await action(type,payload);panel.remove();renderSummary();renderHistory()}catch(e){}
+      }finally{saving=false;saveButton.disabled=false}
     };
     const actions=document.querySelector('[data-v2-cash-actions]'); actions?.insertAdjacentElement('afterend',panel); panel.scrollIntoView({behavior:'smooth',block:'center'});
   }

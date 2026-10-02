@@ -16,6 +16,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install isolated browser test dependencies
+        run: npm ci --prefix v2/tests --ignore-scripts
+      - name: All V2 regression suites
+        run: |
+          set -e
+          for suite in v2/tests/*.spec.js; do node "$suite"; done
       - name: Financial engine acceptance cases
         run: node v2/tests/financial-engine.spec.js
       - name: Collection report allocation regression

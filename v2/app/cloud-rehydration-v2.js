@@ -1,8 +1,13 @@
 // Mi Cartera PRO V2 — authenticated Cloud <-> local rehydration for the isolated pilot.
-// Cloud is authoritative after all pending local operations have been acknowledged.
-// Missing Cloud rows must stay deleted on this device; never resurrect stale local copies.
+// Cloud is authoritative once pending operations are acknowledged; never upload absent rows.
+// Preserve owner-scoped snapshots before replacing local state.
 (function(root){'use strict';
 const ORG='v2-mi-cartera-pilot',K='mi-cartera-v2-validation-state';
+const OWNER='mi-cartera-v2-local-owner';let hydrating=false;
+const RETRY_KEY='mi-cartera-v2-cloud-quota-retry-after',QUOTA_WAIT=300000;
+const readState={lastSuccessAt:0,lastError:null,nextAttemptAt:0};
+try{const retry=Number(root.localStorage.getItem(RETRY_KEY)||0);if(retry>Date.now()&&retry<=Date.now()+QUOTA_WAIT){readState.nextAttemptAt=retry;readState.lastError='RESOURCE_EXHAUSTED'}}catch{}
+function isQuota(error){return /RESOURCE[-_ ]EXHAUSTED|QUOTA/i.test(String(error?.code||'')+' '+String(error?.message||error||''))}
 const MAP={clients:'clients',credits:'credits',payments:'payments',entries:'cashMovements',expenses:'cashMovements',audit:'audit'};
 const MANAGER_ONLY=new Set(['entries','expenses','audit']);
 const clone=v=>JSON.parse(JSON.stringify(v));
@@ -20,15 +25,16 @@ function mergeMissing(remote,local){
   for(const item of local||[]){const id=rowId(item);if(id&&!seen.has(id)){out.push(clone(item));seen.add(id)}}
   return out;
 }
+function queueKeys(){const keys=new Set(['mi-cartera-v2-cloud-operations','mi-cartera-v2-cloud-operations:'+root.MiCarteraV2AuthCloudGate?.state?.().uid]);for(let i=0;i<root.localStorage.length;i++){const key=root.localStorage.key(i);if(key?.startsWith('mi-cartera-v2-cloud-operations:'))keys.add(key)}return [...keys]}
+function owner(){return root.localStorage.getItem(OWNER)||readLocal().session?.actorId||''}
+function foreignPending(uid){try{return queueKeys().some(key=>key!=='mi-cartera-v2-cloud-operations:'+uid&&JSON.parse(root.localStorage.getItem(key)||'[]').some(x=>x?.status!=='SINCRONIZADO'))}catch{return true}}
+function assertOwner(uid){if(foreignPending(uid))throw Error('Hay movimientos pendientes de otro usuario. Vuelve a esa sesión para sincronizarlos antes de continuar.');const previous=owner();if(previous&&previous!==uid)throw Error('Espera a que se actualicen los datos de esta sesión antes de registrar movimientos.');if(uid)root.localStorage.setItem(OWNER,uid)}
 function pending(){
   try{
-    const uid=root.MiCarteraV2AuthCloudGate?.state?.().uid||root.MiCarteraV2AuthCloudGate?.requireReady?.()?.uid;
-    if(!uid)return false;
-    // The scoped key is authoritative; the legacy unscoped key is checked once as a
-    // safety stop for operations created by the earlier local-only build.
-    for(const key of ['mi-cartera-v2-cloud-operations:'+uid,'mi-cartera-v2-cloud-operations']){
+    if(root.MiCarteraV2SyncBridge?.status?.().pending>0)return true;
+    for(const key of queueKeys()){
       const q=JSON.parse(root.localStorage.getItem(key)||'[]');
-      if(Array.isArray(q)&&q.some(x=>!['SINCRONIZADO','BLOQUEADO','CONFLICTO'].includes(x?.status)))return true;
+      if(Array.isArray(q)&&q.some(x=>x?.status!=='SINCRONIZADO'))return true;
     }
     return false;
   }catch{return true}
@@ -45,8 +51,10 @@ async function readCollection(name,auth){
   }else refs.push(base);
   const out=[],seen=new Set();
   for(const ref of refs){
-    const snap=await f.getDocs(ref);
-    snap.forEach(d=>{const raw=d.data()||{};if(raw.tombstone===true)return;const data={...raw,id:raw.id||d.id};if(!seen.has(String(data.id))){seen.add(String(data.id));out.push(data)}});
+    let timer;
+    const deadline=new Promise((_,reject)=>{if(typeof setTimeout==='function')timer=setTimeout(()=>reject(Object.assign(Error('NETWORK_TIMEOUT: se conservaron los datos locales'),{code:'deadline-exceeded'})),8000)});
+    let snap;try{snap=await Promise.race([f.getDocs(ref),deadline])}finally{if(typeof clearTimeout==='function')clearTimeout(timer)}
+    snap.forEach(d=>{const raw=d.data()||{};const data={...raw,id:raw.id||d.id};if(!seen.has(String(data.id))){seen.add(String(data.id));out.push(data)}});
   }
   return out;
 }
@@ -56,54 +64,83 @@ function cloudRow(name,row,auth){
   if(name==='audit'){if(!data.actorId)data.actorId=auth.uid;if(!data.role)data.role=auth.role;}
   return data;
 }
-async function pushLocalMissing(local,names,rows,auth){
-  const f=root.firestoreV2;
-  if(!managers(auth)||!f?.setDoc||!f?.doc)return {written:0,failed:0,available:false};
-  const remoteByName=new Map();
-  for(let i=0;i<names.length;i++)remoteByName.set(names[i],new Set((rows[i]||[]).map(rowId).filter(Boolean)));
-  let written=0,failed=0;
-  for(const name of names){
-    const seen=remoteByName.get(name)||new Set();
-    for(const row of localRows(local,name)){
-      const data=cloudRow(name,row,auth),id=rowId(data);if(!data||seen.has(id))continue;
-      try{
-        await f.setDoc(f.doc(f.db,'orgs',ORG,name,id),data,{merge:true});
-        seen.add(id);written++;
-      }catch(error){failed++;console.warn('V2 local row was kept locally; Cloud upload failed',name,id,error)}
-    }
-  }
-  return {written,failed,available:true};
-}
-async function rehydrate(){
+async function pushLocalMissing(){return {written:0,failed:0,available:false};}
+async function rehydrateOnce(){
   const auth=root.MiCarteraV2AuthCloudGate?.requireReady?.();
   if(!auth?.uid)throw new Error('V2_AUTH_REQUIRED');
   if(pending())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
+  const local=readLocal(),snapshot=JSON.stringify(local),previous=owner(),sameOwner=!previous||previous===auth.uid;
+  const stale=()=>JSON.stringify(readLocal())!==snapshot||root.MiCarteraV2AuthCloudGate?.requireReady?.()?.uid!==auth.uid;
   const names=Object.keys(MAP).filter(n=>!MANAGER_ONLY.has(n)||managers(auth));
   let rows=await Promise.all(names.map(n=>readCollection(n,auth)));
-  const local=readLocal();
-  // pending() above is the write-safety gate. Once it is clear, Cloud is authoritative.
-  // Do not upload local rows merely because they are absent remotely: that absence may be
-  // a deletion already synchronized by another device.
+  if(pending()||stale())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
   const upload={written:0,failed:0,available:false};
+  if(upload.written)rows=await Promise.all(names.map(n=>readCollection(n,auth)));
+  if(pending()||stale())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
   const manager=managers(auth);
-  const next={...local,clients:[],credits:[],payments:[],cashMovements:manager?[]:(Array.isArray(local.cashMovements)?local.cashMovements:[]),audit:[]};
+  const next={...local,clients:[],credits:[],payments:[],cashMovements:[],audit:[]};
   for(let i=0;i<names.length;i++){
     const name=names[i],target=MAP[name];
     const effective=rows[i];
-    if(target==='cashMovements')next[target].push(...effective);
-    else next[target]=effective;
+    const reversed=name==='payments'?new Set(effective.filter(x=>x.recordType==='PAYMENT_REVERSAL'&&x.reversesPaymentId).map(x=>String(x.reversesPaymentId))):new Set();
+    const alive=effective.filter(x=>x.tombstone!==true&&x.recordType!=='PAYMENT_REVERSAL'&&!reversed.has(rowId(x)));if(target==='cashMovements')next[target].push(...alive);else next[target]=alive;
   }
   next.session={...(local.session||{}),actorId:auth.uid,role:auth.role,routeIds:Array.isArray(auth.routeIds)?auth.routeIds:[]};
+  if(!sameOwner)root.localStorage.setItem('mi-cartera-v2-preserved-state:'+previous,snapshot);
+  root.localStorage.setItem('mi-cartera-v2-preserved-state:'+(previous||auth.uid),snapshot);
   root.localStorage.setItem(K,JSON.stringify(clone(next)));
+  root.localStorage.setItem(OWNER,auth.uid);
+  root.MiCarteraV2Cards?.render?.();
   dispatch('mi-cartera-v2-rehydrated',{ok:true,counts:{clients:next.clients.length,credits:next.credits.length,payments:next.payments.length,cashMovements:next.cashMovements.length},uploaded:upload.written,uploadFailed:upload.failed});
   dispatch('mi-cartera-v2-sync',{ok:true,source:'cloud-rehydration'});
   root.MiCarteraV2Agenda?.render?.();root.MiCarteraV2DashboardParity?.render?.();root.MiCarteraV2AdminParity?.render?.();
   return {status:'REHYDRATED',uploaded:upload.written,uploadFailed:upload.failed};
 }
+async function rehydrate(){
+  // Restore only this authenticated owner's local session. Reopening offline or
+  // with a durable pending operation cannot wait for a Cloud snapshot to do it.
+  const auth=root.MiCarteraV2AuthCloudGate?.state?.();
+  if(auth?.ready&&auth.uid&&owner()===auth.uid&&!foreignPending(auth.uid)){
+    const local=readLocal(),session={...(local.session||{}),actorId:auth.uid,role:auth.role,routeIds:Array.isArray(auth.routeIds)?auth.routeIds:[]};
+    if(JSON.stringify(local.session)!==JSON.stringify(session)){
+      root.localStorage.setItem(K,JSON.stringify({...local,session}));
+      dispatch('mi-cartera-v2-sync',{ok:true,source:'verified-local-session'});
+      root.MiCarteraV2Cards?.render?.();root.MiCarteraV2Agenda?.render?.();root.MiCarteraV2DashboardParity?.render?.();root.MiCarteraV2AdminParity?.render?.();
+    }
+  }
+  if(root.navigator.onLine===false)return {status:'OFFLINE'};
+  const gate=root.MiCarteraV2OperationCommitGate;
+  if(gate?.isActionRunning?.())return {status:'SKIPPED_BUSY'};
+  const locks=root.navigator?.locks;
+  return locks?.request?locks.request(gate?.ACTION_LOCK||'mi-cartera-v2-local-action',{mode:'exclusive',ifAvailable:true},lock=>lock?rehydrateUnlocked():{status:'SKIPPED_BUSY'}):rehydrateUnlocked();
+}
+async function rehydrateUnlocked(){
+  if(hydrating)return {status:'SKIPPED_BUSY'};
+  if(readState.nextAttemptAt>Date.now())return {status:'QUOTA_PAUSED',nextAttemptAt:readState.nextAttemptAt};
+  hydrating=true;
+  try{
+    const result=await rehydrateOnce();
+    if(result.status==='REHYDRATED'){
+      readState.lastSuccessAt=Date.now();readState.lastError=result.uploadFailed?'LOCAL_UPLOAD_FAILED':null;readState.nextAttemptAt=0;
+      try{root.localStorage.removeItem(RETRY_KEY)}catch{}
+      dispatch('mi-cartera-v2-sync',{source:'cloud-read-complete'});
+    }
+    return result;
+  }catch(error){
+    readState.lastError=String(error?.code||error?.message||error);
+    if(isQuota(error)){
+      readState.nextAttemptAt=Date.now()+QUOTA_WAIT;
+      try{root.localStorage.setItem(RETRY_KEY,String(readState.nextAttemptAt))}catch{}
+    }
+    dispatch('mi-cartera-v2-rehydrated',{ok:false,error:readState.lastError,nextAttemptAt:readState.nextAttemptAt});
+    throw error;
+  }finally{hydrating=false}
+}
 function clearOnLogout(e){
   if(e?.detail?.authenticated!==false)return;
   if(e?.detail?.preserveLocal===true){
     const local=readLocal();
+    const previous=owner();if(previous)root.localStorage.setItem(OWNER,previous);
     // Sign-out hides the active session but intentionally retains all local V2
     // business rows. They can be rehydrated again after the same user signs in.
     root.localStorage.setItem(K,JSON.stringify({...local,session:null}));
@@ -125,7 +162,7 @@ async function onAuth(e){
   finally{running=false}
 }
 root.addEventListener('v2-auth-cloud-state',onAuth);
-root.MiCarteraV2CloudRehydration={rehydrate,pending,pushLocalMissing};
+root.MiCarteraV2CloudRehydration={rehydrate,pending,foreignPending,assertOwner,isRunning:()=>hydrating,pushLocalMissing,state:()=>({...readState})};
 // If Firebase restores an existing browser session before this script finishes
 // loading, consume the already-published ready state after the shell is present.
 if(root.document){

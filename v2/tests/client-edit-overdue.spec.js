@@ -11,7 +11,7 @@ const cards=fs.readFileSync(path.join(app,'operational-cards-v2.js'),'utf8');
 const editor=fs.readFileSync(path.join(app,'client-edit-v2.js'),'utf8');
 const overdue=fs.readFileSync(path.join(app,'credit-overdue-v2.js'),'utf8');
 const preview=fs.readFileSync(path.join(app,'share-preview-v2.js'),'utf8');
-const durable=fs.readFileSync(path.join(app,'durable-actions-v2.js'),'utf8');
+const durable=fs.readFileSync(path.join(app,'durable-actions-stable6.js'),'utf8');
 const dates=fs.readFileSync(path.join(app,'date-utils-v2.js'),'utf8');
 
 assert.ok(shell.includes('<script src="client-edit-v2.js"></script>'),'client edit module must load in the shell');

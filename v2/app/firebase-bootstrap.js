@@ -6,9 +6,9 @@ const pilot=root.MI_CARTERA_V2_PILOT_CONFIG;
 if(!cfg||!cfg.projectId){root.firebaseV2BootstrapError='FIREBASE_CONFIG_MISSING';return;}
 try{
   const [appSdk,fsSdk,authSdk]=await Promise.all([
-    import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js'),
-    import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js'),
-    import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js')
+    import('./vendor/firebase-app.js'),
+    import('./vendor/firebase-firestore.js'),
+    import('./vendor/firebase-auth.js')
   ]);
   const app=appSdk.initializeApp(cfg,'mi-cartera-pro-v2-pilot');
   const db=fsSdk.getFirestore(app);
