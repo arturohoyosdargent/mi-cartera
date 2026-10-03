@@ -3,20 +3,20 @@
 function sid(v){return String(v??'').trim()}function clone(v){return JSON.parse(JSON.stringify(v))}
 function createOperationalSync(cfg){const store=cfg?.store;if(!store||typeof store.execute!=='function')throw new Error('V2_STORE_REQUIRED');const queue=cfg?.queue||null;const actorId=sid(cfg?.actorId||'v2-user');const state={status:'IDLE',lastFlushAt:null,lastError:null};
  function requireSend(){cfg?.beforeSend?.()}
- function execute(op){let timer;const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Object.assign(new Error('NETWORK_TIMEOUT: operación conservada para sincronizar'),{code:'deadline-exceeded'})),Number(cfg.requestTimeoutMs)||4000)});return Promise.race([Promise.resolve().then(()=>store.execute(op)),deadline]).finally(()=>clearTimeout(timer));}
- function operation(input){if(!input?.operationId)throw new Error('OPERATION_ID_REQUIRED');const writes=[];for(const x of input.entities||[]){if(!x?.collection||!x?.data?.id)throw new Error('SYNC_ENTITY_INVALID');const data=clone(x.data);const expected=x.kind==='create'?0:Number(data.version||0)-1;writes.push({kind:x.kind||'set',path:`${x.collection}/${data.id}`,data,expectedVersion:expected});}if(input.audit?.id)writes.push({kind:'create',path:`audit/${input.audit.id}`,data:clone(input.audit),expectedVersion:0});return {id:sid(input.operationId),operationId:sid(input.operationId),type:sid(input.type||'OPERATIONAL'),createdAt:input.createdAt||new Date().toISOString(),actorId,writes};}
+ async function execute(op){if(op.requiresLeaderCashRevision){const prepared=await queue.prepareForExecution(op.id,cfg.prepareQueuedOperation);for(const key of Object.keys(op))delete op[key];Object.assign(op,prepared)}let timer;const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>reject(Object.assign(new Error('NETWORK_TIMEOUT: operación conservada para sincronizar'),{code:'deadline-exceeded'})),Number(cfg.requestTimeoutMs)||4000)});return Promise.race([Promise.resolve().then(()=>store.execute(op)),deadline]).finally(()=>clearTimeout(timer));}
+ function operation(input){if(!input?.operationId)throw new Error('OPERATION_ID_REQUIRED');const writes=[];for(const x of input.entities||[]){if(!x?.collection||!x?.data?.id)throw new Error('SYNC_ENTITY_INVALID');const data=clone(x.data);const expected=x.kind==='create'?0:Number(data.version||0)-1;writes.push({kind:x.kind||'set',path:`${x.collection}/${data.id}`,data,expectedVersion:expected});}if(input.audit?.id)writes.push({kind:'create',path:`audit/${input.audit.id}`,data:clone(input.audit),expectedVersion:0});return {id:sid(input.operationId),operationId:sid(input.operationId),type:sid(input.type||'OPERATIONAL'),createdAt:input.createdAt||new Date().toISOString(),actorId,writes,...(input.requiresLeaderCashRevision?{requiresLeaderCashRevision:true}:{})};}
  async function submit(input){
   requireSend();
   const op=operation(input);
   if(!queue)return store.execute(op);
-  const hadPending=queue.inspect().some(x=>x.status!=='SINCRONIZADO');
+  const hadPending=queue.inspect().some(x=>!(root.MiCarteraV2OfflineQueue?.isTerminal?.(x)??x.status==='SINCRONIZADO'));
   // Connectivity hints are not delivery guarantees. Persist the complete write
   // set before starting any request, including when Android reports online.
   await queue.enqueue(op);
   state.status='PENDING';
   emit('mi-cartera-v2-sync',{source:'operation-journalled',operationId:op.id});
   const queued=()=>({status:'QUEUED',durable:true,operationId:op.id});
-  if(root.navigator?.onLine===false||hadPending)return queued();
+  if(root.navigator?.onLine===false||hadPending||op.requiresLeaderCashRevision)return queued();
   let accepted=null,failure=null;
   // Use the same queue executor/acknowledgement path as reconnection. It retains
   // the journal until a recognised server result and preserves queue ordering.

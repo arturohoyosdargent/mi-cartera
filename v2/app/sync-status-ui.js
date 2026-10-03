@@ -2,15 +2,16 @@
 function render(){
   const auth=root.MiCarteraV2AuthCloudGate?.state?.(),cloud=root.MiCarteraV2CloudRehydration;
   const foreign=cloud?.foreignPending?.(auth?.uid),read=cloud?.state?.()||{};
-  const s=root.MiCarteraV2SyncBridge?.status?.()||{},q=s.queue||[],conflicts=q.filter(x=>['CONFLICTO','BLOQUEADO'].includes(x.status)),pending=q.filter(x=>x.status!=='SINCRONIZADO');
-  const quota=/RESOURCE[-_ ]EXHAUSTED|QUOTA/i.test([read.lastError,auth?.reason,...pending.map(x=>x.lastError)].join(' '));
+  const s=root.MiCarteraV2SyncBridge?.status?.()||{},q=s.queue||[],conflicts=q.filter(x=>['CONFLICTO','BLOQUEADO'].includes(x.status)),pending=q.filter(x=>!(root.MiCarteraV2OfflineQueue?.isTerminal?.(x)??x.status==='SINCRONIZADO')),closed=q.filter(x=>x.status==='CERRADO_ADMIN');
+  const quota=/RESOURCE[-_ ]EXHAUSTED|QUOTA|\b429\b/i.test([read.lastError,auth?.reason,...pending.map(x=>x.lastError)].join(' '));
   const unavailable=/V2_MEMBERSHIP_READ_FAILED:.*(unavailable|deadline-exceeded|aborted)/i.test(auth?.reason||'');
   let el=document.getElementById('v2SyncDetails');
   if(!el){el=document.createElement('div');el.id='v2SyncDetails';el.className='card';const main=document.querySelector('main');main?.insertBefore(el,main.firstChild)}
   const pendingText=pending.length?'Hay '+pending.length+' operación(es) guardada(s) en este dispositivo, pendientes de sincronizar. ':'';
   const inFlight=Number(s.pending||0)>pending.length;
   el.textContent=s.reviewRequired?'Hay '+pending.length+' operación(es) protegida(s) para revisión. No se sincronizan automáticamente. Consulta primero el diario local.':foreign?'Hay movimientos pendientes de otro usuario. Vuelve a esa sesión y sincronízalos antes de registrar nuevos movimientos.':conflicts.length?'Hay '+conflicts.length+' operación(es) que necesitan revisión. No repitas el registro. Los datos locales están conservados; exporta un respaldo antes de resolver el conflicto.':quota?'Firebase tiene la cuota agotada. Los datos de PC y Android pueden diferir hasta que se restablezca. '+pendingText+'Conserva los datos; la aplicación reintentará con una pausa.':unavailable?'No se pudo conectar con Firebase para verificar tu acceso. Tus datos se conservan. '+pendingText+'La aplicación reintentará en un minuto; no necesitas cerrar sesión.':pending.length?pendingText+'Conserva los datos de la aplicación.':inFlight?'Hay una operación en curso. Espera la confirmación; no cierres la aplicación ni repitas el registro.':navigator.onLine===false?'Sin internet. Puedes trabajar con la sesión previamente verificada; los cambios se enviarán al reconectar.':auth?.ready!==true?'La sesión de Cloud no está lista. Revisa Usuario / Seguridad; los datos locales se conservan.':read.lastError?'No se pudo completar la actualización de Cloud. Los datos mostrados son la copia local; pulsa Actualizar para reintentar.':'Sin operaciones pendientes en este dispositivo.';
-  if(pending.length&&root.MiCarteraV2PendingReview?.open&&typeof el.appendChild==='function'&&typeof root.document?.createElement==='function'){
+  if(closed.length)el.textContent+=' '+closed.length+' cobros cerrados administrativamente, sin reenvío. Su registro en Cloud sigue sin verificar.';
+  if((pending.length||closed.length)&&root.MiCarteraV2PendingReview?.open&&typeof el.appendChild==='function'&&typeof root.document?.createElement==='function'){
     const b=root.document.createElement('button');b.type='button';b.className='btn';b.dataset.pendingReview='true';b.textContent='Ver operaciones locales (solo lectura)';b.title='Muestra tipo, fecha, monto y referencia sin reenviar ni modificar operaciones';b.onclick=()=>root.MiCarteraV2PendingReview.open();el.appendChild(b);
   }
   el.style.borderColor=foreign||conflicts.length?'#b22':pending.length||inFlight||quota||read.lastError||auth?.ready!==true?'#c80':'#d4d9dd';
@@ -23,7 +24,7 @@ async function refresh(reason='timer'){
   let auth=gate?.state?.();
   const now=Date.now();
   if(!auth?.ready){
-    const error=String(auth?.reason||''),membershipQuota=/RESOURCE[-_ ]EXHAUSTED|QUOTA/i.test(error);
+    const error=String(auth?.reason||''),membershipQuota=/RESOURCE[-_ ]EXHAUSTED|QUOTA|\b429\b/i.test(error);
     const transient=membershipQuota||/V2_MEMBERSHIP_READ_FAILED:.*(unavailable|deadline-exceeded|aborted)/i.test(error);
     const wait=membershipQuota?300000:60000;
     if(transient&&now>=(auth.nextMembershipAttemptAt||0)&&now-lastAuthAttemptAt>=wait&&typeof gate?.refreshMembership==='function'){

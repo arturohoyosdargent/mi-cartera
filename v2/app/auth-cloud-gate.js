@@ -46,7 +46,7 @@ async function evaluateUserOnce(user){
   if(!versionReady())return block('VERSION_NOT_VERIFIED',identity);
   const fs=root.firestoreV2;
   if(!fs?.db||!fs.doc||!fs.getDoc)return block('V2_FIRESTORE_NOT_READY',identity);
-  let snap;
+  let snap,cachedQuotaLease=null;
   try{
     const orgId=activeOrg();
     const ref=orgId===ORG?fs.doc(fs.db,'orgs',ORG,'members',user.uid):fs.doc(fs.db,'orgs',orgId,'members',user.uid);
@@ -54,15 +54,24 @@ async function evaluateUserOnce(user){
   }catch(error){
     if(root.firebaseAuthV2?.auth?.currentUser?.uid!==user.uid)return {...state};
     const code=String(error?.code||error?.message||error);
-    const delay=/RESOURCE[-_ ]EXHAUSTED|QUOTA/i.test(code)?300000:/unavailable|deadline-exceeded|aborted/i.test(code)?60000:0;
-    return block('V2_MEMBERSHIP_READ_FAILED:'+code,{...identity,nextMembershipAttemptAt:delay?Date.now()+delay:0});
+    // Explicitly authorized local administrative recovery may use the same
+    // previously verified, unexpired administrator lease as offline work.
+    // Never grants a role from portfolio data or renews a lease after a failed read.
+    if(/RESOURCE[-_ ]EXHAUSTED|QUOTA|\b429\b/i.test(code)&&root.localStorage.getItem('mi-cartera-v2-local-owner')===user.uid&&root.MI_CARTERA_ADMIN_CLOSURE_AUTHORIZATION?.ownerHash&&root.crypto?.subtle){
+      try{
+        const lease=JSON.parse(localStorage.getItem('v2-member:'+activeOrg()+':'+user.uid)||'null'),age=Date.now()-Number(lease?.at),digest=await root.crypto.subtle.digest('SHA-256',new TextEncoder().encode(user.uid)),hash=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join('');
+        if(Number.isFinite(age)&&age>=0&&age<=86400000&&lease?.member?.active===true&&lease.member.role==='admin'&&hash===root.MI_CARTERA_ADMIN_CLOSURE_AUTHORIZATION.ownerHash&&root.firebaseAuthV2?.auth?.currentUser?.uid===user.uid&&versionReady()){cachedQuotaLease=lease;snap={exists:()=>true,data:()=>lease.member};}
+      }catch{}
+    }
+    const delay=/RESOURCE[-_ ]EXHAUSTED|QUOTA|\b429\b/i.test(code)?300000:/unavailable|deadline-exceeded|aborted/i.test(code)?60000:0;
+    if(!cachedQuotaLease)return block('V2_MEMBERSHIP_READ_FAILED:'+code,{...identity,nextMembershipAttemptAt:delay?Date.now()+delay:0});
   }
   // A result from a prior account or unverified version cannot authorize sync.
   if(root.firebaseAuthV2?.auth?.currentUser?.uid!==user.uid||!versionReady())return {...state};
   if(!snap?.exists?.()){localStorage.removeItem('v2-member:'+activeOrg()+':'+user.uid);return block('V2_MEMBERSHIP_REQUIRED',identity);}
   const member=snap.data()||{};
   if(member.active!==true){localStorage.removeItem('v2-member:'+activeOrg()+':'+user.uid);return block('V2_MEMBERSHIP_INACTIVE',identity);}
-  if(!ROLES.includes(String(member.role||''))){localStorage.removeItem('v2-member:'+activeOrg()+':'+user.uid);return block('V2_ROLE_INVALID',identity);}if(root.navigator.onLine!==false)localStorage.setItem('v2-member:'+activeOrg()+':'+user.uid,JSON.stringify({at:Date.now(),member}));
+  if(!ROLES.includes(String(member.role||''))){localStorage.removeItem('v2-member:'+activeOrg()+':'+user.uid);return block('V2_ROLE_INVALID',identity);}if(root.navigator.onLine!==false&&!cachedQuotaLease)localStorage.setItem('v2-member:'+activeOrg()+':'+user.uid,JSON.stringify({at:Date.now(),member}));
   if(member.role==='gestor'){
     if(!member.workerId||!Array.isArray(member.routeIds)||!member.routeIds.length)return block('V2_WORKER_SCOPE_REQUIRED',identity);
     if(root.navigator.onLine===false)return block('V2_WORKER_ONLINE_REQUIRED',identity);
@@ -73,7 +82,7 @@ async function evaluateUserOnce(user){
     }catch(error){return block('V2_WORKER_READ_FAILED:'+String(error?.code||error?.message||error),identity)}
     if(root.firebaseAuthV2?.auth?.currentUser?.uid!==user.uid||!versionReady())return {...state};
   }
-  Object.assign(state,{ready:true,authenticated:true,member:true,uid:user.uid,email:user.email||member.email||null,role:String(member.role),routeIds:Array.isArray(member.routeIds)?member.routeIds:[],workerId:member.role==='gestor'?member.workerId:null,reason:'CLOUD_AUTH_READY',mode:'CLOUD_AUTH',preserveLocal:false});
+  Object.assign(state,{ready:true,authenticated:true,member:true,uid:user.uid,email:user.email||member.email||null,role:String(member.role),routeIds:Array.isArray(member.routeIds)?member.routeIds:[],workerId:member.role==='gestor'?member.workerId:null,reason:cachedQuotaLease?'CLOUD_QUOTA_CACHED_ADMIN':'CLOUD_AUTH_READY',cachedMembershipUntil:cachedQuotaLease?Number(cachedQuotaLease.at)+86400000:0,mode:'CLOUD_AUTH',preserveLocal:false});
   try{
     const runtime=root.MiCarteraV2CloudRuntime;
     if(!runtime?.configure)throw new Error('V2_CLOUD_RUNTIME_NOT_READY');
@@ -118,17 +127,18 @@ root.addEventListener('v2-version-state',e=>{
   if(e.detail?.ready)start();
   else block('VERSION_NOT_VERIFIED',{authenticated:state.authenticated,uid:state.uid,email:state.email,preserveLocal:true});
 });
+function currentState(){const expired=state.cachedMembershipUntil&&Date.now()>=state.cachedMembershipUntil;return {...state,...(expired?{ready:false,reason:'V2_CACHED_MEMBERSHIP_EXPIRED:HTTP429',preserveLocal:true}:{})}}
 root.MiCarteraV2AuthCloudGate={
   get ORG(){return activeOrg()},
   FALLBACK_ORG,
   activeOrg,
   ROLES,
-  state:()=>({...state}),
+  state:currentState,
   start,
   refreshMembership,
   signIn,
   signOut,
-  requireReady(){if(!state.ready){const e=new Error('V2_AUTH_NOT_READY:'+state.reason);e.code='V2_AUTH_NOT_READY';e.detail={...state};throw e}return {...state}}
+  requireReady(){const current=currentState();if(!current.ready){const e=new Error('V2_AUTH_NOT_READY:'+current.reason);e.code='V2_AUTH_NOT_READY';e.detail=current;throw e}return current}
 };
 queueMicrotask(()=>{if(versionReady())start()});
 })(window);
