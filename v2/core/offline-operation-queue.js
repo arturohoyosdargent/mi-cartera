@@ -23,18 +23,31 @@ function createQueue(storage,key='mi-cartera-v2-operations'){
   }
   const write=q=>storage.setItem(key,JSON.stringify(q));
   function locked(action){const locks=root.navigator?.locks;if(!locks?.request)return action();return locks.request('mi-cartera-v2-queue:'+key,{mode:'exclusive'},async()=>{try{return {value:await action()}}catch(error){return {error}}}).then(result=>{if(result.error)throw result.error;return result.value});}
-  function enqueue(operation){
+  function canJournalWhileReview(op){
+    if(!incomingPayment(op)||!op.actorId)return false;
+    const pays=op.writes.filter(w=>w.path.startsWith('payments/')),credits=op.writes.filter(w=>w.path.startsWith('credits/')),entries=op.writes.filter(w=>w.path.startsWith('entries/'));
+    if(pays.length!==1||credits.length!==1||!entries.length||pays[0].data?.creditId!==credits[0].data?.id||!Number.isFinite(Number(pays[0].data?.amount))||!(Number(pays[0].data.amount)>0)||entries.some(w=>w.data?.type!=='INGRESO'||!Number.isFinite(Number(w.data.amount))||!(Number(w.data.amount)>0))||Math.round(Number(pays[0].data.amount)*100)!==entries.reduce((n,w)=>n+Math.round(Number(w.data.amount)*100),0)||op.writes.some(w=>w.kind==='create'&&w.expectedVersion!==0))return false;
+    const affected=new Set(credits.map(w=>w.path));
+    if(root.MiCarteraV2PendingReview?.hasCreditConflict?.(op))return false;
+    const creates=new Set(op.writes.filter(w=>w.kind==='create'&&/^payments\//.test(w.path)||w.kind==='create'&&/^entries\//.test(w.path)).map(w=>w.path));
+    if(read().concat(ledger(storage,key)).some(x=>x.id!==(op.operationId||op.id)&&(x.operation?.writes||[]).some(w=>creates.has(w.path))))return false;
+    return !read().some(x=>['CONFLICTO','BLOQUEADO'].includes(x.status)&&(x.operation?.writes||[]).some(w=>affected.has(w.path)||w.path.startsWith('payments/')&&pays.some(p=>p.data.creditId===w.data?.creditId)));
+  }
+  function enqueue(operation,options={}){
     const opId=sid(operation?.operationId||operation?.id);
     if(!operation||!opId)throw new Error('OPERATION_ID_REQUIRED');
     const copy=JSON.parse(JSON.stringify({...operation,operationId:opId}));
     return locked(()=>{
+      options.validate?.();
       if(ledger(storage,key).some(x=>x.id===opId))throw Object.assign(Error('ADMINISTRATIVE_OPERATION_CLOSED: no reenviar ni recrear el cobro.'),{code:'ADMINISTRATIVE_OPERATION_CLOSED'});
       const q=read(),found=q.find(x=>sid(x.operation?.operationId||x.operation?.id)===opId);
       if(found){if(identity(found.operation)!==identity(copy))throw Object.assign(Error('OPERATION_ID_COLLISION'),{code:'OPERATION_ID_COLLISION'});return found;}
-      const item={id:opId,operation:copy,status:'PENDIENTE',attempts:0,nextAttemptAt:0,createdAt:new Date().toISOString(),lastError:null},closed=ledger(storage,key);
+      const creates=new Set((copy.writes||[]).filter(w=>w.kind==='create'&&/^(payments|entries)\//.test(w.path)).map(w=>w.path));
+      if(q.concat(ledger(storage,key)).some(x=>(x.operation?.writes||[]).some(w=>creates.has(w.path))))throw Object.assign(Error('FINANCIAL_RECORD_ID_COLLISION: no recrear un pago o ingreso ya protegido con otro identificador de operación.'),{code:'FINANCIAL_RECORD_ID_COLLISION'});
+      const item={id:opId,operation:copy,status:'PENDIENTE',attempts:0,nextAttemptAt:0,createdAt:new Date().toISOString(),lastError:null,...((typeof options.reviewBeforeSend==='function'?options.reviewBeforeSend():options.reviewBeforeSend)?{reviewBeforeSend:true}:{})},closed=ledger(storage,key);
       if(incomingPayment(copy)&&closed.length===2&&closed.every(x=>x.administrativeClosure.actorId===copy.actorId))item.administrativeContinuation={kind:'NEW_PAYMENT_AFTER_ADMIN_CLOSURE',actorId:copy.actorId,closedIds:closed.map(x=>x.id)};
       const T=metadataStore();if(closed.length&&closed.every(x=>x.administrativeClosure.actorId===copy.actorId)&&T?.isMetadataOperation?.(copy)===true)item.administrativeContinuation={kind:'NEW_METADATA_AFTER_ADMIN_CLOSURE',actorId:copy.actorId,closedIds:closed.map(x=>x.id),fingerprint:T.fingerprint(copy)};
-      q.push(item);write(q);return item;
+      q.push(item);write(q);options.onCreated?.(opId);return item;
     });
   }
   async function administrativelyClose(options){
@@ -96,8 +109,8 @@ function createQueue(storage,key='mi-cartera-v2-operations'){
       return {status:'DONE',applied,failed,blocked,conflicts,pending:merged.filter(x=>!isTerminal(x)&&!['BLOQUEADO','CONFLICTO'].includes(x.status)).length};
     }finally{busy=false;}
   }
-  function inspect(){const closed=ledger(storage,key);return read().map(x=>({id:x.id,type:x.operation?.type,status:x.status,attempts:x.attempts,nextAttemptAt:x.nextAttemptAt,lastError:x.lastError,administrativeClosure:x.administrativeClosure,resumeAfterAdministrativeClosure:canResume(x,closed)}));}
-  return {enqueue,flush,inspect,administrativelyClose,prepareForExecution};
+  function inspect(){const closed=ledger(storage,key);return read().map(x=>({id:x.id,type:x.operation?.type,status:x.status,attempts:x.attempts,nextAttemptAt:x.nextAttemptAt,lastError:x.lastError,...(x.reviewBeforeSend?{reviewBeforeSend:true}:{}),administrativeClosure:x.administrativeClosure,resumeAfterAdministrativeClosure:canResume(x,closed)}));}
+  return {enqueue,flush,inspect,administrativelyClose,prepareForExecution,canJournalWhileReview};
 }
 return {createQueue,isTerminal,readJournal,ledgerKey};
 });
