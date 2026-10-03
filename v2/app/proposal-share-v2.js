@@ -42,11 +42,8 @@
     return {...p,client:q,clientRecord:root.MiCarteraV2CreditFormParity?.selectedClient?.()||null,installment:p.regularInstallment??p.installment};
   }
 
-  function message(d){
-    const extras=Number(d.extraTotal||0)>0?`\nCuota adicional total: ${money(d.extraTotal)}`:'';
-    const rows=Array.isArray(d.schedule)&&d.schedule.length?`\n\nCRONOGRAMA\n${d.schedule.map(q=>`${q.number??q.n??''}. ${q.date} · ${q.extra?'Pago adicional':'Cuota'} · ${money(q.amount)}`).join('\n')}`:'';
-    return `PRÉSTAMO YA — PROPUESTA DE CRÉDITO\nCliente: ${d.client}\nCapital: ${money(d.capital)}\nInterés: ${d.rate}%\nTotal a pagar: ${money(d.total)}\nCuotas: ${d.term}\nCuota referencial: ${money(d.installment)}${extras}\nFrecuencia: ${frequencyLabel(d.freq)}\nPrimera fecha de pago: ${d.first}${d.maturity?`\nFecha estimada de última cuota: ${d.maturity}`:''}${rows}\n\nEsta es una propuesta. El crédito NO queda registrado hasta su aceptación y posterior guardado en Mi Cartera PRO.`;
-  }
+  const shareKind='PROPUESTA DE CRÉDITO';const nonMutatingNotice='El crédito NO queda registrado hasta que el cliente acepte la propuesta y se guarde en Mi Cartera.';
+  function message(d){const c=findClient(d)||{name:d.client};return root.MiCarteraV2ClientShare?.message?.('proposal',c)||`Hola ${String(c?.name||'cliente').trim().split(/\s+/)[0]}, te envío el detalle de tu préstamo. Quedo atento a tu confirmación para procesarlo. Gracias.`;}
 
   function findClient(d){
     if(d?.clientRecord)return d.clientRecord;
@@ -58,10 +55,11 @@
     const ownerUid=root.MiCarteraV2AuthCloudGate?.state?.().uid,d=draft(),client=findClient(d);let file=null;
     try{const cards=await ensureRenderer(),blob=await cards.proposal(d,client);if(blob)file=new File([blob],'prestamo-ya-propuesta-credito.png',{type:'image/png'})}catch(e){console.warn('V2 proposal image unavailable.',e)}
     if(file&&root.MiCarteraV2ClientShare)return root.MiCarteraV2ClientShare.send({ownerUid,client,text:message(d),title:'PRÉSTAMO YA · Propuesta de crédito',file});
-    if(file&&navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({title:'Préstamo Ya · Propuesta de crédito',files:[file]});return 'file-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 proposal image sharing failed.',e)}}
+    if(ownerUid){const current=root.MiCarteraV2AuthCloudGate?.state?.();if(!current?.ready||current.uid!==ownerUid)throw Error('La sesión cambió. Vuelve a abrir la ficha desde tu sesión actual.')}const edited=prompt('Mensaje para compartir (puedes editarlo):',message(d));if(edited===null)return 'cancelled';
+    if(file&&navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({title:'Préstamo Ya · Propuesta de crédito',text:edited,files:[file]});return 'file-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 proposal image sharing failed.',e)}}
     if(file)throw new Error('Este dispositivo no permite adjuntar automáticamente la propuesta gráfica.');
     throw new Error('No se pudo generar la propuesta gráfica. No se enviará como texto.');
   }
 
-  root.MiCarteraV2ProposalShare={draft,message,findClient,ensureRenderer,share};
+  root.MiCarteraV2ProposalShare={draft,message,nonMutatingNotice,findClient,ensureRenderer,share};
 })(window);

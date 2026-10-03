@@ -84,6 +84,10 @@ async function rehydrateOnce(){
   const stale=()=>JSON.stringify(readLocal())!==snapshot||root.MiCarteraV2AuthCloudGate?.requireReady?.()?.uid!==auth.uid;
   const names=Object.keys(MAP).filter(n=>!MANAGER_ONLY.has(n)||managers(auth)||auth.role==='gestor');
   let rows=await Promise.all(names.map(n=>readCollection(n,auth)));
+if(auth.role==='gestor'){
+const clients=rows[names.indexOf('clients')],credits=rows[names.indexOf('credits')],grants=rows[names.indexOf('routes')],ids=new Set([...credits.map(c=>c.clientId),...grants.filter(g=>g.recordType==='CLIENT_ACCESS'&&g.active===true&&g.workerId===auth.workerId).map(g=>g.clientId)].filter(Boolean)),f=root.firestoreV2;
+for(const cid of ids){if(clients.some(c=>String(c.id)===String(cid)))continue;let timer;try{const snap=await Promise.race([f.getDoc(f.doc(f.db,'orgs',ORG,'clients',cid)),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('NETWORK_TIMEOUT')),8000)})]);if(snap.exists()){const raw=snap.data();clients.push({...raw,id:raw.id||snap.id})}}finally{clearTimeout(timer)}}
+}
   if(pending()||stale())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
   const upload={written:0,failed:0,available:false};
   if(upload.written)rows=await Promise.all(names.map(n=>readCollection(n,auth)));
