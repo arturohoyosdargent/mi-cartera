@@ -36,13 +36,27 @@ service cloud.firestore {
     // A commercial worker is a separately provisioned membership, never a self-assigned role.
     function v2WorkerMember(orgId) { return v2Active(orgId) && v2Me(orgId).role == 'gestor' && v2Me(orgId).workerId is string; }
     function v2WorkerLive(orgId) {
-      let worker = get(/databases/$(database)/documents/orgs/$(orgId)/routes/$(v2Me(orgId).workerId)).data;
-      return v2WorkerMember(orgId) && worker.recordType == 'WORKER' && worker.active == true
-        && worker.authUid == request.auth.uid && v2AssignedRoute(orgId, worker.routeId)
+      let member = v2Me(orgId);
+      let worker = get(/databases/$(database)/documents/orgs/$(orgId)/routes/$(member.workerId)).data;
+      return signedIn() && v2Org(orgId) && member.active == true && member.role == 'gestor'
+        && member.workerId is string && worker.recordType == 'WORKER' && worker.active == true
+        && worker.authUid == request.auth.uid && member.routeIds is list && worker.routeId in member.routeIds
         && get(/databases/$(database)/documents/orgs/$(orgId)/routes/$(worker.routeId)).data.active == true;
     }
-    function v2Owned(orgId, data) { return v2WorkerLive(orgId) && data.workerId == v2Me(orgId).workerId && v2AssignedRoute(orgId, data.routeId); }
+    function v2Owned(orgId, data) { let member = v2Me(orgId); return v2WorkerLive(orgId) && data.workerId == member.workerId && member.routeIds is list && data.routeId in member.routeIds; }
     function v2WorkerRead(orgId, data) { return v2WorkerLive(orgId) && data.workerId == v2Me(orgId).workerId; }
+    function v2ContactAccess(orgId, clientId) {
+      let key = "client-access-" + v2Me(orgId).workerId + "-" + clientId;
+      let path = /databases/$(database)/documents/orgs/$(orgId)/routes/$(key);
+      return v2WorkerLive(orgId) && exists(path) && get(path).data.recordType == 'CLIENT_ACCESS'
+        && get(path).data.active == true && get(path).data.workerId == v2Me(orgId).workerId
+        && get(path).data.clientId == clientId;
+    }
+    function v2ContactForCredit(orgId, clientId) {
+      let key = "client-access-" + v2Me(orgId).workerId + "-" + clientId;
+      return v2ContactAccess(orgId, clientId)
+        && get(/databases/$(database)/documents/orgs/$(orgId)/routes/$(key)).data.creditCount > 0;
+    }
     function v2WorkerCash(orgId, data, collection) {
       return v2Owned(orgId, data) && data.cashAccountId == v2Me(orgId).workerId && data.amount > 0 && (
         (collection == 'entries' && data.type == 'INGRESO' && data.concept in ['COBRO_CUOTA','COBRO_INTERES']
@@ -78,7 +92,7 @@ service cloud.firestore {
       allow create: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && v2AssignedRoute(orgId, request.resource.data.routeId)));
       allow update: if v2Org(orgId) && v2Manager(orgId);
       allow delete: if false;
-      allow get: if v2WorkerLive(orgId) && (!exists(/databases/$(database)/documents/orgs/$(orgId)/clients/$(id)) || v2Owned(orgId, resource.data));
+      allow get: if v2WorkerLive(orgId) && (!exists(/databases/$(database)/documents/orgs/$(orgId)/clients/$(id)) || v2Owned(orgId, resource.data) || v2ContactAccess(orgId, id));
       allow list: if v2WorkerRead(orgId, resource.data);
       allow create: if v2Owned(orgId, request.resource.data);
       allow update: if v2Owned(orgId, resource.data) && v2Owned(orgId, request.resource.data)
@@ -91,7 +105,7 @@ service cloud.firestore {
       allow get: if v2WorkerLive(orgId) && (!exists(/databases/$(database)/documents/orgs/$(orgId)/credits/$(id)) || v2Owned(orgId, resource.data));
       allow list: if v2WorkerRead(orgId, resource.data);
       allow create: if v2Owned(orgId, request.resource.data)
-        && getAfter(/databases/$(database)/documents/orgs/$(orgId)/clients/$(request.resource.data.clientId)).data.workerId == v2Me(orgId).workerId;
+        && (getAfter(/databases/$(database)/documents/orgs/$(orgId)/clients/$(request.resource.data.clientId)).data.workerId == v2Me(orgId).workerId || v2ContactForCredit(orgId, request.resource.data.clientId));
       allow update: if v2Owned(orgId, resource.data) && v2Owned(orgId, request.resource.data)
         && request.resource.data.clientId == resource.data.clientId && request.resource.data.workerId == resource.data.workerId
         && request.resource.data.routeId == resource.data.routeId;

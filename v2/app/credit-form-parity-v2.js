@@ -125,15 +125,8 @@
     root.__v2ExtraScheduleWrapped=true;
     return true;
   }
-  function proposalText(c){
-    const p=plan();
-    if(!(p.capital>0)||!(p.term>0)||!p.first)throw new Error('Completa capital, cuotas y primera fecha antes de compartir la propuesta.');
-    if(p.error)throw new Error(`Corrige el cronograma: ${p.error}`);
-    const freqLabel={daily:'diaria',weekly:'semanal',biweekly:'quincenal',monthly:'mensual'}[p.freq]||p.freq;
-    const rows=p.schedule.map(q=>`${q.number??q.n}. ${q.date} · ${q.extra?'Pago adicional':'Cuota'} · S/ ${money(q.amount)}`).join('\n');
-    return `Hola ${c?.name||''}. Esta es tu propuesta de crédito de Mi Cartera PRO:\n\nCapital: S/ ${money(p.capital)}\nInterés: ${p.rate}%\nTotal: S/ ${money(p.total)}\nCuotas: ${p.term} (${freqLabel})\nMonto por cuota: S/ ${money(p.regularInstallment)}\nCuota adicional: S/ ${money(p.extraTotal)}\nPrimera cuota: ${p.first}\nÚltima cuota: ${p.maturity||'-'}\n\nCRONOGRAMA\n${rows}\n\nRevisa estas condiciones antes de aceptar el crédito.`;
-  }
-  async function shareProposal(){const c=selectedClient();if(!c)return alert('Selecciona primero un cliente registrado.');let msg;try{msg=proposalText(c)}catch(e){return alert(e.message)}const hasPhone=Boolean(String(c.phone||'').trim());if(hasPhone&&root.MiCarteraV2CustomerExperience?.whatsapp){try{root.MiCarteraV2CustomerExperience.whatsapp(c,msg);return 'whatsapp'}catch(e){console.warn('V2 proposal WhatsApp failed; continuing with fallback.',e)}}if(navigator.share){try{await navigator.share({title:'Mi Cartera PRO · Propuesta de crédito',text:msg});return 'native-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 proposal native share failed; continuing with clipboard.',e)}}if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(msg);alert(hasPhone?'Propuesta copiada. Puedes pegarla en WhatsApp.':'El cliente no tiene teléfono registrado. La propuesta quedó copiada para compartirla por otro medio.');return 'clipboard'}throw new Error(hasPhone?'CREDIT_PROPOSAL_SHARE_UNAVAILABLE':'CREDIT_PROPOSAL_SHARE_UNAVAILABLE_NO_PHONE')}
+  function proposalText(c){return root.MiCarteraV2ClientShare?.message?.('proposal',c)||('Hola '+String(c?.name||'cliente').split(/\s+/)[0]+', te envío el detalle de tu préstamo. Quedo atento a tu confirmación para procesarlo. Gracias.')}
+  async function shareProposal(){if(!selectedClient())return alert('Selecciona primero un cliente registrado.');if(!root.MiCarteraV2ProposalShare?.share)throw Error('La ficha de propuesta aún no está disponible.');return root.MiCarteraV2ProposalShare.share()}
   function renderClientTools(){
     const input=$('cClient');if(!input)return;refreshClientOptions();
     if($('creditClientInfo')){updateClientTools();return}
