@@ -1,6 +1,6 @@
 # Candidate: protected device journal and individual commercial portfolios
 
-Build: `v2-pilot-20261003-b2-pending-protected-3`.
+Build: `v2-pilot-20261003-b2-pending-protected-4`.
 Verified production rollback: `d0df8a8`, `v2-pilot-20261002-b2-commercial-mobile-5`.
 
 ## Completed changes
@@ -13,12 +13,12 @@ Verified production rollback: `d0df8a8`, `v2-pilot-20261002-b2-commercial-mobile
 
 ## Verification
 
-- Complete source/browser regression: 256/256 passed, zero failures or skipped cases.
+- Complete source/browser regression: 258/258 passed, zero failures or skipped cases.
 - Actual shipped Firebase SDK 10.14.1 against candidate rules in loopback `demo-cartera-final`: own-worker atomic operations and idempotency, contact grants, sibling isolation, query/write denials, revocation, inactive-worker denial, commission/cash-account denial. Reproducible integration scripts are in `v2/tests/*.integration.cjs` (Firestore 8380, Auth 9199, fictional project only).
 - Two concurrent worker funding attempts: one applies, one rejects stale shared revision; leader debit and worker credit each occur once, consolidated change zero.
 - Browser at 393×873: credit choice/reset and individual reassignment; original historical payment/cash unchanged in emulator; Balance opens the historical movement with its original collector. Read-only view displays four fictitious rows and exports their journal.
 - PWA install and activation from the stable Service Worker to the candidate preserve exact raw journal and portfolio bytes. Candidate startup/reconnect/focus/explicit flush transmit zero operations when the journal already has pending rows.
-- Independent review found no reproducible defects in journal/identity guards, individual assignment and same-origin additive diagnostic entry.
+- Independent review found no reproducible defects in journal/identity guards, individual assignment and same-origin additive diagnostic entry. Diagnostic summaries use new-operation dates and amounts, excluding old renewal/partner master records and summing all new partner-settlement expenses.
 - Production read-only comparison: 1,192 documents, 17 collections, 0 added/removed/changed; no production writes. No real clients were used for test operations.
 
 ## Release gate
