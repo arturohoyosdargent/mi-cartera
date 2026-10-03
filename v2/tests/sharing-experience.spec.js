@@ -24,12 +24,10 @@ assert.ok(controller.includes('💬 Compartir comprobante'),'payment history rec
 assert.ok(controller.includes('V2UI.sharePaymentReceipt'),'payment history receipt action not wired');
 assert.ok(controller.includes('MiCarteraV2PaymentReceipt.share'),'payment receipt module not invoked from history');
 assert.ok(controller.includes("state.payments.find(x=>x.id===paymentId)"),'receipt must resolve the selected payment');
-assert.ok(proposal.includes('navigator.share'),'proposal native share missing');
-assert.ok(proposal.includes("return 'file-share'"),'proposal branded file share missing');
+assert.ok(proposal.includes('MiCarteraV2ClientShare.send'),'graphic must use unified native panel');
 assert.ok(!proposal.includes('MiCarteraV2CustomerExperience.whatsapp')&&!proposal.includes('navigator.clipboard?.writeText'),'proposal must not degrade to text-only sharing');
 assert.ok(proposal.includes('El crédito NO queda registrado'),'proposal mutation warning missing');
-assert.ok(credit.includes('navigator.share'),'credit detail native share missing');
-assert.ok(credit.includes("return 'file-share'"),'credit detail branded file share missing');
+assert.ok(credit.includes('MiCarteraV2ClientShare.send'),'graphic must use unified native panel');
 assert.ok(!credit.includes('MiCarteraV2CustomerExperience.whatsapp')&&!credit.includes('navigator.clipboard?.writeText'),'credit detail must not degrade to text-only sharing');
 assert.ok(credit.includes('textSummary'),'credit detail keeps a human summary for the approved graphic flow');
 assert.ok(renderer.includes("'Restante','Estado'"),'credit image schedule status column missing');
@@ -39,8 +37,7 @@ assert.ok(renderer.includes("'Monto pendiente',money(d?.amount)"),'reminder card
 assert.ok(renderer.includes("'Fecha de vencimiento',fmt(d?.date)"),'reminder card must show structured payment detail');
 assert.ok(renderer.includes("['Estado',state"),'reminder card must show the payment state');
 assert.ok(receipt.includes('receiptKind'),'payment receipt title contract retained');
-assert.ok(receipt.includes('navigator.share'),'payment receipt native share missing');
-assert.ok(receipt.includes("return 'file-share'"),'payment receipt branded file share missing');
+assert.ok(receipt.includes('MiCarteraV2ClientShare.send'),'graphic must use unified native panel');
 assert.ok(!receipt.includes('MiCarteraV2CustomerExperience.whatsapp')&&!receipt.includes('navigator.clipboard?.writeText'),'payment receipt must not degrade to text-only sharing');
 assert.ok(receipt.includes('text'),'payment receipt keeps a human editable message');
 assert.ok(!receipt.includes('Operación: ${p?.id')&&!receipt.includes('Crédito: ${cr?.id'),'customer receipt text must not expose internal ids');
@@ -48,21 +45,15 @@ assert.ok(!renderer.includes("metric(x,'Crédito',cr?.id")&&!renderer.includes("
 assert.ok(cx.includes('https://wa.me/'),'central WhatsApp transport missing');
 assert.ok(agenda.includes('MiCarteraV2CollectionReminderShare.share'),'agenda must invoke unified reminder sharing');
 assert.ok(agenda.includes('📤 Compartir recordatorio'),'agenda must expose reminder share action');
-assert.ok(reminder.includes('navigator.share'),'reminder native share missing');
-assert.ok(reminder.includes("if(blob){try{const file=new File"),'reminder must attempt branded image regardless of phone availability');
-assert.ok(!reminder.includes('if(blob&&!hasPhone)'),'reminder must not bypass branded image merely because client has a phone');
-assert.ok(reminder.includes('MiCarteraV2CustomerExperience?.whatsapp'),'reminder WhatsApp fallback missing');
-assert.ok(reminder.includes('navigator.clipboard?.writeText'),'reminder clipboard fallback missing');
-assert.ok(reminder.includes("console.warn('V2 reminder clipboard fallback failed.'"),'reminder clipboard rejection must be handled');
-assert.ok(reminder.includes("throw new Error(hasPhone?'REMINDER_SHARE_UNAVAILABLE':'REMINDER_SHARE_UNAVAILABLE_NO_PHONE')"),'reminder clipboard failure must end in controlled error');
-assert.ok(reminder.includes('REMINDER_SHARE_UNAVAILABLE_NO_PHONE'),'reminder no-phone fallback must remain explicit');
+assert.ok(reminder.includes('MiCarteraV2ClientShare.send'),'graphic must use unified native panel');
+assert.ok(!reminder.includes('wa.me/')&&!reminder.includes('clipboard'),'graphic reminders cannot degrade to text-only');
 for(const file of ['./proposal-share-v2.js','./credit-detail-share-v2.js','./payment-receipt-v2.js','./customer-experience-v2.js','./agenda-v2.js','./share-card-renderer-v2.js','./collection-reminder-share-v2.js'])assert.ok(sw.includes(file),`offline sharing shell missing ${file}`);
 console.log('V2 customer sharing experience: PASS');
 
 assert.ok(preview.includes('editableMessage:true'),'payment preview must expose editable suggested message');
 assert.ok(preview.includes('Mensaje sugerido (puedes editarlo)'),'editable payment message label missing');
 assert.ok(receipt.includes('editedMessage'),'payment share must accept edited message');
-assert.ok(receipt.includes('text:msg,files:[file]'),'payment share must send edited message with branded image');
+assert.ok(receipt.includes('client:c,text:msg')&&receipt.includes(',file}'),'payment share must pass edited message and approved image to the unified panel');
 assert.ok(renderer.includes('Tus pagos puntuales nos ayudan a mantener tu crédito disponible'),'approved punctuality message missing from receipt image');
 
 assert.ok(renderer.includes('cv.width=720;cv.height=1080'),'receipt must use approved compact mobile canvas');

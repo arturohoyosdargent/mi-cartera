@@ -52,13 +52,10 @@
   }
 
   async function share(){
-    const ownerUid=root.MiCarteraV2AuthCloudGate?.state?.().uid,d=draft(),client=findClient(d);let file=null;
+    const preparationToken=root.MiCarteraV2ClientShare?.begin?.(),ownerUid=root.MiCarteraV2AuthCloudGate?.state?.().uid,d=draft(),client=findClient(d);let file=null;
     try{const cards=await ensureRenderer(),blob=await cards.proposal(d,client);if(blob)file=new File([blob],'prestamo-ya-propuesta-credito.png',{type:'image/png'})}catch(e){console.warn('V2 proposal image unavailable.',e)}
-    if(file&&root.MiCarteraV2ClientShare)return root.MiCarteraV2ClientShare.send({ownerUid,client,text:message(d),title:'PRÉSTAMO YA · Propuesta de crédito',file});
-    if(ownerUid){const current=root.MiCarteraV2AuthCloudGate?.state?.();if(!current?.ready||current.uid!==ownerUid)throw Error('La sesión cambió. Vuelve a abrir la ficha desde tu sesión actual.')}const edited=prompt('Mensaje para compartir (puedes editarlo):',message(d));if(edited===null)return 'cancelled';
-    if(file&&navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){try{await navigator.share({title:'Préstamo Ya · Propuesta de crédito',text:edited,files:[file]});return 'file-share'}catch(e){if(e?.name==='AbortError')return 'cancelled';console.warn('V2 proposal image sharing failed.',e)}}
-    if(file)throw new Error('Este dispositivo no permite adjuntar automáticamente la propuesta gráfica.');
-    throw new Error('No se pudo generar la propuesta gráfica. No se enviará como texto.');
+    if(file&&root.MiCarteraV2ClientShare)return root.MiCarteraV2ClientShare.send({preparationToken,ownerUid,client,text:message(d),title:'PRÉSTAMO YA · Propuesta de crédito',file});
+    if(ownerUid){const current=root.MiCarteraV2AuthCloudGate?.state?.();if(!current?.ready||current.uid!==ownerUid)throw Error('La sesión cambió. Vuelve a abrir la ficha desde tu sesión actual.')}if(file)throw new Error('No se pudo cargar el panel de compartir. Vuelve a abrir la ficha.');throw new Error('No se pudo generar la propuesta gráfica. No se enviará como texto.');
   }
 
   root.MiCarteraV2ProposalShare={draft,message,nonMutatingNotice,findClient,ensureRenderer,share};
