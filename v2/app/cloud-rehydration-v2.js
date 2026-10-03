@@ -26,6 +26,7 @@ function mergeMissing(remote,local){
   return out;
 }
 function queueKeys(){const keys=new Set(['mi-cartera-v2-cloud-operations','mi-cartera-v2-cloud-operations:'+root.MiCarteraV2AuthCloudGate?.state?.().uid]);for(let i=0;i<root.localStorage.length;i++){const key=root.localStorage.key(i);if(key?.startsWith('mi-cartera-v2-cloud-operations:'))keys.add(key)}return [...keys]}
+function administrativeClosures(){try{return queueKeys().some(key=>{const Q=root.MiCarteraV2OfflineQueue,rows=Q?.readJournal?Q.readJournal(root.localStorage,key):JSON.parse(root.localStorage.getItem(key)||'[]');return rows.some(x=>x.status==='CERRADO_ADMIN')})}catch{return true}}
 function owner(){return root.localStorage.getItem(OWNER)||readLocal().session?.actorId||''}
 function foreignPending(uid){try{return queueKeys().some(key=>key!=='mi-cartera-v2-cloud-operations:'+uid&&JSON.parse(root.localStorage.getItem(key)||'[]').some(x=>x?.status!=='SINCRONIZADO'))}catch{return true}}
 function assertOwner(uid){if(foreignPending(uid))throw Error('Hay movimientos pendientes de otro usuario. Vuelve a esa sesión para sincronizarlos antes de continuar.');const previous=owner();if(previous&&previous!==uid)throw Error('Espera a que se actualicen los datos de esta sesión antes de registrar movimientos.');if(uid)root.localStorage.setItem(OWNER,uid)}
@@ -34,7 +35,7 @@ function pending(){
     if(root.MiCarteraV2SyncBridge?.status?.().pending>0)return true;
     for(const key of queueKeys()){
       const q=JSON.parse(root.localStorage.getItem(key)||'[]');
-      if(Array.isArray(q)&&q.some(x=>x?.status!=='SINCRONIZADO'))return true;
+      const Q=root.MiCarteraV2OfflineQueue,rows=Q?.readJournal?Q.readJournal(root.localStorage,key):q;if(Array.isArray(rows)&&rows.some(x=>!(Q?.isTerminal?.(x)??x?.status==='SINCRONIZADO')))return true;
     }
     return false;
   }catch{return true}
@@ -79,6 +80,7 @@ async function pushLocalMissing(){return {written:0,failed:0,available:false};}
 async function rehydrateOnce(){
   const auth=root.MiCarteraV2AuthCloudGate?.requireReady?.();
   if(!auth?.uid)throw new Error('V2_AUTH_REQUIRED');
+  if(administrativeClosures())return {status:'SKIPPED_ADMINISTRATIVE_CLOSURES'};
   if(pending())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
   const local=readLocal(),snapshot=JSON.stringify(local),previous=owner(),sameOwner=!previous||previous===auth.uid;
   const stale=()=>JSON.stringify(readLocal())!==snapshot||root.MiCarteraV2AuthCloudGate?.requireReady?.()?.uid!==auth.uid;
@@ -88,9 +90,11 @@ if(auth.role==='gestor'){
 const clients=rows[names.indexOf('clients')],credits=rows[names.indexOf('credits')],grants=rows[names.indexOf('routes')],ids=new Set([...credits.map(c=>c.clientId),...grants.filter(g=>g.recordType==='CLIENT_ACCESS'&&g.active===true&&g.workerId===auth.workerId).map(g=>g.clientId)].filter(Boolean)),f=root.firestoreV2;
 for(const cid of ids){if(clients.some(c=>String(c.id)===String(cid)))continue;let timer;try{const snap=await Promise.race([f.getDoc(f.doc(f.db,'orgs',ORG,'clients',cid)),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('NETWORK_TIMEOUT')),8000)})]);if(snap.exists()){const raw=snap.data();clients.push({...raw,id:raw.id||snap.id})}}finally{clearTimeout(timer)}}
 }
+  if(administrativeClosures())return {status:'SKIPPED_ADMINISTRATIVE_CLOSURES'};
   if(pending()||stale())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
   const upload={written:0,failed:0,available:false};
   if(upload.written)rows=await Promise.all(names.map(n=>readCollection(n,auth)));
+  if(administrativeClosures())return {status:'SKIPPED_ADMINISTRATIVE_CLOSURES'};
   if(pending()||stale())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
   const manager=managers(auth);
   const next={...local,clients:[],credits:[],payments:[],cashMovements:[],audit:[],commercial:[]};
@@ -153,7 +157,7 @@ async function rehydrateUnlocked(){
 }
 function clearOnLogout(e){
   if(e?.detail?.authenticated!==false)return;
-  if(e?.detail?.preserveLocal===true){
+  if(e?.detail?.preserveLocal===true||administrativeClosures()){
     const local=readLocal();
     const previous=owner();if(previous)root.localStorage.setItem(OWNER,previous);
     // Sign-out hides the active session but intentionally retains all local V2
@@ -177,7 +181,7 @@ async function onAuth(e){
   finally{running=false}
 }
 root.addEventListener('v2-auth-cloud-state',onAuth);
-root.MiCarteraV2CloudRehydration={rehydrate,pending,foreignPending,assertOwner,isRunning:()=>hydrating,pushLocalMissing,state:()=>({...readState})};
+root.MiCarteraV2CloudRehydration={rehydrate,pending,administrativeClosures,foreignPending,assertOwner,isRunning:()=>hydrating,pushLocalMissing,state:()=>({...readState})};
 // If Firebase restores an existing browser session before this script finishes
 // loading, consume the already-published ready state after the shell is present.
 if(root.document){

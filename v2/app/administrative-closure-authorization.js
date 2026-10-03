@@ -1,0 +1,2 @@
+// Explicit owner-scoped authorization for exactly two original payloads. No financial data.
+window.MI_CARTERA_ADMIN_CLOSURE_AUTHORIZATION=Object.freeze({"reference":"ADMINISTRATOR_AUTHORIZATION_20261003","reason":"CLOUD_HTTP_429","hashes":["7fdd4cd515c7316afae84625ed5d3e52a86c2e3c8184e413a39a0bf082381dbd","f9c3618e5bf83fe18000503985a3f26ed9b773c24cd8694153dd3c91bf253054"],"ownerHash":"7d11aba21e91e85b93ebc524105b495746a3ca66703a7082103d62d40ee98df5"});
