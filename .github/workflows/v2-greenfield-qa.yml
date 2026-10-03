@@ -44,6 +44,8 @@ jobs:
         run: node v2/tests/operational-rbac.spec.js
       - name: Operational cloud sync boundary
         run: node v2/tests/operational-sync.spec.js
+      - name: Read-first protected journal and quota reconciliation
+        run: node v2/tests/read-first-reconciliation.spec.js
       - name: Durable operation acceptance before local commit
         run: node v2/tests/operation-commit-gate.spec.js
       - name: Durable controller mutation contract
