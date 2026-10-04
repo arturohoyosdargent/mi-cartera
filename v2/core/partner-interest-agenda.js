@@ -7,7 +7,7 @@ function build(loans,asOf,month=asOf.slice(0,7)){
   C.date(asOf);const end=monthEnd(month),soon=addDays(asOf,7),monthRows=[],overdue=[],today=[],upcoming=[],nextRows=[];
   for(const loan of loans){
     const horizon=[end,C.anniversary(asOf,1),loan.firstDue].sort().at(-1);
-    const rows=C.schedule(loan,horizon).map(r=>({...r,id:loan.id+':'+r.date,loanId:loan.id,partner:loan.partner,disbursedAt:loan.date,principal:loan.principal,status:r.paid?'PAGADO':r.date<asOf?'VENCIDO':r.date===asOf?'HOY':'PROGRAMADO'}));
+    const rows=C.schedule(loan,horizon,asOf).map(r=>({...r,id:loan.id+':'+r.date,loanId:loan.id,partner:loan.partner,disbursedAt:loan.date,principal:loan.principal,status:r.paid?'PAGADO':r.date<asOf?'VENCIDO':r.date===asOf?'HOY':'PROGRAMADO'}));
     monthRows.push(...rows.filter(r=>r.date.startsWith(month)));
     overdue.push(...rows.filter(r=>r.status==='VENCIDO'));
     today.push(...rows.filter(r=>r.status==='HOY'));

@@ -1,7 +1,7 @@
 // Cloud delivery and read-first recovery. Existing/uncertain rows are never replayed.
 (function(root){'use strict';
 let runtimeGeneration=0;
-function metadataSession(op){if(!['WORKER_ASSIGNMENT','CREDIT_REFERENCE_UPDATED'].includes(op?.type))return;if(typeof root.MiCarteraV2CommercialActions?.assertMetadataSession!=='function')throw Error('METADATA_AUTH_GUARD_REQUIRED');root.MiCarteraV2CommercialActions.assertMetadataSession(op)}
+function metadataSession(op){if(!['WORKER_ASSIGNMENT','CREDIT_REFERENCE_UPDATED','CLIENT_CLASSIFICATION_UPDATED'].includes(op?.type))return;if(typeof root.MiCarteraV2CommercialActions?.assertMetadataSession!=='function')throw Error('METADATA_AUTH_GUARD_REQUIRED');root.MiCarteraV2CommercialActions.assertMetadataSession(op)}
 function configure(cfg){
  const version=root.MiCarteraV2VersionGuard,authGate=root.MiCarteraV2AuthCloudGate,pilot=root.MiCarteraV2PilotConfig;
  if(!version)throw Error('V2_VERSION_GUARD_REQUIRED');version.requireReady();if(!authGate)throw Error('V2_AUTH_CLOUD_GATE_REQUIRED');const auth=authGate.requireReady();if(!pilot)throw Error('V2_PILOT_GATE_REQUIRED');

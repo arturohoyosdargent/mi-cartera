@@ -57,6 +57,10 @@ service cloud.firestore {
       return v2ContactAccess(orgId, clientId)
         && get(/databases/$(database)/documents/orgs/$(orgId)/routes/$(key)).data.creditCount > 0;
     }
+    // Administrative classification cannot be forged by a worker editing contact data.
+    function v2ClassificationAbsent(data) {
+      return !data.keys().hasAny(['portfolioClassification','portfolioClassificationReason','portfolioClassificationUpdatedAt']);
+    }
     function v2WorkerCash(orgId, data, collection) {
       return v2Owned(orgId, data) && data.cashAccountId == v2Me(orgId).workerId && data.amount > 0 && (
         (collection == 'entries' && data.type == 'INGRESO' && data.concept in ['COBRO_CUOTA','COBRO_INTERES']
@@ -89,14 +93,15 @@ service cloud.firestore {
     // Explicit V2 pilot paths. No deletes; payments/audit are append-only.
     match /orgs/{orgId}/clients/{id} {
       allow read: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && v2AssignedRoute(orgId, resource.data.routeId)));
-      allow create: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && v2AssignedRoute(orgId, request.resource.data.routeId)));
+      allow create: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && v2AssignedRoute(orgId, request.resource.data.routeId) && v2ClassificationAbsent(request.resource.data)));
       allow update: if v2Org(orgId) && v2Manager(orgId);
       allow delete: if false;
       allow get: if v2WorkerLive(orgId) && (!exists(/databases/$(database)/documents/orgs/$(orgId)/clients/$(id)) || v2Owned(orgId, resource.data) || v2ContactAccess(orgId, id));
       allow list: if v2WorkerRead(orgId, resource.data);
-      allow create: if v2Owned(orgId, request.resource.data);
+      allow create: if v2Owned(orgId, request.resource.data) && v2ClassificationAbsent(request.resource.data);
       allow update: if v2Owned(orgId, resource.data) && v2Owned(orgId, request.resource.data)
-        && request.resource.data.routeId == resource.data.routeId && request.resource.data.workerId == resource.data.workerId;
+        && request.resource.data.routeId == resource.data.routeId && request.resource.data.workerId == resource.data.workerId
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['portfolioClassification','portfolioClassificationReason','portfolioClassificationUpdatedAt']);
     }
     match /orgs/{orgId}/credits/{id} {
       allow read: if v2Org(orgId) && (v2Manager(orgId) || (v2Collector(orgId) && v2AssignedRoute(orgId, resource.data.routeId)));
