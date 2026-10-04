@@ -5,16 +5,17 @@ function assert(ok,msg){if(!ok)throw new Error(msg);}
 function canonical(v){if(Array.isArray(v))return '['+v.map(canonical).join(',')+']';if(v&&typeof v==='object')return '{'+Object.keys(v).sort().filter(k=>!['updatedAt','appliedAt'].includes(k)).map(k=>JSON.stringify(k)+':'+canonical(v[k])).join(',')+'}';return JSON.stringify(v);}
 function fingerprint(operation){let h=2166136261,s=canonical({id:sid(operation.id),type:sid(operation.type),writes:operation.writes});for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0).toString(16).padStart(8,'0');}
 // These writes contain only commercial metadata, never a financial snapshot.
-function metadataFields(type,collection){if(type==='CREDIT_REFERENCE_UPDATED'&&collection==='credits')return ['id','version','beneficiaryReference'];if(type==='WORKER_ASSIGNMENT'&&['clients','credits'].includes(collection))return ['id','version','workerId','routeId','assignedAt',...(collection==='clients'?['route']:[])];return null}
+function metadataFields(type,collection){if(type==='CLIENT_CLASSIFICATION_UPDATED'&&collection==='clients')return ['id','version','portfolioClassification','portfolioClassificationReason','portfolioClassificationUpdatedAt'];if(type==='CREDIT_REFERENCE_UPDATED'&&collection==='credits')return ['id','version','beneficiaryReference'];if(type==='WORKER_ASSIGNMENT'&&['clients','credits'].includes(collection))return ['id','version','workerId','routeId','assignedAt',...(collection==='clients'?['route']:[])];return null}
 function metadataRecordFields(type){return type==='CLIENT_ACCESS'?['id','recordType','workerId','clientId','routeId','creditCount','historicalPaymentCount','active','version']:type==='ASSIGNMENT'?['id','recordType','workerId','routeId','clientId','creditId','previousWorkerId','previousRouteId','effectiveAt','effectiveDate','version']:null}
 function isMetadataOperation(op){
- if(!['WORKER_ASSIGNMENT','CREDIT_REFERENCE_UPDATED'].includes(op?.type)||!sid(op.actorId)||!Array.isArray(op.writes)||!op.writes.length)return false;
+ if(!['WORKER_ASSIGNMENT','CREDIT_REFERENCE_UPDATED','CLIENT_CLASSIFICATION_UPDATED'].includes(op?.type)||!sid(op.actorId)||!Array.isArray(op.writes)||!op.writes.length)return false;
  const audit=op.writes.filter(w=>/^audit\/[^/]+$/.test(w.path)),detail=audit[0]?.data?.detail;
  if(audit.length!==1||audit[0].kind!=='create'||audit[0].expectedVersion!==0||audit[0].data.actorId!==op.actorId||audit[0].data.action!==op.type||!['admin','supervisor'].includes(String(audit[0].data.role).toLowerCase())||!detail)return false;
  let patches=0;
  for(const w of op.writes){const [col,key,...extra]=String(w.path||'').split('/');if(extra.length||!key||w.data?.id!==key||!Number.isInteger(w.expectedVersion)||w.expectedVersion<0)return false;
-  if(['clients','credits'].includes(col)){const allowed=metadataFields(op.type,col);if(w.kind!=='metadata'||!allowed||Object.keys(w.data).some(k=>!allowed.includes(k))||Number(w.data.version)!==w.expectedVersion+1)return false;const base=op.type==='WORKER_ASSIGNMENT'?['workerId','routeId']:['beneficiaryReference'];if(!w.before||Object.keys(w.before).length!==base.length||base.some(k=>typeof w.before[k]!=='string'))return false;patches++;
-   if(op.type==='CREDIT_REFERENCE_UPDATED'){if(key!==detail.creditId||w.clientId!==detail.clientId||typeof w.data.beneficiaryReference!=='string')return false}
+  if(['clients','credits'].includes(col)){const allowed=metadataFields(op.type,col);if(w.kind!=='metadata'||!allowed||Object.keys(w.data).some(k=>!allowed.includes(k))||Number(w.data.version)!==w.expectedVersion+1)return false;const base=op.type==='WORKER_ASSIGNMENT'?['workerId','routeId']:op.type==='CLIENT_CLASSIFICATION_UPDATED'?['portfolioClassification']:['beneficiaryReference'];if(!w.before||Object.keys(w.before).length!==base.length||base.some(k=>typeof w.before[k]!=='string'))return false;patches++;
+   if(op.type==='CLIENT_CLASSIFICATION_UPDATED'){if(key!==detail.clientId||w.clientId!==detail.clientId||!['AUTO','INCOBRABLE','NO_LOCALIZADO'].includes(w.data.portfolioClassification)||w.data.portfolioClassification!==detail.classification||typeof w.data.portfolioClassificationReason!=='string'||w.data.portfolioClassificationReason.length>240||w.data.portfolioClassificationReason!==detail.reason||!/^\d{4}-\d{2}-\d{2}T/.test(w.data.portfolioClassificationUpdatedAt||'')||!Number.isFinite(Date.parse(w.data.portfolioClassificationUpdatedAt))||w.data.portfolioClassificationUpdatedAt!==detail.at)return false}
+   else if(op.type==='CREDIT_REFERENCE_UPDATED'){if(key!==detail.creditId||w.clientId!==detail.clientId||typeof w.data.beneficiaryReference!=='string')return false}
    else if(w.clientId!==detail.clientId||w.data.workerId!==detail.workerId||w.data.routeId!==detail.routeId||w.data.assignedAt!==detail.effectiveAt||col==='clients'&&key!==detail.clientId||col==='credits'&&!detail.creditIds?.includes(key))return false;
   }else if(col==='routes'){
    if(op.type!=='WORKER_ASSIGNMENT'||!['create','set'].includes(w.kind)||Number(w.data.version)!==w.expectedVersion+1||w.data.clientId!==detail.clientId)return false;
@@ -23,7 +24,7 @@ function isMetadataOperation(op){
    else return false;
   }else if(col!=='audit')return false;
  }
- return patches>0&&(op.type!=='CREDIT_REFERENCE_UPDATED'||patches===1&&op.writes.length===2);
+ return patches>0&&(!['CREDIT_REFERENCE_UPDATED','CLIENT_CLASSIFICATION_UPDATED'].includes(op.type)||patches===1&&op.writes.length===2);
 }
 function createStore(adapter,options={}){assert(adapter&&typeof adapter.runAtomic==='function','ATOMIC_ADAPTER_REQUIRED');
  async function execute(operation){
