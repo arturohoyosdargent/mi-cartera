@@ -14,7 +14,8 @@ function build(loans,asOf,month=asOf.slice(0,7)){
     upcoming.push(...rows.filter(r=>!r.paid&&r.date>asOf&&r.date<=soon));
     const next=rows.find(r=>!r.paid&&r.date>asOf);if(next)nextRows.push(next);
   }
-  const sort=rows=>rows.sort((a,b)=>a.date.localeCompare(b.date)||a.partner.localeCompare(b.partner)||a.loanId.localeCompare(b.loanId));
+  const text=x=>String(x??'');
+  const sort=rows=>rows.sort((a,b)=>text(a.date).localeCompare(text(b.date))||text(a.partner).localeCompare(text(b.partner))||text(a.loanId).localeCompare(text(b.loanId)));
   [monthRows,overdue,today,upcoming,nextRows].forEach(sort);
   return {month,asOf,monthRows,overdue,today,upcoming,next:nextRows[0]||null,overdueTotal:sum(overdue),todayTotal:sum(today),upcomingTotal:sum(upcoming),monthPending:sum(monthRows.filter(r=>!r.paid))};
 }
