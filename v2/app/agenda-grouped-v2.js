@@ -51,7 +51,7 @@
         });
       }
     }
-    return result.sort((a, b) => a.date.localeCompare(b.date) || String(a.client.name).localeCompare(String(b.client.name)));
+    return result.sort((a, b) => String(a?.date || '').localeCompare(String(b?.date || '')) || String(a?.client?.name || '').localeCompare(String(b?.client?.name || '')));
   }
 
   function groupByClient(list){
