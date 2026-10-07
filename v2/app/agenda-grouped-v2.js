@@ -61,7 +61,7 @@
       if (!groups.has(key)) groups.set(key, {client: row.client, route: row.route, rows: []});
       groups.get(key).rows.push(row);
     }
-    return [...groups.values()].sort((a, b) => String(a.client.name).localeCompare(String(b.client.name)));
+    return [...groups.values()].sort((a, b) => String(a?.client?.name || '').localeCompare(String(b?.client?.name || '')));
   }
 
   function promiseState(row){const p=row?.promise;if(!p?.date||!(Number(p.amount)>0))return null;return {...p,state:p.date<today()?'INCUMPLIDO':'VIGENTE'}}function overdue(row){ return Boolean(row.date && row.date < today()); }
