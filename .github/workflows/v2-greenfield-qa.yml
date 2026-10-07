@@ -77,3 +77,8 @@ jobs:
         run: node v2/tests/pilot-runtime-consistency.spec.js
       - name: Canonical branch smoke
         run: node v2/tests/integrated-branch-smoke.spec.js
+      - name: Install isolated DOM regression dependencies
+        run: npm ci --prefix v2/tests --ignore-scripts --no-audit --no-fund
+      - name: Complete functional and financial regression
+        run: |
+          for test in v2/tests/*.spec.js; do node "$test" || exit 1; done

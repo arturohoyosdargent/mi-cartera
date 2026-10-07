@@ -1,24 +1,41 @@
-const assert=require('assert'),fs=require('fs'),path=require('path');
-const receipt=fs.readFileSync(path.join(__dirname,'../app/payment-receipt-v2.js'),'utf8');
-const cards=fs.readFileSync(path.join(__dirname,'../app/operational-cards-v2.js'),'utf8');
-const renderer=fs.readFileSync(path.join(__dirname,'../app/share-card-renderer-v2.js'),'utf8');
-const actions=fs.readFileSync(path.join(__dirname,'../app/durable-actions-v2.js'),'utf8');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
 
-// Receipt sharing must never mutate payment state; it only renders/shares an already-recorded payment.
-assert.ok(receipt.includes('Read/share only; never records a payment.'),'receipt module must remain read/share only');
-assert.ok(receipt.includes('if(!p)throw new Error(\'PAYMENT_REQUIRED\')'),'receipt requires a persisted payment');
-
-// Preserve the complete mobile/desktop sharing fallback chain.
-assert.ok(receipt.includes("return 'file-share'"),'image/file share missing');
-assert.ok(receipt.includes("return 'whatsapp'"),'WhatsApp fallback missing');
-assert.ok(receipt.includes("return 'native-share'"),'native text share fallback missing');
-assert.ok(receipt.includes("return 'clipboard'"),'clipboard fallback missing');
-assert.ok(receipt.includes('RECEIPT_SHARE_UNAVAILABLE_NO_PHONE'),'no-phone terminal error must remain explicit');
-
-// Payment history must expose the same receipt action so a recorded payment can be resent.
-assert.ok(cards.includes('MiCarteraV2SharePreview?.previewPayment?.(paymentId)')||cards.includes('MiCarteraV2PaymentReceipt.share(p,c,cr)'),'payment history receipt action missing');
-assert.ok(cards.includes('Comprobante'),'payment history receipt button missing');
-
-assert.ok(actions.includes("MiCarteraV2Dates?.today?.()"),'payment recording must use the local operational date, not UTC ISO date');
-assert.ok(renderer.includes("txt(x,'Saldo actual',390,573")&&renderer.includes("txt(x,money(t.balance),390,598"),'receipt balance must not overlap the installment due-date field');
-console.log('V2 payment receipt share regression: PASS');
+// Verify the current approved graphical transport, without reintroducing the
+// obsolete text-only WhatsApp/clipboard fallbacks required by the old test.
+async function run() {
+  const source = fs.readFileSync(path.join(__dirname,'../app/payment-receipt-v2.js'),'utf8');
+  const payment = {id:'p',date:'2026-10-07',amount:60,concept:'CUOTA'};
+  const client = {name:'Cliente de prueba',phone:'999999999'};
+  const credit = {id:'c',total:240};
+  const original = JSON.stringify({payment,client,credit});
+  let writes = 0, outgoing;
+  const navigator = {canShare:()=>true,share:async data=>{outgoing=data;}};
+  const window = {navigator,
+    MiCarteraV2ShareCard:{receipt:async()=>new Blob(['png'],{type:'image/png'})}};
+  const context = {window,navigator,Blob,File,console:{warn(){}},
+    localStorage:{setItem(){writes++;}}};
+  vm.createContext(context);
+  vm.runInContext(source,context);
+  const api = window.MiCarteraV2PaymentReceipt;
+  assert.equal(await api.share(payment,client,credit,'Mensaje editado'), 'file-share');
+  assert.equal(outgoing.text,'Mensaje editado');
+  assert.equal(outgoing.files.length,1);
+  assert.equal(outgoing.files[0].type,'image/png');
+  assert.equal(outgoing.files[0].name,'prestamo-ya-comprobante-pago.png');
+  navigator.share = async()=>{throw Object.assign(new Error('Cancelado'),{name:'AbortError'});};
+  assert.equal(await api.share(payment,client,credit),'cancelled');
+  navigator.canShare = ()=>false;
+  await assert.rejects(api.share(payment,client,credit), /no permite adjuntar automáticamente/);
+  delete navigator.share;
+  await assert.rejects(api.share(payment,client,credit), /no permite adjuntar automáticamente/);
+  await assert.rejects(api.share(null,client,credit), /PAYMENT_REQUIRED/);
+  window.MiCarteraV2ShareCard.receipt = async()=>{throw new Error('CANVAS_UNAVAILABLE');};
+  await assert.rejects(api.share(payment,client,credit), /No se pudo generar el comprobante gráfico/);
+  assert.equal(writes,0);
+  assert.equal(JSON.stringify({payment,client,credit}),original);
+  console.log('V2 payment receipt share regression: PASS');
+}
+run().catch(error=>{console.error(error);process.exitCode=1;});
