@@ -102,13 +102,14 @@
     rows.forEach((q,i)=>{const y=712+i*38,s=installmentStatus(q);txt(x,q.number??q.n??i+1,52,y,12);txt(x,fmt(D.fromInstallment?.(q)||q.date),98,y,12);txt(x,money(q.amount),270,y,12,false,'#087bd1');txt(x,money(D.balance?.(q)??q.balance??q.amount),430,y,12);txt(x,s,565,y,11,true,s==='PAGADA'?'#187536':'#b83232');});
     const footY=cardH-42;txt(x,'¡Gracias por tu confianza!',360,footY-18,18,true,'#087bd1','center');x.fillStyle='#1197dc';x.fillRect(18,footY,684,20);return blob(cv);
   }
-  function receiptInstallmentIndex(p,cr){const qs=Array.isArray(cr?.schedule)?cr.schedule:[];if(!qs.length)return 0;const total=qs.length,amount=Math.max(0,Number(p?.amount||0)),explicit=Number(p?.installmentNumber||p?.installmentNo||p?.quotaNumber||0);let current=explicit>0?Math.min(total,explicit):0;if(!current){const paidAfter=qs.reduce((sum,q)=>sum+Math.max(0,Number(q.amount||0)-((D.balance?.(q) ?? Math.max(0,Number(q.balance ?? q.amount ?? 0))))),0),paidBefore=Math.max(0,paidAfter-amount);let acc=0;for(let i=0;i<qs.length;i++){acc+=Number(qs[i].amount||0);if(paidBefore<acc-0.005){current=i+1;break}}}if(!current)current=Math.max(1,qs.findIndex(q=>(D.balance?.(q)??Number(q.balance??q.amount??0))>0)+1);return current}function receiptInstallmentDate(p,cr){const qs=Array.isArray(cr?.schedule)?cr.schedule:[],i=receiptInstallmentIndex(p,cr);const q=i>0?qs[i-1]:null;return D.fromInstallment?.(q)||q?.date||p?.installmentDate||p?.dueDate||''}function receiptInstallmentLabel(p,cr){
+  function receiptInstallmentIndex(p,cr){const total=Number(p?.totalInstallments||(cr?.schedule||[]).length||0),n=Number(p?.installmentFrom||p?.installmentNumber||p?.installmentNo||p?.quotaNumber||0);return Number.isInteger(n)&&n>0&&n<=total?n:0;}function receiptInstallmentDate(p,cr){const qs=Array.isArray(cr?.schedule)?cr.schedule:[],i=receiptInstallmentIndex(p,cr);const q=i>0?qs[i-1]:null;return D.fromInstallment?.(q)||q?.date||p?.installmentDate||p?.dueDate||''}function receiptInstallmentLabel(p,cr){
     if(String(p?.concept||'').toUpperCase()!=='CUOTA')return p?.concept||'PAGO';
-    const qs=Array.isArray(cr?.schedule)?cr.schedule:[];
-    if(!qs.length)return 'CUOTA';
-    const total=qs.length,current=receiptInstallmentIndex(p,cr);
+    const qs=Array.isArray(cr?.schedule)?cr.schedule:[],total=Number(p?.totalInstallments||qs.length||0),current=receiptInstallmentIndex(p,cr);
+    if(!current)return 'CUOTA SIN IDENTIFICAR';
+    const from=Number(p?.installmentFrom||current),to=Number(p?.installmentTo||current);
+    if(Number.isInteger(from)&&Number.isInteger(to)&&from>0&&to>from&&to<=total)return `CUOTAS ${from}–${to} DE ${total}`;
     const remaining=qs.reduce((sum,q)=>sum+((D.balance?.(q) ?? Math.max(0,Number(q.balance ?? q.amount ?? 0)))),0);
-    return `CUOTA ${current} DE ${total}${remaining<=0.005?' · CANCELADO':''}`;
+    return `CUOTA ${current} DE ${total}${qs.length&&remaining<=0.005?' · CANCELADO':''}`;
   }
   function receipt(p,c,cr){
     const cv=document.createElement('canvas');cv.width=720;cv.height=1080;const x=cv.getContext('2d'),firstName=String(c?.name||'').trim().split(/\s+/)[0]||'cliente',t=cr?creditTotals(cr):null;

@@ -3,14 +3,16 @@
 // on an ID collision. This preserves local work without overwriting another device's data.
 (function(root){'use strict';
 const ORG='v2-mi-cartera-pilot',K='mi-cartera-v2-validation-state';
-const MAP={clients:'clients',credits:'credits',payments:'payments',entries:'cashMovements',expenses:'cashMovements',audit:'audit'};
-const MANAGER_ONLY=new Set(['entries','expenses','audit']);
+const MAP={clients:'clients',credits:'credits',payments:'payments',entries:'cashMovements',expenses:'cashMovements',audit:'audit',routes:'commercial'};
+const MANAGER_ONLY=new Set(['entries','expenses','audit','routes']);
 const clone=v=>JSON.parse(JSON.stringify(v));
 const managers=auth=>['admin','supervisor'].includes(String(auth?.role||''));
 function dispatch(name,detail){const C=root.CustomEvent;if(typeof root.dispatchEvent==='function'&&C)root.dispatchEvent(new C(name,{detail}))}
 function readLocal(){try{return JSON.parse(root.localStorage.getItem(K)||'{}')}catch{return {}}}
 function rowId(row){const id=row?.id;return id==null||String(id).trim()===''?'':String(id)}
 function localRows(local,name){
+  if(name==='routes')return []; // Commercial records use the atomic gate, never legacy uploads.
+
   if(name==='entries')return (Array.isArray(local.cashMovements)?local.cashMovements:[]).filter(x=>String(x?.type||'').toUpperCase()==='INGRESO');
   if(name==='expenses')return (Array.isArray(local.cashMovements)?local.cashMovements:[]).filter(x=>String(x?.type||'').toUpperCase()==='EGRESO');
   return Array.isArray(local[name])?local[name]:[];
@@ -84,7 +86,7 @@ async function rehydrate(){
   const upload=await pushLocalMissing(local,names,rows,auth);
   if(upload.written)rows=await Promise.all(names.map(n=>readCollection(n,auth)));
   const manager=managers(auth);
-  const next={...local,clients:[],credits:[],payments:[],cashMovements:manager?[]:(Array.isArray(local.cashMovements)?local.cashMovements:[]),audit:[]};
+  const next={...local,clients:[],credits:[],payments:[],cashMovements:manager?[]:(Array.isArray(local.cashMovements)?local.cashMovements:[]),audit:[],commercial:[]};
   for(let i=0;i<names.length;i++){
     const name=names[i],target=MAP[name];
     const effective=manager&&upload.available?mergeMissing(rows[i],localRows(local,name)):rows[i];
@@ -110,7 +112,7 @@ function clearOnLogout(e){
     root.MiCarteraV2Agenda?.render?.();root.MiCarteraV2DashboardParity?.render?.();root.MiCarteraV2AdminParity?.render?.();
     return;
   }
-  const local=readLocal(),next={...local,clients:[],credits:[],payments:[],cashMovements:[],audit:[],session:null};
+  const local=readLocal(),next={...local,clients:[],credits:[],payments:[],cashMovements:[],audit:[],commercial:[],session:null};
   root.localStorage.setItem(K,JSON.stringify(next));
   dispatch('mi-cartera-v2-sync',{ok:true,source:'logout-clear'});
   root.MiCarteraV2Agenda?.render?.();root.MiCarteraV2DashboardParity?.render?.();root.MiCarteraV2AdminParity?.render?.();

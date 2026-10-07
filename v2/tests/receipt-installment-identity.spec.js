@@ -27,7 +27,7 @@ async function run() {
   const client = {id:'client', name:'Cliente de prueba'};
   const credit = {id:'credit', clientId:'client', capital:200, total:240,
     schedule:[1,2,3,4].map((n) => ({n, date:`2026-01-0${n}`, amount:60, balance:n===1?20:60}))};
-  const payment = {id:'payment', creditId:'credit', date:'2026-10-07', amount:40, concept:'CUOTA'};
+  const payment = {id:'payment', creditId:'credit', date:'2026-10-07', amount:40, concept:'CUOTA',installmentNumber:1,totalInstallments:4};
   const window = {document, navigator:{share:async()=>{shares++;}},
     localStorage:{getItem:()=>JSON.stringify({clients:[client], credits:[credit], payments:[payment]}),
       setItem:()=>{writes++;}}};
@@ -59,7 +59,7 @@ async function run() {
   assert.equal(JSON.stringify({payment,credit}),original);
   assert.ok(receipt.text({...payment,installmentNumber:2},client,credit).includes('Cuota correspondiente a: CUOTA 2 DE 4'));
   const paid = {...credit,schedule:credit.schedule.map(q=>({...q,balance:0}))};
-  assert.ok(receipt.text({...payment,amount:60},client,paid).includes('Cuota correspondiente a: CUOTA 4 DE 4 · CANCELADO'));
+  assert.ok(receipt.text({...payment,amount:60,installmentNumber:4},client,paid).includes('Cuota correspondiente a: CUOTA 4 DE 4 · CANCELADO'));
   assert.ok(!receipt.text({...payment,concept:'INTERES'},client,credit).includes('Cuota correspondiente a:'));
   console.log('receipt-installment-identity.spec.js PASS');
 }

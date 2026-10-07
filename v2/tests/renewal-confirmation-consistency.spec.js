@@ -17,7 +17,7 @@ function fixture(overrides = {}) {
 }
 
 function environment({credit = fixture(), submit} = {}) {
-  const elements = new Map(), alerts = [], operations = [], previews = [], links = [];
+  const elements = new Map(), alerts = [], operations = [], previews = [], links = [], sharePreviews = [];
   const initial = {clients:[{id:'fake-client',name:'Cliente ficticio',phone:'999000000'}],
     credits:[credit],payments:[],cashMovements:[],audit:[],
     session:{role:'ADMIN',actorId:'fake-admin'}};
@@ -53,15 +53,15 @@ function environment({credit = fixture(), submit} = {}) {
       return submit ? submit(operation) : {status:'COMMITTED',operationId:operation.operationId};
     }},
     MiCarteraV2VersionGuard:{requireReady() {}},
-    MiCarteraV2AuthCloudGate:{requireReady() {},state:()=>({uid:'fake-admin'})},
-    MiCarteraV2SharePreview:{previewCredit:id=>previews.push(id)},
+    MiCarteraV2AuthCloudGate:{requireReady() {},state:()=>({uid:'fake-admin',ready:true,role:'admin'})},
+    MiCarteraV2SharePreview:{previewCredit:id=>previews.push(id),open:config=>sharePreviews.push(config)},MiCarteraV2ShareCard:{fmt:date=>date},
     addEventListener() {},open:(...args)=>links.push(args)};
   const sandbox = {window,document,localStorage,alert:message=>alerts.push(message),console};
   vm.createContext(sandbox);
   for(const file of ['operation-commit-gate.js','durable-actions-v2.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname,'../app',file),'utf8'),sandbox);
   }
-  return {api:window.MiCarteraV2DurableActions,document,alerts,operations,previews,links,
+  return {api:window.MiCarteraV2DurableActions,document,alerts,operations,previews,links,sharePreviews,
     state:()=>JSON.parse(stored),writes:()=>writes,original:JSON.stringify(initial),
     get:id=>document.getElementById(id)};
 }
@@ -107,7 +107,7 @@ async function run() {
   assert.ok(interestReview.innerHTML.includes('Primera cuota: <b>2026-10-12</b>'),'proposal must show the real first installment after the rest day');
   assert.equal(interest.writes(),0,'review must not change financial state');
   interest.get('v2ShareRenewal').onclick();
-  assert.ok(decodeURIComponent(interest.links[0][0]).includes('Primera cuota: 2026-10-12'),'shared proposal must use the real first installment date');
+  assert.ok(interest.sharePreviews[0].message.includes('Primera cuota: 2026-10-12'),'shared proposal must use the real first installment date');
   assert.equal(interest.writes(),0,'sharing a proposal must not register a renewal');
   confirm(interest);await interestPending;
   const savedInterest=interest.state(),successor=savedInterest.credits[1];
