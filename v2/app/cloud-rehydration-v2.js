@@ -2,7 +2,7 @@
 // Existing local V2 rows are uploaded only when their ID is absent in Cloud; Cloud rows win
 // on an ID collision. This preserves local work without overwriting another device's data.
 (function(root){'use strict';
-const ORG='v2-mi-cartera-pilot',K='mi-cartera-v2-validation-state';
+const ORG='v2-mi-cartera-pilot',K='mi-cartera-v2-validation-state',OWNER='mi-cartera-v2-local-owner';
 const MAP={clients:'clients',credits:'credits',payments:'payments',entries:'cashMovements',expenses:'cashMovements',audit:'audit',routes:'commercial'};
 const MANAGER_ONLY=new Set(['entries','expenses','audit','routes']);
 const clone=v=>JSON.parse(JSON.stringify(v));
@@ -76,9 +76,28 @@ async function pushLocalMissing(local,names,rows,auth){
   }
   return {written,failed,available:true};
 }
+function restorePartnerSession(auth){
+  // Recover the same-owner session dependency from 7ee323a before pending Cloud work.
+  // Never infer ownership from a queue or repair another actor's session.
+  const verified=root.MiCarteraV2AuthCloudGate?.state?.();
+  if(verified?.ready!==true||verified.uid!==auth.uid||verified.role!==auth.role||!managers(auth)||root.localStorage.getItem(OWNER)!==auth.uid)return;
+  let local;
+  try{
+    local=JSON.parse(root.localStorage.getItem(K)||'null');
+    if(!local||typeof local!=='object'||Array.isArray(local)||local.session!=null)return;
+    const own='mi-cartera-v2-cloud-operations:'+auth.uid,keys=new Set(['mi-cartera-v2-cloud-operations',own]);
+    for(let i=0;i<root.localStorage.length;i++){const key=root.localStorage.key(i);if(key?.startsWith('mi-cartera-v2-cloud-operations:'))keys.add(key)}
+    for(const key of keys){const rows=JSON.parse(root.localStorage.getItem(key)||'[]');if(!Array.isArray(rows)||rows.some(x=>!x||typeof x!=='object'||(key!==own&&x.status!=='SINCRONIZADO')))return;}
+  }catch{return}
+  const session={actorId:auth.uid,role:auth.role,routeIds:Array.isArray(auth.routeIds)?auth.routeIds:[]};
+  root.localStorage.setItem(K,JSON.stringify({...local,session}));
+  dispatch('mi-cartera-v2-sync',{ok:true,source:'verified-local-session'});
+  root.MiCarteraPartners?.render?.();
+}
 async function rehydrate(){
   const auth=root.MiCarteraV2AuthCloudGate?.requireReady?.();
   if(!auth?.uid)throw new Error('V2_AUTH_REQUIRED');
+  restorePartnerSession(auth);
   if(pending())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
   const names=Object.keys(MAP).filter(n=>!MANAGER_ONLY.has(n)||managers(auth));
   let rows=await Promise.all(names.map(n=>readCollection(n,auth)));
@@ -105,6 +124,8 @@ function clearOnLogout(e){
   if(root.navigator?.onLine===false)return;
   if(e?.detail?.preserveLocal===true){
     const local=readLocal();
+    // Preserve the existing actor's ownership proof before hiding its local session.
+    if(!root.localStorage.getItem(OWNER)&&local.session?.actorId)root.localStorage.setItem(OWNER,String(local.session.actorId));
     // Sign-out hides the active session but intentionally retains all local V2
     // business rows. They can be rehydrated again after the same user signs in.
     root.localStorage.setItem(K,JSON.stringify({...local,session:null}));
