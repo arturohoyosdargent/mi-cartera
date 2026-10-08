@@ -1,50 +1,47 @@
-name: V2 Audit Pages
+name: V2 Audit QA (sin publicacion)
 on:
-  push:
-    branches: [reengineering-v2-final]
-    paths: ['v2/**', '.github/workflows/v2-audit-pages.yml']
   workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: 'Exact candidate SHA to audit; does not publish'
+        required: true
+        type: string
 permissions:
   contents: read
-  pages: write
-  id-token: write
-concurrency:
-  group: v2-audit-pages
-  cancel-in-progress: true
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout trusted QA control
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify isolated V2 audit candidate
-        run: |
-          node v2/tests/app-shell.spec.js
-          node v2/tests/preflight.spec.js
-          node v2/tests/operational-sync.spec.js
-          node v2/tests/operational-sync-reconnect.spec.js
-          node v2/tests/credit-proposal-share.spec.js
-          node v2/tests/history-sync-rerender.spec.js
-      - name: Build Pages audit site
-        run: |
-          mkdir -p _site/v2
-          cp -R v2/app _site/v2/app
-          cp -R v2/core _site/v2/core
-          cp -R v2/cloud _site/v2/cloud
-          printf '%s\n' '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=v2/app/index.html"><title>Mi Cartera PRO V2 Auditoría</title><a href="v2/app/index.html">Abrir auditoría V2</a>' > _site/index.html
-          touch _site/.nojekyll
-      - uses: actions/upload-pages-artifact@v3
+      - name: Reject symbolic or injected candidate references
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: node -e 'if (!/^[0-9a-f]{40}$/.test(process.env.CANDIDATE_SHA || "")) process.exit(1)'
+      - name: Checkout exact QA candidate
+        uses: actions/checkout@v4
         with:
-          path: _site
-  deploy:
-    environment:
-      name: v2-audit
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: verify
-    steps:
-      - name: Deploy isolated V2 audit site
-        id: deployment
-        uses: actions/deploy-pages@v4
+          ref: ${{ inputs.candidate_sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require protected stable ancestry
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -eu
+          test "$(git -C candidate rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git -C candidate merge-base --is-ancestor 43a7afa2ab629cdc7b4c7db9856dbd10eae61f71 "$CANDIDATE_SHA"
+      - name: Install isolated regression dependencies
+        run: npm ci --prefix candidate/v2/tests --ignore-scripts --no-audit --no-fund
+      - name: Complete read-only synthetic regression
+        run: node control/.github/scripts/publication-control.cjs qa candidate
+      - name: Confirm audited source remains intact
+        run: git -C candidate diff --exit-code

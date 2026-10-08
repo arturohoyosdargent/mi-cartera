@@ -1,33 +1,118 @@
 name: Deploy V2 Firebase Hosting
 on:
-  push:
-    branches: [reengineering-v2-final]
-    paths:
-      - 'v2/app/**'
-      - 'firebase.v2.json'
-      - '.firebaserc'
-      - '.github/workflows/deploy-v2-firebase.yml'
   workflow_dispatch:
+    inputs:
+      approved_sha:
+        description: 'Full 40-character SHA approved for production'
+        required: true
+        type: string
+      approval_reference:
+        description: 'Recorded explicit authorization including this exact SHA'
+        required: true
+        type: string
 permissions:
   contents: read
+concurrency:
+  group: mi-cartera-pro-v2-production
+  cancel-in-progress: false
+env:
+  APPROVED_SHA: ${{ inputs.approved_sha }}
+  APPROVAL_REFERENCE: ${{ inputs.approval_reference }}
+  PUBLISHING_ENABLED: ${{ vars.V2_PUBLISHING_ENABLED }}
 jobs:
-  deploy-v2:
+  qa:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout trusted publication controls
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify V2 package
+      - name: Validate manual authorization and administrative switch
+        run: node control/.github/scripts/publication-control.cjs request
+      - name: Require existing production approval policy
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node control/.github/scripts/publication-control.cjs policy
+      - name: Checkout exact approved candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.approved_sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify immutable source and protected ancestry
+        shell: bash
         run: |
-          node v2/tests/app-shell.spec.js
-          node v2/tests/pilot-config.spec.js
-          node v2/tests/share-preview-refresh.spec.js
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
-      - name: Deploy isolated V2 Hosting
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = "$APPROVED_SHA"
+          git -C candidate merge-base --is-ancestor 43a7afa2ab629cdc7b4c7db9856dbd10eae61f71 "$APPROVED_SHA"
+          git -C candidate diff --exit-code 43a7afa2ab629cdc7b4c7db9856dbd10eae61f71 "$APPROVED_SHA" -- .firebaserc firebase.v2.json
+          node control/.github/scripts/publication-control.cjs destination candidate
+      - name: Install isolated regression dependencies
+        run: npm ci --prefix candidate/v2/tests --ignore-scripts --no-audit --no-fund
+      - name: Verify publication controls
+        run: node control/.github/scripts/publication-control.spec.cjs
+      - name: Complete functional financial mobile and PWA regression
+        run: node control/.github/scripts/publication-control.cjs qa candidate
+      - name: Confirm QA did not change source or trusted controls
+        run: |
+          git -C candidate diff --exit-code --no-ext-diff --no-textconv
+          git -C control diff --exit-code --no-ext-diff --no-textconv
+  deploy-v2:
+    permissions:
+      contents: read
+      actions: read
+    needs: qa
+    if: ${{ needs.qa.result == 'success' }}
+    environment:
+      name: v2-production
+      url: https://mi-cartera-pro-v2.web.app/app/
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the same trusted publication controls
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Revalidate approved request after human review
+        run: node control/.github/scripts/publication-control.cjs request
+      - name: Recheck production review policy in the fresh trusted job
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node control/.github/scripts/publication-control.cjs policy
+      - name: Checkout the same immutable candidate that passed QA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.approved_sha }}
+          path: candidate
+          persist-credentials: false
+      - name: Verify exact source and destination before exposing credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = "$APPROVED_SHA"
+          node control/.github/scripts/publication-control.cjs destination candidate
+          git -C candidate diff --exit-code
+      - name: Install pinned Firebase CLI
+        run: npm install -g firebase-tools@15.30.1 --ignore-scripts --no-audit --no-fund
+      - name: Publish only approved isolated V2 Hosting
+        working-directory: candidate
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        shell: bash
         run: |
-          test -n "$FIREBASE_TOKEN" || (echo "FIREBASE_TOKEN secret is required" && exit 1)
+          set -euo pipefail
+          test -n "$FIREBASE_TOKEN" || { echo 'Production credential is not provisioned; publication blocked'; exit 1; }
           firebase deploy --only hosting:v2 --project mi-cartera-d0d8c --config firebase.v2.json --token "$FIREBASE_TOKEN" --non-interactive
