@@ -59,7 +59,10 @@ async function run() {
   assert.equal(JSON.stringify({payment,credit}),original);
   assert.ok(receipt.text({...payment,installmentNumber:2},client,credit).includes('Cuota correspondiente a: CUOTA 2 DE 4'));
   const paid = {...credit,schedule:credit.schedule.map(q=>({...q,balance:0}))};
-  assert.ok(receipt.text({...payment,amount:60,installmentNumber:4},client,paid).includes('Cuota correspondiente a: CUOTA 4 DE 4 · CANCELADO'));
+  // Settling the credit later must not retrospectively mark this older receipt cancelled.
+  const historical = receipt.text({...payment,amount:60,installmentNumber:4},client,paid);
+  assert.ok(historical.includes('Cuota correspondiente a: CUOTA 4 DE 4'));
+  assert.ok(!historical.includes('CANCELADO'));
   assert.ok(!receipt.text({...payment,concept:'INTERES'},client,credit).includes('Cuota correspondiente a:'));
   console.log('receipt-installment-identity.spec.js PASS');
 }

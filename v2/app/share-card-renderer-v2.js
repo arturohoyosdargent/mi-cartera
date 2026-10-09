@@ -102,17 +102,60 @@
     rows.forEach((q,i)=>{const y=712+i*38,s=installmentStatus(q);txt(x,q.number??q.n??i+1,52,y,12);txt(x,fmt(D.fromInstallment?.(q)||q.date),98,y,12);txt(x,money(q.amount),270,y,12,false,'#087bd1');txt(x,money(D.balance?.(q)??q.balance??q.amount),430,y,12);txt(x,s,565,y,11,true,s==='PAGADA'?'#187536':'#b83232');});
     const footY=cardH-42;txt(x,'¡Gracias por tu confianza!',360,footY-18,18,true,'#087bd1','center');x.fillStyle='#1197dc';x.fillRect(18,footY,684,20);return blob(cv);
   }
-  function receiptInstallmentIndex(p,cr){const total=Number(p?.totalInstallments||(cr?.schedule||[]).length||0),n=Number(p?.installmentFrom||p?.installmentNumber||p?.installmentNo||p?.quotaNumber||0);return Number.isInteger(n)&&n>0&&n<=total?n:0;}function receiptInstallmentDate(p,cr){const qs=Array.isArray(cr?.schedule)?cr.schedule:[],i=receiptInstallmentIndex(p,cr);const q=i>0?qs[i-1]:null;return D.fromInstallment?.(q)||q?.date||p?.installmentDate||p?.dueDate||''}function receiptInstallmentLabel(p,cr){
+  function receiptInstallmentApplications(p,cr){
+    const rows=p?.installmentApplications,total=Number(p?.totalInstallments||(cr?.schedule||[]).length||0);
+    if(!Array.isArray(rows)||!rows.length||!Number.isInteger(total)||total<1)return [];
+    let previous=0,applied=0;
+    for(const q of rows){
+      const n=Number(q?.number),amount=Number(q?.amount),before=Number(q?.balanceBefore),after=Number(q?.balanceAfter);
+      if(!Number.isInteger(n)||n<=previous||n>total||!Number.isFinite(amount)||amount<=0||!Number.isFinite(before)||before<=0||!Number.isFinite(after)||after<0||Math.abs(before-after-amount)>0.005)return [];
+      if(q.status!==(after<=0.005?'PAGADA':'PARCIAL'))return [];
+      previous=n;applied+=amount;
+    }
+    if(!Number.isFinite(Number(p?.amount))||Math.abs(applied-Number(p.amount))>0.005)return [];
+    return rows;
+  }
+  function receiptInstallmentIndex(p,cr){
+    const rows=receiptInstallmentApplications(p,cr);
+    if(rows.length)return Number(rows[0].number);
+    if(Object.prototype.hasOwnProperty.call(p||{},'installmentApplications'))return 0;
+    const total=Number(p?.totalInstallments||(cr?.schedule||[]).length||0),n=Number(p?.installmentFrom||p?.installmentNumber||p?.installmentNo||p?.quotaNumber||0),from=Number(p?.installmentFrom||n),to=Number(p?.installmentTo||n);
+    // Historical endpoints cannot prove which intermediate quotas were applied.
+    return Number.isInteger(total)&&Number.isInteger(n)&&n>0&&n<=total&&from===n&&to===n?n:0;
+  }function receiptInstallmentDate(p,cr){const qs=Array.isArray(cr?.schedule)?cr.schedule:[],i=receiptInstallmentIndex(p,cr);const q=i>0?qs[i-1]:null;return D.fromInstallment?.(q)||q?.date||p?.installmentDate||p?.dueDate||''}
+  function receiptInstallmentNumbers(rows){const consecutive=rows.every((q,i)=>!i||Number(q.number)===Number(rows[i-1].number)+1);return consecutive&&rows.length>1?`${rows[0].number}–${rows[rows.length-1].number}`:rows.map(q=>q.number).join(', ');}
+  function receiptInstallmentLabel(p,cr){
     if(String(p?.concept||'').toUpperCase()!=='CUOTA')return p?.concept||'PAGO';
     const qs=Array.isArray(cr?.schedule)?cr.schedule:[],total=Number(p?.totalInstallments||qs.length||0),current=receiptInstallmentIndex(p,cr);
     if(!current)return 'CUOTA SIN IDENTIFICAR';
-    const from=Number(p?.installmentFrom||current),to=Number(p?.installmentTo||current);
-    if(Number.isInteger(from)&&Number.isInteger(to)&&from>0&&to>from&&to<=total)return `CUOTAS ${from}–${to} DE ${total}`;
-    const remaining=qs.reduce((sum,q)=>sum+((D.balance?.(q) ?? Math.max(0,Number(q.balance ?? q.amount ?? 0)))),0);
-    return `CUOTA ${current} DE ${total}${qs.length&&remaining<=0.005?' · CANCELADO':''}`;
+    const rows=receiptInstallmentApplications(p,cr);
+    if(rows.length)return `${rows.length>1?'CUOTAS':'CUOTA'} ${receiptInstallmentNumbers(rows)} DE ${total}${rows.some(q=>q.status==='PARCIAL')?' · PARCIAL':''}`;
+    return `CUOTA ${current} DE ${total}`;
+  }
+  function receiptInstallmentDetails(p,cr){
+    if(String(p?.concept||'').toUpperCase()!=='CUOTA')return '';
+    const rows=receiptInstallmentApplications(p,cr);
+    if(!rows.length)return receiptInstallmentIndex(p,cr)?'Detalle de aplicación no registrado.':'';
+    return rows.map(q=>`Cuota ${q.number}: ${money(q.amount)} · ${q.status==='PAGADA'?'COMPLETADA':`PARCIAL (pendiente ${money(q.balanceAfter)})`}`).join('\n');
+  }
+  function receiptTotals(p,cr){
+    const totals=creditTotals(cr),balance=p?.balanceAfterPayment;
+    return Number.isFinite(balance)&&balance>=0?{...totals,balance}:totals;
+  }
+  function receiptLine(x,label,a,b,width,size=18){
+    let z=size;
+    if(typeof x.measureText==='function'){while(z>9){x.font=`700 ${z}px Arial`;const measured=x.measureText(String(label));if(!Number.isFinite(measured?.width)||measured.width<=width)break;z--;}}
+    txt(x,label,a,b,z,true);
+  }
+  function receiptGraphicDetails(p,cr){
+    const rows=receiptInstallmentApplications(p,cr);
+    if(!rows.some(q=>q.status==='PARCIAL'))return [];
+    if(rows.length<=2)return receiptInstallmentDetails(p,cr).split('\n');
+    const completed=rows.filter(q=>q.status==='PAGADA'),partial=rows.filter(q=>q.status==='PARCIAL');
+    return [...(completed.length?[`Cuota${completed.length>1?'s':''} ${receiptInstallmentNumbers(completed)}: ${money(completed.reduce((sum,q)=>sum+Number(q.amount),0))} · COMPLETADA${completed.length>1?'S':''}`]:[]),...partial.map(q=>`Cuota ${q.number}: ${money(q.amount)} · PARCIAL (pendiente ${money(q.balanceAfter)})`)];
   }
   function receipt(p,c,cr){
-    const cv=document.createElement('canvas');cv.width=720;cv.height=1080;const x=cv.getContext('2d'),firstName=String(c?.name||'').trim().split(/\s+/)[0]||'cliente',t=cr?creditTotals(cr):null;
+    const cv=document.createElement('canvas');cv.width=720;cv.height=1080;const x=cv.getContext('2d'),firstName=String(c?.name||'').trim().split(/\s+/)[0]||'cliente',t=cr?receiptTotals(p,cr):null,applicationLines=receiptGraphicDetails(p,cr);
     x.fillStyle='#f8fcff';x.fillRect(0,0,720,1080);
     x.fillStyle='#1197dc';round(x,18,18,684,126,18);
     txt(x,'▱  PRÉSTAMO YA',42,62,29,true,'#fff');txt(x,'Tu aliado en soluciones financieras',42,91,14,false,'#fff');txt(x,'COMPROBANTE DE PAGO',42,123,16,true,'#fff');
@@ -120,9 +163,10 @@
     x.fillStyle='#eef8fd';round(x,36,350,648,292,18);
     x.strokeStyle='#087bd1';x.lineWidth=3;x.beginPath();x.arc(68,382,8,0,Math.PI*2);x.moveTo(54,407);x.quadraticCurveTo(68,392,82,407);x.stroke();txt(x,'Cliente',94,382,13,false,'#6b737b');txt(x,c?.name||'Cliente',94,407,19,true);
     x.strokeStyle='#087bd1';x.lineWidth=3;x.strokeRect(58,443,20,20);x.beginPath();x.moveTo(63,453);x.lineTo(73,453);x.moveTo(68,448);x.lineTo(68,458);x.stroke();txt(x,'Monto recibido',94,443,13,false,'#6b737b');txt(x,money(p?.amount),94,474,28,true,'#087bd1');
-    x.strokeStyle='#087bd1';x.lineWidth=3;x.strokeRect(58,514,22,20);x.beginPath();x.moveTo(58,521);x.lineTo(80,521);x.stroke();txt(x,'Fecha de pago',94,514,13,false,'#6b737b');txt(x,fmt(p?.date),94,539,18,true);const installment=String(p?.concept||'').toUpperCase()==='CUOTA'?receiptInstallmentLabel(p,cr):'';if(installment){txt(x,'Cuota correspondiente a',390,514,13,false,'#6b737b');txt(x,installment,390,539,18,true);}
-    x.strokeStyle='#087bd1';x.lineWidth=3;x.strokeRect(58,573,22,18);x.beginPath();x.moveTo(63,579);x.lineTo(75,579);x.moveTo(63,585);x.lineTo(72,585);x.stroke();txt(x,'Concepto',94,573,13,false,'#6b737b');txt(x,receiptInstallmentLabel(p,cr),94,598,18,true);
-    if(t){txt(x,'Total del crédito',390,443,13,false,'#6b737b');txt(x,money(t.total),390,472,20,true,'#087bd1');txt(x,'Saldo actual',390,573,13,false,'#6b737b');txt(x,money(t.balance),390,598,20,true,'#b83232');}
+    x.strokeStyle='#087bd1';x.lineWidth=3;x.strokeRect(58,514,22,20);x.beginPath();x.moveTo(58,521);x.lineTo(80,521);x.stroke();txt(x,'Fecha de pago',94,514,13,false,'#6b737b');txt(x,fmt(p?.date),94,539,18,true);const installment=String(p?.concept||'').toUpperCase()==='CUOTA'?receiptInstallmentLabel(p,cr):'';if(installment){txt(x,'Cuota correspondiente a',390,514,13,false,'#6b737b');receiptLine(x,installment,390,539,270);}
+    x.strokeStyle='#087bd1';x.lineWidth=3;x.strokeRect(58,573,22,18);x.beginPath();x.moveTo(63,579);x.lineTo(75,579);x.moveTo(63,585);x.lineTo(72,585);x.stroke();txt(x,'Concepto',94,573,13,false,'#6b737b');receiptLine(x,applicationLines.length?'PAGO DE CUOTAS':receiptInstallmentLabel(p,cr),94,598,270);
+    applicationLines.forEach((line,i)=>receiptLine(x,line,58,620+i*16,604,12));
+    if(t){txt(x,'Total del crédito',390,443,13,false,'#6b737b');txt(x,money(t.total),390,472,20,true,'#087bd1');txt(x,Number.isFinite(p?.balanceAfterPayment)?'Saldo posterior':'Saldo actual',390,573,13,false,'#6b737b');txt(x,money(t.balance),390,598,20,true,'#b83232');}
     x.fillStyle='#edf9f0';round(x,36,666,648,112,18);x.strokeStyle='#187536';x.lineWidth=3;x.beginPath();x.moveTo(70,725);x.lineTo(70,694);x.quadraticCurveTo(52,699,56,684);x.quadraticCurveTo(72,684,70,701);x.quadraticCurveTo(87,697,88,682);x.quadraticCurveTo(71,684,70,706);x.stroke();txt(x,'Tus pagos puntuales nos ayudan a mantener tu crédito disponible',102,704,14,true,'#187536');txt(x,'y seguir creciendo juntos.',102,734,16,true,'#187536');
     txt(x,'¡Gracias por tu confianza!',360,835,19,true,'#087bd1','center');txt(x,'PRÉSTAMO YA · CONFIANZA · COMPROMISO · TU PROGRESO',360,884,11,true,'#087bd1','center');
     x.fillStyle='#1197dc';x.beginPath();x.moveTo(18,920);x.quadraticCurveTo(180,965,360,930);x.quadraticCurveTo(540,895,702,940);x.lineTo(702,1018);x.quadraticCurveTo(520,985,360,1012);x.quadraticCurveTo(180,1040,18,1002);x.closePath();x.fill();
@@ -151,7 +195,7 @@
       }catch(e){reject(e)}
     })
   }
-  root.MiCarteraV2ShareCard={proposal,credit,receipt,reminder,money,fmt,installmentStatus,creditTotals,receiptInstallmentLabel,receiptInstallmentDate};
+  root.MiCarteraV2ShareCard={proposal,credit,receipt,reminder,money,fmt,installmentStatus,creditTotals,receiptTotals,receiptInstallmentLabel,receiptInstallmentDate,receiptInstallmentApplications,receiptInstallmentDetails};
 })(window);
 
 
