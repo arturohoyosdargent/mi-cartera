@@ -4,15 +4,17 @@ Este documento es administrativo. No autoriza deploy, modificación de datos ni 
 
 ## Fuente de verdad
 
-`stable-rollback-v2-20261008-43a7afa` (`43a7afa2ab629cdc7b4c7db9856dbd10eae61f71`)
+Última estable certificada según `docs/VERSIONING_POLICY.md` (con su inmediatamente anterior conservada)
 → desarrollo V2 controlado
 → candidato identificado por SHA completo
 → todas las suites técnicas y matriz PC/móvil/PWA
 → autorización explícita para ese SHA
 → único workflow Firebase manual
-→ producción V2.
+→ producción V2
+→ validación física PC y Android/PWA
+→ aprobación explícita y promoción a nueva estable.
 
-El estable conserva el build `v2-pilot-20261008-b2-socios-pwa-session-1` y sus copias oficiales. Nunca moverlo ni sustituir su contenido. Un cambio futuro parte de esa línea y conserva los fragmentos históricamente validados, sin reconstrucciones generales.
+La referencia histórica `stable-rollback-v2-20261008-43a7afa` (`43a7afa2ab629cdc7b4c7db9856dbd10eae61f71`) conserva el build `v2-pilot-20261008-b2-socios-pwa-session-1` y sus copias oficiales. Nunca moverla ni sustituir su contenido. El desarrollo conserva las mejoras aprobadas de la línea más reciente; no vuelve automáticamente a esta referencia antigua. Los controles de ascendencia histórica no eligen el destino de rollback.
 
 `main` tiene función administrativa/histórica, no es fuente de producción V2. Las 32 ramas C y 12 E del [FASE2_INFORME_FINAL.md](https://github.com/arturohoyosdargent/mi-cartera/blob/informe-fase2-20261008/FASE2_INFORME_FINAL.md) no son bases autorizadas para nuevas implementaciones. Permanecen intactas hasta archivo verificado y autorización individual. Las seis D no se eliminan en esta fase.
 
@@ -33,9 +35,11 @@ El estable conserva el build `v2-pilot-20261008-b2-socios-pwa-session-1` y sus c
 
 La referencia de autorización incluida como input sirve de registro; **no sustituye la aprobación humana obligatoria** del environment. Las pruebas técnicas tampoco sustituyen validaciones físicas de cambios funcionales futuros.
 
-## Estado cerrado de esta fase
+## Registro histórico del cierre estructural
 
-Los publicadores actuales quedan deshabilitados en GitHub. Este candidato se sube sólo a un tag nuevo para revisión, no se integra en main/final ni se ejecuta.
+Los siguientes párrafos describen el estado original de la Fase 3, anterior al cierre posterior y la publicación autorizada de WhatsApp/comprobantes. No son instrucciones para revertir la configuración actual. Consultar `CIERRE_ESTRUCTURAL_FINAL.md` y el registro de cada publicación para el estado administrativo posterior. En este candidato no se modifican workflows, ramas administrativas ni configuración remota.
+
+En el cierre original los publicadores quedaron deshabilitados en GitHub. El candidato se subió sólo a un tag nuevo para revisión, sin integración en main/final ni ejecución.
 
 No se cambia la rama predeterminada ni se resuelve todavía `workflow_dispatch` (el workflow debe estar en la rama predeterminada según GitHub). No se configura el environment de producción, la variable habilitadora, credenciales ni `FIREBASE_TOKEN`. Esos pasos requieren autorización posterior, después de revisar este candidato y definir la integración administrativa.
 
@@ -55,6 +59,6 @@ La herramienta instalada se conserva. Ninguna publicación manual local mediante
 
 La matriz completa incluye Inicio, Clientes, Créditos, Cobranza, pagos normales/libres/múltiples, deduplicación, comprobante gráfico/WhatsApp, identificación de cuotas, recordatorios, ambas renovaciones, Socios, Gestores/Rutas, Caja/Balance, búsqueda, sincronización simulada PC↔Android, PWA/offline/reconexión y persistencia. Pruebas locales usan fixtures; las validaciones reales PC/Android se hacen tras autorización de la publicación correspondiente.
 
-Una regresión se informa antes de modificar más código. No autoriza reimplementar funciones protegidas. El rollback exacto sigue siendo `43a7afa2ab629cdc7b4c7db9856dbd10eae61f71`, con tag remoto y backups oficiales conservados.
+Una regresión se informa antes de modificar más código. No autoriza reimplementar funciones protegidas. Se corrige primero sobre la versión más reciente; un rollback imprescindible usa la estable inmediatamente anterior según `docs/VERSIONING_POLICY.md`, con tag remoto y artefacto exacto conservados. El tag histórico de 43a7afa permanece intacto como respaldo adicional, sin convertirse en destino fijo.
 
 Referencia técnica de GitHub: [workflow SHA y contextos](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts), [dispatch manual y rama predeterminada](https://docs.github.com/es/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).

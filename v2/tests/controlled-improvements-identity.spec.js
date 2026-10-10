@@ -1,0 +1,12 @@
+const {test}=require('node:test'),a=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const root=path.resolve(process.env.SOURCE||'v2'),read=f=>fs.readFileSync(path.join(root,'app',f),'utf8');
+test('candidate identity and every added mobile/offline module belong to the same artifact',()=>{
+ const build='v2-pilot-20261009-b2-controlled-improvements-1',release=JSON.parse(read('release.json')),shell=read('operational-shell.html'),sw=read('service-worker.js'),guard=read('version-guard.js'),index=read('index.html');a.equal(release.build,build);a.equal(release.version,build);a.ok(index.includes(`const V2_BUILD='${build}'`));a.ok(sw.includes(`const BUILD='${build}'`));a.ok(guard.includes(`const EMBEDDED_BUILD='${build}'`));
+ for(const name of ['client-actions-menu-v2.js','credit-evaluation-v2.js','credit-evaluation-ui-v2.js','stable-catalog-v2.js','app-recovery-v2.js','history-list-v2.js','local-ownership-bootstrap-v2.js']){a.equal(shell.split(`src="${name}"`).length,2,name+' loaded exactly once');a.ok(sw.includes(`'./${name}'`),name+' precached');a.ok(fs.existsSync(path.join(root,'app',name)));}
+ a.ok(shell.indexOf('auth-cloud-gate.js')<shell.indexOf('local-ownership-bootstrap-v2.js'));a.ok(shell.indexOf('local-ownership-bootstrap-v2.js')<shell.indexOf('cloud-rehydration-v2.js'));
+ a.ok(shell.indexOf('client-edit-v2.js')<shell.indexOf('client-actions-menu-v2.js'));a.ok(shell.indexOf('stable-catalog-v2.js')<shell.indexOf('app-recovery-v2.js'));a.ok(shell.indexOf('refresh-controller-v2.js')<shell.indexOf('app-recovery-v2.js'));a.ok(shell.indexOf('credit-overdue-v2.js')<shell.indexOf('history-list-v2.js'));
+ const manifest=JSON.parse(read('manifest.webmanifest'));a.equal(manifest.id,'/app/');a.equal(manifest.scope,'/app/');a.equal(manifest.start_url,'/app/operational-shell.html');
+});
+test('certified catalog preserves history while recovery chooses catalog metadata rather than a fixed historical SHA',()=>{
+ const window={};vm.runInNewContext(read('stable-catalog-v2.js'),{window,Object});const c=window.MiCarteraV2StableCatalog;a.equal(c.current.sha,'43a7afa2ab629cdc7b4c7db9856dbd10eae61f71');a.equal(c.current.tag,'stable-rollback-v2-20261008-43a7afa');a.equal(c.latestPublished.sha,'fa36b2e48fa811f5de84e51e336922db3ed562a5');a.equal(c.previous,null);a.ok(Object.isFrozen(c));a.ok(Object.isFrozen(c.current));a.ok(!read('app-recovery-v2.js').includes(c.current.sha),'recovery must read promoted catalog, not a fixed SHA');
+});

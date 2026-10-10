@@ -18,4 +18,11 @@ test('environment must have nonempty required reviewers before production',()=>{
 test('only the isolated V2 Hosting destination is accepted',()=>{const rc={targets:{'mi-cartera-d0d8c':{hosting:{v2:['mi-cartera-pro-v2']}}}};const config={hosting:{target:'v2',public:'v2'}};assert.doesNotThrow(()=>gate().assertDestination(rc,config));for(const bad of [{hosting:{target:'v2',public:'.'}},{hosting:{target:'v1',public:'v2'}},{...config,firestore:{rules:'firestore.rules'}}])assert.throws(()=>gate().assertDestination(rc,bad));assert.throws(()=>gate().assertDestination({targets:{'mi-cartera-d0d8c':{hosting:{v2:['mi-cartera-d0d8c']}}}},config));});
 test('a different checkout cannot inherit the approved QA result',()=>{assert.doesNotThrow(()=>gate().assertSourceHead(SHA,SHA));assert.throws(()=>gate().assertSourceHead(SHA,'1ed4f5d7632008a6523b35713e4edfd168e8ac96'));});
 test('every failed, interrupted or missing QA result blocks release',()=>{assert.doesNotThrow(()=>gate().assertQaResults([{file:'payments.spec.js',status:0}]));for(const rows of [[],[{file:'payments.spec.js',status:1}],[{file:'payments.spec.js',status:null}]])assert.throws(()=>gate().assertQaResults(rows));});
-test('QA discovers all existing suites without selecting a reduced subset',()=>{const suites=gate().discoverSuites(path.resolve(__dirname,'../../v2/tests'));assert.equal(suites.length,61);for(const file of ['app-functional-regression.spec.js','partner-pwa-session-recovery.spec.js','manager-management.spec.js','historical-sharing-recovery.spec.js'])assert.ok(suites.some(x=>path.basename(x)===file),file);});
+test('QA discovers all existing suites without selecting a reduced subset',()=>{
+  const dir=path.resolve(__dirname,'../../v2/tests');
+  const suites=gate().discoverSuites(dir);
+  const existing=fs.readdirSync(dir).filter(file=>/\.spec\.js$/.test(file)).sort();
+  assert.ok(suites.length>=61,'historical regression baseline must remain complete');
+  assert.deepEqual(suites.map(file=>path.basename(file)),existing,'every existing suite must be discovered, including future additions');
+  for(const file of ['app-functional-regression.spec.js','partner-pwa-session-recovery.spec.js','manager-management.spec.js','historical-sharing-recovery.spec.js','backup-recovery-safe.spec.js','credit-evaluation-ui.spec.js','receipt-graphic-all-applications.spec.js','client-menu-receipt-text.spec.js'])assert.ok(suites.some(x=>path.basename(x)===file),file);
+});

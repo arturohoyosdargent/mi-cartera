@@ -37,10 +37,9 @@ assert.ok(renderer.includes("'RECORDATORIO DE PAGO'")&&renderer.includes('functi
 assert.ok(renderer.includes("txt(x,'Monto pendiente'"),'reminder card must use the structured branded summary');
 assert.ok(renderer.includes("txt(x,'Fecha de vencimiento'"),'reminder card must show structured payment detail');
 assert.ok(renderer.includes("txt(x,state,58,648"),'reminder card must show the payment state');
-assert.ok(receipt.includes('COMPROBANTE DE PAGO'),'payment receipt title missing');
+assert.ok(preview.includes('Comprobante de pago'),'payment receipt preview title missing');
 assert.ok(preview.includes("send:(edited)=>fileShare(file,'Préstamo Ya · Comprobante de pago',edited)"),'payment receipt preview must share the prebuilt graphical PNG with the edited message');
 assert.ok(preview.includes("const outgoing=editable?String(modal.querySelector('#v2SharePreviewMessage')?.value||''):text;close();"),'edited payment text must be captured before modal close');
-assert.ok(receipt.includes('Pago confirmado.'),'payment receipt confirmation missing');
 assert.ok(!receipt.includes('Operación: ${p?.id')&&!receipt.includes('Crédito: ${cr?.id'),'customer receipt text must not expose internal ids');
 assert.ok(!renderer.includes("metric(x,'Crédito',cr?.id")&&!renderer.includes("metric(x,'Operación',p?.id"),'customer receipt image must not expose internal ids');
 assert.ok(cx.includes('https://wa.me/'),'central WhatsApp transport missing');

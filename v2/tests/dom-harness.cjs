@@ -12,7 +12,9 @@ if(fullShell){
 }
 const c=vm.createContext(w);const load=f=>vm.runInContext(fs.readFileSync(path.join(ROOT,f),'utf8'),c,{filename:f});
 for(const f of ['core/financial-engine.js','core/schedule-engine.js','core/access-audit.js','app/date-utils-v2.js'])load(f);
-w.MiCarteraV2VersionGuard={requireReady(){},ensureReady:async()=>true,state:()=>({ready:true})};w.MiCarteraV2AuthCloudGate={requireReady:()=>({uid:'test-admin',role:'admin'}),state:()=>({uid:'test-admin',role:'admin',ready:true})};
+w.MiCarteraV2VersionGuard={requireReady(){},ensureReady:async()=>true,state:()=>({ready:true})};w.MiCarteraV2AuthCloudGate={ORG:'v2-mi-cartera-pilot',requireReady:()=>({uid:'test-admin',role:'admin'}),state:()=>({uid:'test-admin',role:'admin',ready:true})};
+// Fictional authenticated identity boundaries, matching the local fixture owner.
+w.firebaseAuthV2={auth:{currentUser:{uid:'test-admin'}}};w.localStorage.setItem('mi-cartera-v2-local-owner','test-admin');
 w.MiCarteraV2SyncBridge={status:()=>({configured:true,online:true}),submit:async op=>{commits.push(op);return {status:'COMMITTED'}}};
 w.localStorage.setItem(KEY,JSON.stringify(state||{clients:[{id:'c1',name:'Cliente Prueba',phone:'999111222',address:'Direccion',reference:'Referencia',routeId:'r1'}],credits:[],payments:[],cashMovements:[],audit:[],session:{actorId:'test-admin',role:'ADMIN'}}));
 w.show=id=>{w.document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===id))};

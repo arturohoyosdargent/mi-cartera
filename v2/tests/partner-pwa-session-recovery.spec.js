@@ -5,7 +5,8 @@ async function setup({owner='test-admin',session=null}={}){
   const h=await boot({fullShell:true});
   const d=h.get();d.session=session;
   d.cashMovements=[h.w.MiCarteraPartnerLoans.entry(h.w.MiCarteraPartnerLoans.create({id:'fictional-partner',partner:'Socio ficticio',date:'2026-09-01',principal:500,rate:10,firstDue:'2026-10-01',historical:true}))];
-  h.set(d);if(owner!==null)h.w.localStorage.setItem(OWNER,owner);
+  h.set(d);if(owner===null)h.w.localStorage.removeItem(OWNER);else h.w.localStorage.setItem(OWNER,owner);
+  a.equal(h.w.localStorage.getItem(OWNER),owner);
   h.w.localStorage.setItem(QUEUE,JSON.stringify([{id:'fictional-pending',status:'PENDIENTE',operation:{actorId:'test-admin',type:'PAYMENT'}}]));
   const journal='mi-cartera-v2-journal-admin-closures:'+QUEUE;h.w.localStorage.setItem(journal,'[{"id":"fictional-closure","status":"CERRADO_ADMIN"}]');
   let reads=0,writes=0;h.w.firestoreV2={db:{},collection:()=>{reads++;throw Error('No Cloud read is allowed during pending recovery');},setDoc:()=>{writes++;throw Error('No Cloud write is allowed during pending recovery');}};
