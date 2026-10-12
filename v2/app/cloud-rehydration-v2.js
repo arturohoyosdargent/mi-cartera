@@ -6,6 +6,20 @@ const ORG='v2-mi-cartera-pilot',K='mi-cartera-v2-validation-state',OWNER='mi-car
 const MAP={clients:'clients',credits:'credits',payments:'payments',entries:'cashMovements',expenses:'cashMovements',audit:'audit',routes:'commercial'};
 const MANAGER_ONLY=new Set(['entries','expenses','audit','routes']);
 const clone=v=>JSON.parse(JSON.stringify(v));
+let hydrationEpoch=0;
+function hydrationGuard(auth){
+  const epoch=hydrationEpoch,raw=root.localStorage.getItem(K),owner=root.localStorage.getItem(OWNER);
+  const stamp=a=>JSON.stringify([a?.uid,a?.role,Array.isArray(a?.routeIds)?a.routeIds:[],root.MiCarteraV2AuthCloudGate?.ORG||ORG]);
+  const expected=stamp(auth);
+  return ()=>{
+    let current;
+    try{current=root.MiCarteraV2AuthCloudGate?.requireReady?.()}catch{throw Error('V2_HYDRATION_SCOPE_CHANGED')}
+    if(epoch!==hydrationEpoch||stamp(current)!==expected||root.localStorage.getItem(OWNER)!==owner)throw Error('V2_HYDRATION_SCOPE_CHANGED');
+    if(pending())throw Error('V2_HYDRATION_PENDING_LOCAL_OPERATIONS');
+    if(root.localStorage.getItem(K)!==raw)throw Error('V2_HYDRATION_LOCAL_CHANGED');
+  };
+}
+function hydrationStopped(error){return /^V2_HYDRATION_/.test(String(error?.message||error))}
 const managers=auth=>['admin','supervisor'].includes(String(auth?.role||''));
 function dispatch(name,detail){const C=root.CustomEvent;if(typeof root.dispatchEvent==='function'&&C)root.dispatchEvent(new C(name,{detail}))}
 function readLocal(){try{return JSON.parse(root.localStorage.getItem(K)||'{}')}catch{return {}}}
@@ -17,9 +31,9 @@ function localRows(local,name){
   if(name==='expenses')return (Array.isArray(local.cashMovements)?local.cashMovements:[]).filter(x=>String(x?.type||'').toUpperCase()==='EGRESO');
   return Array.isArray(local[name])?local[name]:[];
 }
-function mergeMissing(remote,local){
+function mergeMissing(remote,local,collisions){
   const out=Array.isArray(remote)?remote.slice():[],seen=new Set(out.map(rowId).filter(Boolean));
-  for(const item of local||[]){const id=rowId(item);if(id&&!seen.has(id)){out.push(clone(item));seen.add(id)}}
+  for(const item of local||[]){const id=rowId(item);if(id&&!seen.has(id)&&!collisions?.has(id)){out.push(clone(item));seen.add(id)}}
   return out;
 }
 function pending(){
@@ -58,23 +72,41 @@ function cloudRow(name,row,auth){
   if(name==='audit'){if(!data.actorId)data.actorId=auth.uid;if(!data.role)data.role=auth.role;}
   return data;
 }
-async function pushLocalMissing(local,names,rows,auth){
+async function pushLocalMissing(local,names,rows,auth,assertCurrent=hydrationGuard(auth)){
   const f=root.firestoreV2;
   if(!managers(auth)||!f?.setDoc||!f?.doc)return {written:0,failed:0,available:false};
   const remoteByName=new Map();
   for(let i=0;i<names.length;i++)remoteByName.set(names[i],new Set((rows[i]||[]).map(rowId).filter(Boolean)));
-  let written=0,failed=0;
+  // Initially live Cloud IDs also win if another upload's reread hides their deletion.
+  let written=0,failed=0,checked=0;
+  const collisions=new Map([...remoteByName].map(([name,ids])=>[name,new Set(ids)]));
   for(const name of names){
     const seen=remoteByName.get(name)||new Set();
     for(const row of localRows(local,name)){
       const data=cloudRow(name,row,auth),id=rowId(data);if(!data||seen.has(id))continue;
+      assertCurrent();
+      // The ID may appear after the snapshot. Never fall back to a blind merge.
+      if(typeof f.runTransaction!=='function')throw Error('V2_FIRESTORE_ATOMIC_UPLOAD_REQUIRED');
       try{
-        await f.setDoc(f.doc(f.db,'orgs',ORG,name,id),data,{merge:true});
-        seen.add(id);written++;
-      }catch(error){failed++;console.warn('V2 local row was kept locally; Cloud upload failed',name,id,error)}
+        const added=await f.runTransaction(f.db,async tx=>{
+          assertCurrent();const ref=f.doc(f.db,'orgs',ORG,name,id),existing=await tx.get(ref);assertCurrent();
+          if(existing.exists())return false;
+          tx.set(ref,data,{merge:false});return true;
+        });
+        checked++;seen.add(id);
+        if(added)written++;
+        else{
+          // A Cloud collision also wins when its tombstone is hidden by reads.
+          if(!collisions.has(name))collisions.set(name,new Set());
+          collisions.get(name).add(id);
+        }
+      }catch(error){
+        if(hydrationStopped(error))throw error;
+        failed++;console.warn('V2 local row was kept locally; Cloud upload failed',name,id,error);
+      }
     }
   }
-  return {written,failed,available:true};
+  return {written,failed,checked,collisions,available:true};
 }
 function restorePartnerSession(auth){
   // Recover the same-owner session dependency from 7ee323a before pending Cloud work.
@@ -99,25 +131,35 @@ async function rehydrate(){
   if(!auth?.uid)throw new Error('V2_AUTH_REQUIRED');
   restorePartnerSession(auth);
   if(pending())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
+  const assertCurrent=hydrationGuard(auth);
+  try{
+  assertCurrent();
   const names=Object.keys(MAP).filter(n=>!MANAGER_ONLY.has(n)||managers(auth));
   let rows=await Promise.all(names.map(n=>readCollection(n,auth)));
+  assertCurrent();
   const local=readLocal();
-  const upload=await pushLocalMissing(local,names,rows,auth);
-  if(upload.written)rows=await Promise.all(names.map(n=>readCollection(n,auth)));
+  const upload=await pushLocalMissing(local,names,rows,auth,assertCurrent);
+  if(upload.written||upload.checked)rows=await Promise.all(names.map(n=>readCollection(n,auth)));
+  assertCurrent();
   const manager=managers(auth);
   const next={...local,clients:[],credits:[],payments:[],cashMovements:manager?[]:(Array.isArray(local.cashMovements)?local.cashMovements:[]),audit:[],commercial:[]};
   for(let i=0;i<names.length;i++){
     const name=names[i],target=MAP[name];
-    const effective=manager&&upload.available?mergeMissing(rows[i],localRows(local,name)):rows[i];
+    const effective=manager&&upload.available?mergeMissing(rows[i],localRows(local,name),upload.collisions?.get(name)):rows[i];
     if(target==='cashMovements')next[target].push(...effective);
     else next[target]=effective;
   }
   next.session={...(local.session||{}),actorId:auth.uid,role:auth.role,routeIds:Array.isArray(auth.routeIds)?auth.routeIds:[]};
+  assertCurrent();
   root.localStorage.setItem(K,JSON.stringify(clone(next)));
   dispatch('mi-cartera-v2-rehydrated',{ok:true,counts:{clients:next.clients.length,credits:next.credits.length,payments:next.payments.length,cashMovements:next.cashMovements.length},uploaded:upload.written,uploadFailed:upload.failed});
   dispatch('mi-cartera-v2-sync',{ok:true,source:'cloud-rehydration'});
   root.MiCarteraV2Agenda?.render?.();root.MiCarteraV2DashboardParity?.render?.();root.MiCarteraV2AdminParity?.render?.();
   return {status:'REHYDRATED',uploaded:upload.written,uploadFailed:upload.failed};
+  }catch(error){
+    if(hydrationStopped(error))return {status:'SKIPPED_'+error.message.slice('V2_HYDRATION_'.length)};
+    throw error;
+  }
 }
 function clearOnLogout(e){
   if(e?.detail?.authenticated!==false)return;
@@ -138,13 +180,22 @@ function clearOnLogout(e){
   dispatch('mi-cartera-v2-sync',{ok:true,source:'logout-clear'});
   root.MiCarteraV2Agenda?.render?.();root.MiCarteraV2DashboardParity?.render?.();root.MiCarteraV2AdminParity?.render?.();
 }
-let running=false;
+let running=null,requested=false;
 async function onAuth(e){
+  hydrationEpoch++;
   clearOnLogout(e);
-  if(!e?.detail?.ready||running)return;
-  running=true;
-  try{await rehydrate()}catch(error){dispatch('mi-cartera-v2-rehydrated',{ok:false,error:String(error?.code||error?.message||error)})}
-  finally{running=false}
+  if(!e?.detail?.ready){requested=false;return}
+  requested=true;
+  if(running)return running;
+  running=(async()=>{
+    try{
+      do{
+        requested=false;
+        try{await rehydrate()}catch(error){dispatch('mi-cartera-v2-rehydrated',{ok:false,error:String(error?.code||error?.message||error)})}
+      }while(requested);
+    }finally{running=null}
+  })();
+  return running;
 }
 root.addEventListener('v2-auth-cloud-state',onAuth);
 root.MiCarteraV2CloudRehydration={rehydrate,pending,pushLocalMissing};

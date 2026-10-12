@@ -45,7 +45,8 @@ function environment({credit = fixture(), submit} = {}) {
     return null;
   },createElement:element,querySelector:()=>null,addEventListener() {},
   body:{appendChild:el=>elements.set(el.id,el)}};
-  const localStorage = {getItem:()=>stored,setItem:(key,value)=>{stored=value;writes++;}};
+  const localStorage = {getItem:key=>key==='mi-cartera-v2-local-owner'?'fake-admin':stored,
+    setItem:(key,value)=>{stored=value;writes++;}};
   const window = {MiCarteraV2Financial:F,MiCarteraV2Schedule:S,MiCarteraV2AccessAudit:A,
     MiCarteraV2Dates:{today:()=> '2026-10-07'},
     MiCarteraV2SyncBridge:{status:()=>({configured:true}),submit:async operation=>{
@@ -53,7 +54,10 @@ function environment({credit = fixture(), submit} = {}) {
       return submit ? submit(operation) : {status:'COMMITTED',operationId:operation.operationId};
     }},
     MiCarteraV2VersionGuard:{requireReady() {}},
-    MiCarteraV2AuthCloudGate:{requireReady() {},state:()=>({uid:'fake-admin',ready:true,role:'admin'})},
+    firebaseAuthV2:{auth:{currentUser:{uid:'fake-admin'}}},
+    MiCarteraV2AuthCloudGate:{ORG:'v2-mi-cartera-pilot',
+      requireReady:()=>({uid:'fake-admin',ready:true,role:'admin',authenticated:true,member:true}),
+      state:()=>({uid:'fake-admin',ready:true,role:'admin',authenticated:true,member:true})},
     MiCarteraV2SharePreview:{previewCredit:id=>previews.push(id),open:config=>sharePreviews.push(config)},MiCarteraV2ShareCard:{fmt:date=>date},
     addEventListener() {},open:(...args)=>links.push(args)};
   const sandbox = {window,document,localStorage,alert:message=>alerts.push(message),console};

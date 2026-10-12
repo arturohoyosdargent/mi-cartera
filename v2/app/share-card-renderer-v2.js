@@ -4,6 +4,7 @@
 
   const D=root.MiCarteraV2Dates||{};
   const money=n=>'S/ '+Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const frequencyLabel=f=>({daily:'Diaria',weekly:'Semanal',biweekly:'Quincenal',monthly:'Mensual'}[f]||'Sin especificar');
   const fmt=s=>{
     if(!s)return '-';
     const v=D.normalize?.(s)||String(s).slice(0,10);
@@ -78,7 +79,11 @@
     txt(x,d.kind==='renewal'?'Nuevo capital':'Monto del crédito',58,448,13,false,'#6b737b');txt(x,money(d.capital),58,480,27,true,'#087bd1');txt(x,'Cuota',390,448,13,false,'#6b737b');txt(x,money(d.installment),390,480,22,true,'#087bd1');
     txt(x,'Plazo',58,522,13,false,'#6b737b');txt(x,`${d.term} cuotas`,58,550,19,true);txt(x,'Total a pagar',390,522,13,false,'#6b737b');txt(x,money(d.total),390,550,19,true,'#087bd1');
     txt(x,d.kind==='renewal'?'Saldo anterior':'Interés',58,590,13,false,'#6b737b');txt(x,d.kind==='renewal'?money(d.previousBalance):`${Number(d.rate||0)}%`,58,616,18,true);txt(x,'Primera cuota',390,590,13,false,'#6b737b');txt(x,fmt(d.first),390,616,18,true);
-    x.fillStyle='#edf9f0';round(x,36,650,648,84,18);x.strokeStyle='#187536';x.lineWidth=3;x.beginPath();x.moveTo(70,712);x.lineTo(70,681);x.quadraticCurveTo(53,686,56,671);x.quadraticCurveTo(72,671,70,688);x.quadraticCurveTo(87,684,88,669);x.quadraticCurveTo(71,671,70,693);x.stroke();txt(x,'Tu esfuerzo de hoy construye nuevas oportunidades.',100,688,16,true,'#187536');txt(x,'Pequeños pasos, grandes logros.',100,714,14,false,'#187536');
+    x.fillStyle='#edf9f0';round(x,36,650,648,84,18);
+    if(d.kind==='renewal'&&Number.isFinite(d.netDisbursement)&&d.netDisbursement>=0){
+      txt(x,'Neto a desembolsar',58,676,14,true,'#187536');txt(x,money(d.netDisbursement),58,711,25,true,'#187536');
+      txt(x,'Frecuencia',390,676,13,false,'#6b737b');txt(x,frequencyLabel(d.freq),390,711,19,true);
+    }else{x.strokeStyle='#187536';x.lineWidth=3;x.beginPath();x.moveTo(70,712);x.lineTo(70,681);x.quadraticCurveTo(53,686,56,671);x.quadraticCurveTo(72,671,70,688);x.quadraticCurveTo(87,684,88,669);x.quadraticCurveTo(71,671,70,693);x.stroke();txt(x,'Tu esfuerzo de hoy construye nuevas oportunidades.',100,688,16,true,'#187536');txt(x,'Pequeños pasos, grandes logros.',100,714,14,false,'#187536');}
     txt(x,'Primeras cuotas',58,782,19,true);txt(x,'#',58,816,13,true);txt(x,'Fecha',112,816,13,true);txt(x,'Cuota',340,816,13,true);txt(x,'Saldo',535,816,13,true);
     const fallbackRows=Array.from({length:Math.max(0,Number(d.term)||0)},(_,i)=>({number:i+1,date:advance(d.first,i,d.freq),amount:i===Number(d.term)-1?Math.max(0,Number(d.total||0)-Number(d.installment||0)*Math.max(0,Number(d.term)-1)):Number(d.installment||0)})),rows=Array.isArray(d.schedule)&&d.schedule.length?d.schedule:fallbackRows;let saldo=Number(d.total||0);
     rows.slice(0,4).forEach((q,i)=>{saldo=Math.max(0,saldo-Number(q.amount||0));const y=850+i*38;txt(x,q.number??q.n??i+1,58,y,13);txt(x,fmt(q.date),112,y,13);txt(x,money(q.amount),340,y,13,false,'#087bd1');txt(x,money(saldo),535,y,13);});
@@ -97,7 +102,11 @@
     x.fillStyle='#eef8fd';round(x,36,174,648,100,18);txt(x,'Cliente',58,207,13,false,'#6b737b');txt(x,c?.name||'Cliente',58,238,20,true);if(c?.phone)txt(x,'Tel. '+c.phone,430,238,14,false,'#17345f');
     x.fillStyle='#eef8fd';round(x,36,298,648,190,18);txt(x,'Capital',58,334,13,false,'#6b737b');txt(x,money(cr.capital),58,365,24,true,'#087bd1');txt(x,'Total',390,334,13,false,'#6b737b');txt(x,money(t.total),390,365,20,true,'#087bd1');
     txt(x,'Pagado',58,414,13,false,'#6b737b');txt(x,money(t.paid),58,444,20,true,'#187536');txt(x,'Saldo actual',390,414,13,false,'#6b737b');txt(x,money(t.balance),390,444,20,true,t.balance>0?'#b83232':'#187536');
-    x.fillStyle='#edf9f0';round(x,36,512,648,78,18);x.strokeStyle='#087bd1';x.lineWidth=3;x.beginPath();x.arc(70,548,9,0,Math.PI*2);x.moveTo(70,557);x.lineTo(70,571);x.stroke();txt(x,'Mantén tus cuotas al día para conservar tu crédito disponible.',100,551,14,true,'#187536');txt(x,'Estamos contigo en cada paso.',100,574,13,false,'#187536');
+    x.fillStyle='#edf9f0';round(x,36,512,648,78,18);
+    if(cr.renewedFrom&&Number.isFinite(cr.netDisbursement)&&cr.netDisbursement>=0){
+      txt(x,'Neto a desembolsar',58,538,14,true,'#187536');txt(x,money(cr.netDisbursement),58,572,24,true,'#187536');
+      txt(x,Number.isFinite(cr.previousBalance)?'Saldo anterior':'Frecuencia',390,538,13,false,'#6b737b');txt(x,Number.isFinite(cr.previousBalance)?money(cr.previousBalance):frequencyLabel(cr.freq),390,572,19,true);
+    }else{x.strokeStyle='#087bd1';x.lineWidth=3;x.beginPath();x.arc(70,548,9,0,Math.PI*2);x.moveTo(70,557);x.lineTo(70,571);x.stroke();txt(x,'Mantén tus cuotas al día para conservar tu crédito disponible.',100,551,14,true,'#187536');txt(x,'Estamos contigo en cada paso.',100,574,13,false,'#187536');}
     txt(x,'Cronograma',58,638,20,true);txt(x,'#',52,675,13,true);txt(x,'Fecha',98,675,13,true);txt(x,'Cuota',270,675,13,true);txt(x,'Saldo',430,675,13,true);txt(x,'Estado',565,675,13,true);
     rows.forEach((q,i)=>{const y=712+i*38,s=installmentStatus(q);txt(x,q.number??q.n??i+1,52,y,12);txt(x,fmt(D.fromInstallment?.(q)||q.date),98,y,12);txt(x,money(q.amount),270,y,12,false,'#087bd1');txt(x,money(D.balance?.(q)??q.balance??q.amount),430,y,12);txt(x,s,565,y,11,true,s==='PAGADA'?'#187536':'#b83232');});
     const footY=cardH-42;txt(x,'¡Gracias por tu confianza!',360,footY-18,18,true,'#087bd1','center');x.fillStyle='#1197dc';x.fillRect(18,footY,684,20);return blob(cv);

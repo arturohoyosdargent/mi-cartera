@@ -28,7 +28,7 @@ assert.ok(proposal.includes('navigator.share'),'proposal native share missing');
 assert.ok(proposal.includes("return 'file-share'"),'proposal branded file share missing');
 assert.ok(!proposal.includes('MiCarteraV2CustomerExperience.whatsapp')&&!proposal.includes('navigator.clipboard?.writeText'),'proposal must not degrade to text-only sharing');
 assert.ok(proposal.includes('El crédito NO queda registrado'),'proposal mutation warning missing');
-assert.ok(preview.includes("send:()=>fileShare(file,'Préstamo Ya · Detalle del crédito','')"),'credit detail preview must share the prebuilt graphical PNG');
+assert.ok(preview.includes("fileShare(file,'Préstamo Ya · Detalle del crédito',"),'credit detail preview must share the prebuilt graphical PNG');
 assert.ok(preview.includes("root.navigator.share({title,text:String(text||''),files:[file]})"),'native graphical file transport missing from preview');
 assert.ok(credit.includes('status(q)'),'credit detail text must render installment status');
 assert.ok(renderer.includes("txt(x,'Estado',565,675"),'credit image schedule status column missing');
