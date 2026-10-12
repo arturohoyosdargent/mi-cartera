@@ -93,36 +93,12 @@
   }
   function bindNewCredit(){for(const button of [...document.querySelectorAll('button')].filter(x=>/nuevo crédito/i.test(String(x.textContent||''))))if(!button.dataset.v2ExtraResetBound){button.dataset.v2ExtraResetBound='1';button.addEventListener('click',resetExtraPayments,true)}}
   function installDurableScheduleOverride(){
-    if(root.__v2ExtraScheduleWrapped){
-      const handler=root.__v2ExtraScheduleHandler;
-      if(handler){
-        if(root.V2UI)root.V2UI.addCredit=handler;
-        const save=$('saveCredit');if(save)save.onclick=handler;
-      }
-      return true;
-    }
-    const S=root.MiCarteraV2Schedule,actions=root.MiCarteraV2DurableActions;
-    if(!S?.generate||!actions?.addCredit)return false;
-    const raw=actions.addCredit;
-    async function addCreditWithExtras(){
-      const p=plan();
-      if(!p.extraPayments.length)return raw.apply(this,arguments);
-      if(p.error){alert(`Corrige el cronograma: ${p.error}`);return}
-      const original=S.generate;
-      S.generate=function(input){
-        const sameTotal=Math.abs(Number(input?.total||0)-p.total)<0.005;
-        const sameTerm=Number(input?.term)===p.term;
-        const sameFrequency=String(input?.freq||'')===String(p.freq||'');
-        const sameStart=String(input?.firstPaymentDate||'')===String(p.first||'');
-        return sameTotal&&sameTerm&&sameFrequency&&sameStart?p.schedule:original.call(this,input);
-      };
-      try{return await raw.apply(this,arguments)}finally{S.generate=original}
-    }
-    actions.addCredit=addCreditWithExtras;
-    if(root.V2UI)root.V2UI.addCredit=addCreditWithExtras;
-    const save=$('saveCredit');if(save)save.onclick=addCreditWithExtras;
-    root.__v2ExtraScheduleHandler=addCreditWithExtras;
-    root.__v2ExtraScheduleWrapped=true;
+    // Preserve this public hook; the durable action now snapshots the plan itself.
+    // No global scheduler mutation is kept while waiting for a Cloud acknowledgement.
+    const handler=root.MiCarteraV2DurableActions?.addCredit;
+    if(!handler)return false;
+    if(root.V2UI)root.V2UI.addCredit=handler;
+    const save=$('saveCredit');if(save)save.onclick=handler;
     return true;
   }
   function proposalText(c){
