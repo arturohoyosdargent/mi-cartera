@@ -1,7 +1,7 @@
 {
-  "build": "v2-pilot-20261012-b2-operations-integrity-1",
+  "build": "v2-pilot-20261013-b2-operations-integrity-2",
   "mode": "PILOT",
   "orgId": "v2-mi-cartera-pilot",
-  "version": "v2-pilot-20261012-b2-operations-integrity-1",
-  "generatedAt": "2026-10-12"
+  "version": "v2-pilot-20261013-b2-operations-integrity-2",
+  "generatedAt": "2026-10-13"
 }
