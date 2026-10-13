@@ -40,7 +40,7 @@ test('renewal review uses Diaria while retaining daily as the schedule value',as
   }finally{await h.close();}
 });
 
-test('Manuel reproduction sends matching S/ 350.00 in proposal message and PNG without saving',async()=>{
+test('Manuel proposal keeps net S/ 350.00 in the PNG and preview while sending only a greeting and confirmation request',async()=>{
   const h=await boot({fullShell:true,state:fixture()});try{
     let config,outgoing;
     h.w.MiCarteraV2SharePreview.open=value=>{config=value;};
@@ -48,10 +48,11 @@ test('Manuel reproduction sends matching S/ 350.00 in proposal message and PNG w
     h.w.MiCarteraV2ClientShare.send=async value=>{outgoing=value;return 'share-ready';};
     const before=JSON.stringify(h.get()),pending=h.w.MiCarteraV2DurableActions.refinance('fictitious-old');
     const get=review(h);get('v2ShareRenewal').click();
-    a.match(config.message,/Neto a desembolsar: S\/ 350\.00/);
+    a.match(config.message,/^Hola Manuel,/);a.match(config.message,/confirmas.*acuerdo/);
+    a.doesNotMatch(config.message,/S\/|Capital:|Total:|Cuotas:|CRONOGRAMA/);
     a.match(config.summary,/Neto a desembolsar/);
     await config.send(config.message);
-    a.match(outgoing.text,/Neto a desembolsar: S\/ 350\.00/);
+    a.equal(outgoing.text,config.message);
     a.ok(h.drawn.includes('Neto a desembolsar'));a.ok(h.drawn.includes('S/ 350.00'));
     a.equal(JSON.stringify(h.get()),before);a.equal(h.commits.length,0);
     get('v2RenewCancel').click();await pending;

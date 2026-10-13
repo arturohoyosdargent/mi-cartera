@@ -79,7 +79,15 @@
     el.innerHTML='<b>Historial de caja</b>'+rows.map(g=>{const cls=g.type==='INGRESO'?'v2-cash-income':'v2-cash-expense';return `<details class="card ${cls}"><summary class="v2-cash-compact"><b>${esc(g.type)} · ${esc(g.category.replaceAll('_',' '))}</b><span>${g.count} movimiento${g.count===1?'':'s'} · ${money(g.total)}</span></summary>${g.items.sort((a,b)=>movementDate(b).localeCompare(movementDate(a))).map(item=>`<div class="v2-cash-detail">${esc(item.date||'Sin fecha')} · ${money(item.amount)}<br>${esc(item.concept||'').replaceAll('_',' ')}${item.observation?'<br>'+esc(item.observation):''}</div>`).join('')}</details>`}).join('');
   }
 
+
+function formSession(){const s=root.MiCarteraV2AuthCloudGate?.state?.()||{},nativeUid=root.firebaseAuthV2?.auth?.currentUser?.uid;let d={};try{d=JSON.parse(root.localStorage.getItem('mi-cartera-v2-validation-state')||'{}')}catch{}if(nativeUid&&s.uid&&String(nativeUid)!==String(s.uid))return '';return JSON.stringify([s.uid,s.role,s.ready,s.workerId,s.routeIds,nativeUid,root.localStorage.getItem('mi-cartera-v2-local-owner'),d.session])}
+let activeDraft=null;
+function currentDraft(panel,scope){return Boolean(scope&&formSession()===scope&&panel.isConnected!==false)}
+function invalidateDraft(){if(activeDraft&&!currentDraft(activeDraft.panel,activeDraft.scope)){activeDraft.panel.remove();activeDraft=null}}
+root.addEventListener('v2-auth-cloud-state',invalidateDraft);
+
   function openForm(type){
+    const draftScope=formSession();
     const old=$('v2CashForm'); if(old) old.remove();
     const income=type==='INGRESO';
     const panel=document.createElement('div'); panel.id='v2CashForm'; panel.className='card v2-cash-form';
@@ -90,11 +98,13 @@
       '<label>Detalle<input id="v2CashConcept" placeholder="'+(income?'Ej. Inyección adicional de capital':'Ej. Mensualidad colegio / plan móvil')+'"></label>'+
       '<label>Observación<textarea id="v2CashObservation" rows="2" placeholder="Opcional"></textarea></label><button type="button" class="btn '+(income?'green':'')+'" data-save>Guardar movimiento</button>';
     panel.querySelector('#v2CashDate').value=today();
+    activeDraft={panel,scope:draftScope};
     let saving=false;
     panel.querySelector('[data-close]').onclick=()=>{if(!saving)panel.remove();};
     const saveButton=panel.querySelector('[data-save]');
     saveButton.onclick=async()=>{
       if(saving)return;
+      if(!currentDraft(panel,draftScope)){panel.remove();return alert('La sesión cambió. Abre nuevamente el formulario.');}
       const action=root.V2UI?.manualCash;if(typeof action!=='function')return alert('Las acciones de caja V2 todavía no están disponibles.');
       const payload={date:panel.querySelector('#v2CashDate').value,amount:panel.querySelector('#v2CashAmount').value,category:panel.querySelector('#v2CashCategory').value,concept:panel.querySelector('#v2CashConcept').value,observation:panel.querySelector('#v2CashObservation').value};
       if(!payload.amount)return alert('Ingresa el monto.'); if(!payload.concept)return alert('Ingresa el detalle.');

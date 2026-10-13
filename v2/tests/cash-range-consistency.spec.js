@@ -52,10 +52,10 @@ function environment(submit) {
       {id:'fake-expense',date:'2026-10-02',type:'EGRESO',amount:20,category:'SERVICIOS',concept:'Gasto ficticio',observation:'Detalle ficticio'}],audit:[],session:{role:'ADMIN',actorId:'fake-admin'}};
   let stored=JSON.stringify(initial),writes=0;
   const localStorage={getItem:key=>key===KEY?stored:null,setItem:(key,value)=>{assert.equal(key,KEY);stored=value;writes++;}};
-  const window={MiCarteraV2Financial:F,MiCarteraV2Schedule:S,MiCarteraV2AccessAudit:A,
+  const window={localStorage,MiCarteraV2Financial:F,MiCarteraV2Schedule:S,MiCarteraV2AccessAudit:A,
     MiCarteraV2SyncBridge:{status:()=>({configured:true}),submit:async operation=>{operations.push(operation);return submit?submit(operation):{status:'COMMITTED'};}},
     MiCarteraV2VersionGuard:{requireReady() {}},MiCarteraV2AuthCloudGate:{requireReady() {}},V2UI:{},
-    addEventListener:(name,fn)=>events[name]=fn};
+    addEventListener:(name,fn)=>{const previous=events[name];events[name]=(...args)=>{previous?.(...args);fn(...args);};}};
   const sandbox={window,document,localStorage,console,alert:message=>alerts.push(message)};
   vm.createContext(sandbox);
   for(const file of ['date-utils-v2.js','operation-commit-gate.js','durable-actions-v2.js','cash-menu-v2.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../app',file),'utf8'),sandbox);

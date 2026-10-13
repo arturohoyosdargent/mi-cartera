@@ -111,7 +111,8 @@ async function run() {
   assert.ok(interestReview.innerHTML.includes('Primera cuota: <b>2026-10-12</b>'),'proposal must show the real first installment after the rest day');
   assert.equal(interest.writes(),0,'review must not change financial state');
   interest.get('v2ShareRenewal').onclick();
-  assert.ok(interest.sharePreviews[0].message.includes('Primera cuota: 2026-10-12'),'shared proposal must use the real first installment date');
+  assert.ok(interest.sharePreviews[0].summary.includes('2026-10-12'),'shared proposal preview must retain the real first installment date');
+  assert.ok(!interest.sharePreviews[0].message.includes('2026-10-12'),'WhatsApp greeting must not duplicate the installment detail in the image');
   assert.equal(interest.writes(),0,'sharing a proposal must not register a renewal');
   confirm(interest);await interestPending;
   const savedInterest=interest.state(),successor=savedInterest.credits[1];

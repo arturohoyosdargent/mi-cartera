@@ -126,9 +126,7 @@ function renewalInput(c,mode){
         const ownerUid=proposalOwnerUid,assertOwner=()=>{const auth=root.MiCarteraV2AuthCloudGate?.state?.();if(!ownerUid||!auth?.ready||auth.uid!==ownerUid)throw Error('La sesión cambió. Vuelve a abrir la propuesta.');};
         try{assertOwner()}catch(e){return alert(e.message)}
         const firstName=String(client.name||'cliente').trim().split(/\s+/)[0]||'cliente',installment=money(value.schedule.find(q=>!q.extra)?.amount||0);
-        const defaultMsg=`Hola ${firstName}, te comparto tu propuesta de renovación de PRÉSTAMO YA. Revísala por favor y me confirmas si estás de acuerdo con las condiciones.\nNeto a desembolsar: S/ ${net.toFixed(2)}`;
-        const rows=value.schedule.map(q=>`${q.number}. ${q.date} · ${q.extra?'ADICIONAL':'CUOTA'} · S/ ${money(q.amount).toFixed(2)}`).join('\n');
-        const message=defaultMsg+'\nCapital: S/ '+value.capital.toFixed(2)+'\nTotal: S/ '+total.toFixed(2)+'\nCuotas: '+label+' · '+freqLabel+'\nPrimera cuota: '+root.MiCarteraV2ShareCard.fmt(value.schedule[0].date)+'\n\nCRONOGRAMA\n'+rows;
+        const message=`Hola ${firstName}, te comparto tu propuesta de renovación. ¿Me confirmas si estás de acuerdo?`;
         const graphic={kind:'renewal',capital:value.capital,total,rate:value.rate,term:value.term,freq:value.freq,first:value.schedule[0].date,installment,schedule:value.schedule,previousBalance:balance,netDisbursement:net,renewalMode:mode};
         const share=async edited=>{
           assertOwner();const preparationToken=root.MiCarteraV2ClientShare?.begin?.(),blob=await root.MiCarteraV2ShareCard?.proposal?.(graphic,client);assertOwner();

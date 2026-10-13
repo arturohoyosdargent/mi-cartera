@@ -27,7 +27,7 @@ function addExtra(h,{date='2026-11-13',amount='320'}={}){
 function confirm(get){get('v2RenewAccepted').checked=true;get('v2RenewAccepted').onchange();get('v2ConfirmRenewal').click();}
 const turn=()=>new Promise(resolve=>setImmediate(resolve));
 
-test('weekly renewal review and outgoing WhatsApp disclose the fifth extra and full conserved schedule',async()=>{
+test('weekly renewal keeps the complete fifth extra in review and PNG while WhatsApp requests confirmation without repeating amounts',async()=>{
   const h=await boot({fullShell:true,state:fixture()});let pending;
   try{
     const before=JSON.stringify(h.get());let config,outgoing;
@@ -43,10 +43,13 @@ test('weekly renewal review and outgoing WhatsApp disclose the fifth extra and f
     const rows=review.querySelectorAll('tbody tr');a.equal(rows.length,5);
     a.match(rows[4].textContent,/A1.*2026-11-13.*ADICIONAL.*320\.00/);
     a.match(review.textContent,/Total nuevo:\s*S\/ 720\.00/);a.match(review.textContent,/Neto a desembolsar:\s*S\/ 280\.00/);
-    get('v2ShareRenewal').click();a.ok(config);a.match(config.message,/4 cuotas normales\s*\+\s*1 adicional/);
-    for(const date of ['2026-10-16','2026-10-23','2026-10-30','2026-11-06','2026-11-13'])a.ok(config.message.includes(date));
-    a.match(config.message,/A1.*2026-11-13.*ADICIONAL.*320\.00/);
+    get('v2ShareRenewal').click();a.ok(config);a.match(config.message,/^Hola Celso,/);a.match(config.message,/confirmas.*acuerdo/);
+    a.doesNotMatch(config.message,/S\/|Capital:|Total:|Cuotas:|CRONOGRAMA|2026-/);
+    a.match(config.summary,/4 cuotas normales\s*\+\s*1 adicional/);
+    for(const date of ['2026-10-16','2026-10-23','2026-10-30','2026-11-06','2026-11-13'])a.ok(config.summary.includes(date));
     await config.send(config.message);a.equal(outgoing.text,config.message);a.equal(outgoing.file.type,'image/png');
+    a.ok(h.drawn.includes('A1'));a.ok(h.drawn.includes('ADICIONAL'));a.ok(h.drawn.includes('S/ 320.00'));
+    a.ok(h.drawn.includes('Neto a desembolsar'));a.ok(h.drawn.includes('S/ 280.00'));
     a.equal(JSON.stringify(h.get()),before);a.equal(h.commits.length,0,'proposal and sharing must not register debt');
   }finally{h.w.document.getElementById('v2RenewCancel')?.click();if(pending)await pending;await h.close();}
 });
