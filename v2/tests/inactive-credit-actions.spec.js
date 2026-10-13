@@ -24,11 +24,11 @@ assert.ok(source.includes("button('🔄 Renovar solo interés','MiCarteraV2Cards
 assert.ok(source.includes("const fn=root.MiCarteraV2DurableActions?.renewInterest")&&source.includes("return fn(id)"),'interest renewal card action must forward the selected creditId');
 assert.ok(source.includes("const fn=root.MiCarteraV2DurableActions?.refinance"),'capital renewal card action must forward the selected creditId');
 assert.ok(source.includes("type:'CREDIT_DUPLICATE_CONSOLIDATE'")&&source.includes("action:'CREDIT_DUPLICATE_CONSOLIDATED'"),'duplicate credit consolidation must be durable and audited');
-assert.ok(source.includes("if(sourcePayments.length||targetPayments.length)throw new Error"),'automatic consolidation must be blocked whenever either credit has payments');
+assert.ok(source.includes('verifyCreditDeletePlan(before,plan.sourcePlan)')&&source.includes('verifyCreditDeletePlan(before,plan.targetPlan)'),'consolidation must verify both credit plans before mutation');
 assert.ok(source.includes("collection:'credits',kind:'delete'"),'only the confirmed duplicate credit may be tombstoned');
-assert.ok(source.includes("sourceCash=(d.cashMovements||[]).filter(m=>m.ref===source.id)")&&source.includes("targetCash=(d.cashMovements||[]).filter(m=>m.ref===target.id)"),'duplicate consolidation must inspect cash movements for both credits');
+assert.ok(source.includes('sourcePlan=creditDeletePlan(d,sourceId)')&&source.includes('targetPlan=creditDeletePlan(d,targetId)')&&source.includes('sourcePlan.cash')&&source.includes('targetPlan.cash'),'duplicate consolidation must inspect both credit cash plans');
 assert.ok(source.includes("String(m.concept||'').toUpperCase()==='DESEMBOLSO_CREDITO'")&&source.includes("Math.abs(Number(m.amount||0)-Number(source.capital||0))<0.01"),'cash reconciliation must accept only the expected matching credit disbursement');
-assert.ok(source.includes("if((sourceCash.length===1)!==(targetCash.length===1))throw new Error"),'one-sided disbursement must remain blocked to protect cash integrity');
-assert.ok(source.includes("collection:'expenses',kind:'delete'")&&source.includes("duplicateCashId:duplicateCash?.id||null"),'safe duplicate consolidation must tombstone and audit only the duplicate disbursement');
-assert.ok(source.includes("sourceCash.length>1||targetCash.length>1")&&source.includes('Requiere revisión manual'),'unexpected or multiple cash movements must remain blocked');
+assert.ok(source.includes('(sourcePlan.cash.length===1)!==(targetPlan.cash.length===1)'),'one-sided disbursement must remain blocked to protect cash integrity');
+assert.ok(source.includes("collection:'expenses',kind:'delete'")&&source.includes('duplicateCashId:cash?.id||null'),'safe duplicate consolidation must tombstone and audit only the duplicate disbursement');
+assert.ok(source.includes('sourcePlan.cash.length>1||targetPlan.cash.length>1')&&source.includes('Los desembolsos no coinciden. Revisa la caja antes de consolidar.'),'unexpected or multiple cash movements must remain blocked');
 console.log('PASS inactive credit actions and safe duplicate-credit controls.');
