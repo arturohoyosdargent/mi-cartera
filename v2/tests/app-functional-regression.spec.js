@@ -1,3 +1,4 @@
+const {collect:collectViaForm}=require('./collection-form-driver.cjs');
 // Actual shell modules, two isolated DOM sessions and an in-memory atomic Cloud
 // boundary. These fixtures never authenticate against or write to Firebase.
 const {test}=require('node:test'),a=require('node:assert/strict');
@@ -42,7 +43,7 @@ test('actual shell retains every operational screen and durable financial flow a
     for(const [id,value] of Object.entries({cClient:'c1',cCapital:'200',cRate:'20',cTerm:'4',cFreq:'weekly',cFirst:'2026-10-09'}))doc.getElementById(id).value=value;
     doc.getElementById('cAccepted').checked=true;await pc.w.V2UI.addCredit();
     const creditId=pc.get().credits[0]?.id;a.ok(creditId,pc.alerts.join('\n'));a.equal(cash(pc.get()),800);a.equal(debt(pc.get().credits[0]),240);
-    pc.w.prompt=()=> '37.50';await pc.w.V2UI.collect(creditId);
+    await collectViaForm(pc,creditId,'37.50');
     const paid=pc.get(),payment=paid.payments[0];a.ok(payment,pc.alerts.join('\n'));a.equal(payment.amount,37.5);a.equal(debt(paid.credits[0]),202.5);a.equal(cash(paid),837.5);
     a.equal(pc.w.MiCarteraV2PaymentReceipt.text(payment,paid.clients[0],paid.credits[0]),'¡Gracias, María CLIENTE FICTICIA! 🙌\nRegistré tu pago de S/ 37.50.\nTu puntualidad nos ayuda a mantener tu crédito disponible y seguir creciendo juntos. 🌱');
     a.deepEqual(payment.installmentApplications,[{number:1,amount:37.5,balanceBefore:60,balanceAfter:22.5,status:'PARCIAL'}]);

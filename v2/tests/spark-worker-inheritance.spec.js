@@ -1,0 +1,4 @@
+const test=require('node:test'),assert=require('node:assert/strict'),{boot}=require('./dom-harness.cjs');
+test('Guardar crédito conserva el gestor asignado al cliente en la operación duradera',async()=>{
+ const h=await boot();try{const d=h.get();d.clients[0].workerId='worker-fictional';h.set(d);const set=(id,value)=>{h.w.document.getElementById(id).value=value};set('cClient','c1');set('cCapital','100');set('cRate','20');set('cTerm','2');set('cFreq','weekly');set('cFirst','2026-10-20');h.w.document.getElementById('cAccepted').checked=true;await h.w.MiCarteraV2DurableActions.addCredit();assert.equal(h.alerts.length,0,JSON.stringify(h.alerts));assert.equal(h.commits.length,1);const credit=h.commits[0].entities.find(e=>e.collection==='credits').data;assert.equal(credit.workerId,'worker-fictional');assert.equal(credit.capital,100)}finally{await h.close()}
+});

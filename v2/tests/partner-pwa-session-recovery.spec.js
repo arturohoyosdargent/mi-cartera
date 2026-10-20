@@ -25,9 +25,10 @@ test('same-owner PWA session recovery restores the home panel and More navigatio
   }finally{h.close()}
 });
 test('preserved sign-out retains same-owner proof for the next authorized PWA session',async()=>{
-  const h=await setup({owner:null,session:{actorId:'test-admin',role:'ADMIN'}});try{
-    h.w.dispatchEvent(new h.w.CustomEvent('v2-auth-cloud-state',{detail:{ready:false,authenticated:false,preserveLocal:true}}));
-    a.equal(h.get().session,null);a.equal(h.w.localStorage.getItem(OWNER),'test-admin');
+  const h=await setup({owner:'test-admin',session:{actorId:'test-admin',role:'ADMIN'}});try{
+    h.setAuth({ready:false,authenticated:false,member:false,uid:null,role:null,preserveLocal:true},true);
+    a.equal(h.get().session,null);a.deepEqual(h.get().cashMovements,[]);a.equal(h.w.localStorage.getItem(OWNER),null);
+    h.setAuth({ready:true,authenticated:true,member:true,uid:'test-admin',role:'admin',routeIds:[]},true);
     await h.w.MiCarteraV2CloudRehydration.rehydrate();a.equal(h.get().session.actorId,'test-admin');a.equal(h.w.document.querySelector('#more [data-partner-module]').disabled,false);h.verifyRows();
   }finally{h.close()}
 });
@@ -38,7 +39,7 @@ for(const scenario of ['foreign-owner','unknown-owner','foreign-session','foreig
     if(scenario==='unverified-auth')h.w.MiCarteraV2AuthCloudGate.state=()=>({uid:'test-admin',role:'admin',ready:false});
     if(scenario==='collector'){const auth={uid:'test-admin',role:'cobrador',ready:true};h.w.MiCarteraV2AuthCloudGate.state=()=>auth;h.w.MiCarteraV2AuthCloudGate.requireReady=()=>auth;}
     const before=h.w.localStorage.getItem(KEY),owner=h.w.localStorage.getItem(OWNER);
-    await h.w.MiCarteraV2CloudRehydration.rehydrate();a.equal(h.w.localStorage.getItem(KEY),before);a.equal(h.w.localStorage.getItem(OWNER),owner);a.equal(h.w.MiCarteraPartners.canView(),false);h.verifyRows();
+    if(['foreign-owner','unknown-owner','foreign-session','unverified-auth','collector'].includes(scenario))await a.rejects(h.w.MiCarteraV2CloudRehydration.rehydrate(),/V2_SESSION/);else await h.w.MiCarteraV2CloudRehydration.rehydrate();a.equal(h.w.localStorage.getItem(KEY),before);a.equal(h.w.localStorage.getItem(OWNER),owner);a.equal(h.w.MiCarteraPartners.canView(),false);h.verifyRows();
   }finally{h.close()}
 });
 test('More actually hides the Socios button when management access is rejected',async()=>{

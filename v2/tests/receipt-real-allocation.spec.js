@@ -1,3 +1,4 @@
+const {collect:collectViaForm}=require('./collection-form-driver.cjs');
 // Exercise the real durable collection path with fictional local/Cloud boundaries.
 const {test}=require('node:test'),a=require('node:assert/strict'),{boot}=require('./dom-harness.cjs');
 const clone=v=>JSON.parse(JSON.stringify(v));
@@ -7,7 +8,7 @@ async function setup(unit=25,term=24,start=5){
   d.credits=[{id:'cr-allocation',clientId:'c1',capital:unit*term,total:unit*term,rate:0,term,freq:'daily',status:'ACTIVO',principalPaid:paid,interestPaid:0,penaltyPaid:0,version:1,schedule:Array.from({length:term},(_,i)=>({number:i+1,date:'2026-10-'+String(i+1).padStart(2,'0'),amount:unit,paid:i<start-1?unit:0,balance:i<start-1?0:unit,status:i<start-1?'PAGADA':'PENDIENTE'}))}];
   d.payments=[];d.cashMovements=[];d.audit=[];h.set(d);h.w.MiCarteraV2Dates.today=()=> '2026-10-07';return h;
 }
-async function collect(h,amount){h.w.prompt=()=>String(amount);await h.w.V2UI.collect('cr-allocation');const d=h.get(),p=d.payments.at(-1);a.ok(p,h.alerts.join('\n'));return {d,p};}
+async function collect(h,amount){await collectViaForm(h,'cr-allocation',amount);const d=h.get(),p=d.payments.at(-1);a.ok(p,h.alerts.join('\n'));return {d,p};}
 function application(number,amount,balanceBefore,balanceAfter){return {number,amount,balanceBefore,balanceAfter,status:balanceAfter===0?'PAGADA':'PARCIAL'};}
 function debt(cr){return cr.schedule.reduce((n,q)=>n+q.balance,0);}
 
@@ -57,7 +58,7 @@ test('real application skips an already paid intermediate quota without adding i
 
 test('I/J pending double taps commit one payment, one balance update and one cash movement; receipt preview is read-only',async()=>{
   const h=await setup(40);try{const before=h.get();let release;h.w.MiCarteraV2SyncBridge.submit=async op=>{h.commits.push(clone(op));return new Promise(resolve=>release=()=>resolve({status:'COMMITTED'}));};
-    h.w.prompt=()=> '60';const first=h.w.V2UI.collect('cr-allocation');await new Promise(resolve=>setImmediate(resolve));await h.w.V2UI.collect('cr-allocation');a.equal(h.commits.length,1);release();await first;
+    const first=collectViaForm(h,'cr-allocation',60);await new Promise(resolve=>setImmediate(resolve));await collectViaForm(h,'cr-allocation',60);a.equal(h.commits.length,1);release();await first;
     const d=h.get(),p=d.payments[0];a.equal(d.payments.length,1);a.equal(d.cashMovements.length,1);a.equal(d.cashMovements[0].amount,60);a.equal(debt(d.credits[0]),debt(before.credits[0])-60);a.equal(d.credits[0].version,before.credits[0].version+1);a.equal(d.credits[0].principalPaid,before.credits[0].principalPaid+60);
     const recorded=clone(d);h.w.MiCarteraV2SharePreview.close();const pending=h.w.MiCarteraV2SharePreview.previewPayment(p.id);await new Promise(resolve=>setImmediate(resolve));h.w.document.querySelector('.v2-share-preview-actions button:nth-child(2)').click();await pending;a.deepEqual(h.get(),recorded);a.equal(h.commits.length,1);
   }finally{await h.close();}

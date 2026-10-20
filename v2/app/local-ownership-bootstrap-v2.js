@@ -1,6 +1,8 @@
 // First clean pilot login: establish technical ownership after verified hydration.
 // Never adopt an existing portfolio, replace an owner, or alter data/Cloud/queues.
 (function(root){'use strict';
+if(root.MiCarteraV2SessionStorage){const storage=root.MiCarteraV2SessionStorage;root.MiCarteraV2LocalOwnershipBootstrap=Object.freeze({state:storage.state});root.addEventListener('mi-cartera-v2-rehydrated',event=>{const proof=storage.state(),scope=event.detail?.scope;if(event.detail?.ok===true&&proof.ready&&scope?.epoch===proof.epoch&&scope.uid===proof.uid&&scope.orgId===proof.orgId&&scope.projectId===proof.projectId)root.dispatchEvent(new root.CustomEvent('v2-local-owner-ready',{detail:proof}));});return;}
+
 const OWNER='mi-cartera-v2-local-owner',KEY='mi-cartera-v2-validation-state',ORG='v2-mi-cartera-pilot';
 const DATA_KEYS=['clients','credits','payments','cashMovements','audit','commercial'];
 let status='WAITING_AUTH',reason='',candidate=null,proof=null,epoch=0,finalizing=false;

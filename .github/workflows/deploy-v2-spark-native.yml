@@ -1,0 +1,122 @@
+name: Deploy V2 Spark native protected release
+on:
+  workflow_dispatch:
+    inputs:
+      approved_sha:
+        description: 'Exact immutable candidate commit approved for this release'
+        required: true
+        type: string
+      approval_reference:
+        description: 'Recorded explicit authorization including the exact approved SHA'
+        required: true
+        type: string
+      evidence_sha256:
+        description: 'SHA256 of the reviewed native release evidence manifest'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: mi-cartera-pro-v2-production
+  cancel-in-progress: false
+env:
+  APPROVED_SHA: ${{ inputs.approved_sha }}
+  APPROVAL_REFERENCE: ${{ inputs.approval_reference }}
+  V2_NATIVE_EVIDENCE_SHA256: ${{ inputs.evidence_sha256 }}
+  PUBLISHING_ENABLED: ${{ vars.V2_PUBLISHING_ENABLED }}
+  SPARK_NATIVE_PUBLISHING_ENABLED: ${{ vars.V2_SPARK_NATIVE_PUBLISHING_ENABLED }}
+jobs:
+  validate-native:
+    if: ${{ vars.V2_PUBLISHING_ENABLED == 'true' && vars.V2_SPARK_NATIVE_PUBLISHING_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout trusted workflow controls
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require manual source authorization and existing protected environment
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node control/.github/scripts/publication-control.cjs request
+          node control/.github/scripts/publication-control.cjs policy
+      - name: Checkout only the immutable reviewed candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.approved_sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Preserve historical ancestry and isolated Hosting target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = "$APPROVED_SHA"
+          git -C candidate merge-base --is-ancestor 43a7afa2ab629cdc7b4c7db9856dbd10eae61f71 "$APPROVED_SHA"
+          git -C candidate diff --exit-code 43a7afa2ab629cdc7b4c7db9856dbd10eae61f71 "$APPROVED_SHA" -- .firebaserc firebase.v2.json
+      - name: Verify the new publication coordinator and adapter contracts
+        run: node --test control/.github/scripts/spark-native-*.spec.cjs
+      - name: Bind previously approved QA to the current source and exact native rules
+        run: node control/.github/scripts/spark-native-publish.cjs validate candidate
+      - name: Require clean immutable source and trusted controls
+        run: |
+          git -C candidate diff --exit-code
+          git -C control diff --exit-code
+  deploy-spark-native:
+    if: ${{ needs.validate-native.result == 'success' && vars.V2_PUBLISHING_ENABLED == 'true' && vars.V2_SPARK_NATIVE_PUBLISHING_ENABLED == 'true' }}
+    needs: validate-native
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    environment:
+      name: v2-production
+      url: https://mi-cartera-pro-v2.web.app/app/
+    steps:
+      - name: Checkout the same trusted workflow controls
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Recheck existing approval policy after protected environment review
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node control/.github/scripts/publication-control.cjs request
+          node control/.github/scripts/publication-control.cjs policy
+      - name: Checkout the same reviewed immutable candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.approved_sha }}
+          path: candidate
+          persist-credentials: false
+      - name: Validate source evidence before installing the publisher runtime
+        run: node control/.github/scripts/spark-native-publish.cjs validate candidate
+      - name: Install the pinned Firebase administrative CLI
+        run: npm install -g firebase-tools@15.30.1 --ignore-scripts --no-audit --no-fund
+      - name: Snapshot, validate baseline and coordinate rules with Hosting
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          V2_NATIVE_RELEASE_JOURNAL: ${{ runner.temp }}/v2-native-release-journal.json
+        run: node control/.github/scripts/spark-native-publish.cjs publish candidate
+      - name: Preserve exact code and rules rollback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v2-native-release-journal-${{ github.run_id }}
+          path: ${{ runner.temp }}/v2-native-release-journal.json
+          if-no-files-found: warn
+          retention-days: 90

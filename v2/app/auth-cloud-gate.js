@@ -6,9 +6,12 @@ const FALLBACK_ORG=ORG;
 function activeOrg(){return root.MiCarteraV2PilotConfig?.requestedOrg?.()||root.MiCarteraV2PilotConfig?.state?.config?.orgId||FALLBACK_ORG}
 const ROLES=['admin','supervisor','cobrador'];
 const state={ready:false,authenticated:false,member:false,uid:null,email:null,role:null,routeIds:[],reason:'WAITING_VERSION',mode:'CLOUD_AUTH',preserveLocal:true};
-let started=false,explicitLogout=false,unsubscribe=null,authWork=Promise.resolve();
+let started=false,explicitLogout=false,unsubscribe=null,authWork=Promise.resolve(),runtimeScope=null,authRevision=0;
 function emit(){if(typeof root.dispatchEvent!=='function')return;const C=root.CustomEvent;if(C)root.dispatchEvent(new C('v2-auth-cloud-state',{detail:{...state}}));}
+function disconnectRuntime(){runtimeScope=null;root.MiCarteraV2SyncBridge?.reset?.();}
 function block(reason,extra={}){
+  authRevision++;
+  disconnectRuntime();
   Object.assign(state,{
     ready:false,
     authenticated:extra.authenticated===true,
@@ -24,10 +27,30 @@ function block(reason,extra={}){
   emit();
   return {...state};
 }
-function userBase(user){Object.assign(state,{authenticated:true,uid:user?.uid||null,email:user?.email||null,member:false,role:null,routeIds:[],preserveLocal:true});}
+function userBase(user){Object.assign(state,{ready:false,authenticated:true,uid:user?.uid||null,email:user?.email||null,member:false,role:null,routeIds:[],preserveLocal:true});}
 function versionReady(){return root.MiCarteraV2VersionGuard?.state?.().ready===true;}
 function authReason(error){const code=String(error?.code||'').replace(/^auth\//,'');return code?`AUTH_${code.toUpperCase().replace(/-/g,'_')}`:'AUTH_FAILED'}
-async function evaluateUser(user){
+function projectId(){return String(root.MI_CARTERA_V2_FIREBASE_TEMPLATE?.projectId||root.firebaseSdkV2?.app?.options?.projectId||'');}
+function connectRuntime(){
+  if(!state.ready||!state.authenticated||!state.member)return false;
+  if(!versionReady()){block('VERSION_NOT_VERIFIED');return false;}
+  const session=root.MiCarteraV2SessionStorage,proof=session?.state?.();
+  // Auth readiness lets hydration run; transport additionally requires confirmed local custody.
+  if(proof?.ready!==true||proof.uid!==state.uid||proof.role!==state.role||proof.orgId!==activeOrg())return false;
+  try{
+    const token=session.capture();session.assertCurrent(token);
+    const scope=JSON.stringify([token.projectId,token.orgId,token.uid,token.epoch,token.generation,token.authStamp]);
+    if(runtimeScope===scope&&root.MiCarteraV2SyncBridge?.status?.().configured===true)return true;
+    const runtime=root.MiCarteraV2CloudRuntime,fs=root.firestoreV2;
+    if(!runtime?.configure)throw new Error('V2_CLOUD_RUNTIME_NOT_READY');
+    const orgId=activeOrg();
+    runtime.configure({mode:orgId===FALLBACK_ORG?'PILOT':'COMMERCIAL',cloudEnabled:true,allowRealWrites:true,orgId,actorId:state.uid,db:fs.db,doc:fs.doc,runTransaction:fs.runTransaction});
+    runtimeScope=scope;return true;
+  }catch(error){block('V2_CLOUD_NOT_READY:'+String(error?.code||error?.message||error));return false;}
+}
+async function evaluateUser(user,revision=++authRevision){
+  if(revision!==authRevision)return {...state};
+  disconnectRuntime();
   if(!user){
     if(explicitLogout){explicitLogout=false;return block('AUTH_REQUIRED',{preserveLocal:true});}
     return block('AUTH_REQUIRED');
@@ -36,24 +59,24 @@ async function evaluateUser(user){
   if(!versionReady())return block('VERSION_NOT_VERIFIED');
   const fs=root.firestoreV2;
   if(!fs?.db||!fs.doc||!fs.getDoc)return block('V2_FIRESTORE_NOT_READY');
+  const requestedScope={uid:user.uid,orgId:activeOrg(),projectId:projectId()};
   let snap;
   try{
     const orgId=activeOrg();
     const ref=fs.doc(fs.db,'orgs',orgId,'members',user.uid);
     snap=await fs.getDoc(ref);
-  }catch(error){return block('V2_MEMBERSHIP_READ_FAILED:'+String(error?.code||error?.message||error));}
+  }catch(error){if(revision!==authRevision)return {...state};return block('V2_MEMBERSHIP_READ_FAILED:'+String(error?.code||error?.message||error));}
+  // Membership reads can outlive logout, another login, tenant changes or a blocked release.
+  if(revision!==authRevision)return {...state};
+  if(!versionReady())return block('VERSION_NOT_VERIFIED');
+  if(root.firebaseAuthV2?.auth?.currentUser?.uid!==requestedScope.uid||activeOrg()!==requestedScope.orgId||projectId()!==requestedScope.projectId)return block('V2_AUTH_SCOPE_CHANGED');
   if(!snap?.exists?.())return block('V2_MEMBERSHIP_REQUIRED');
   const member=snap.data()||{};
   if(member.active!==true)return block('V2_MEMBERSHIP_INACTIVE');
   if(!ROLES.includes(String(member.role||'')))return block('V2_ROLE_INVALID');
   Object.assign(state,{ready:true,authenticated:true,member:true,uid:user.uid,email:user.email||member.email||null,role:String(member.role),routeIds:Array.isArray(member.routeIds)?member.routeIds:[],reason:'CLOUD_AUTH_READY',mode:'CLOUD_AUTH',preserveLocal:false});
-  try{
-    const runtime=root.MiCarteraV2CloudRuntime;
-    if(!runtime?.configure)throw new Error('V2_CLOUD_RUNTIME_NOT_READY');
-    const orgId=activeOrg();
-    runtime.configure({mode:orgId===FALLBACK_ORG?'PILOT':'COMMERCIAL',cloudEnabled:true,allowRealWrites:true,orgId,actorId:user.uid,db:fs.db,doc:fs.doc,runTransaction:fs.runTransaction});
-  }catch(error){return block('V2_CLOUD_NOT_READY:'+String(error?.code||error?.message||error));}
   emit();
+  connectRuntime();
   return {...state};
 }
 async function start(){
@@ -63,7 +86,11 @@ async function start(){
   if(!fb?.auth||typeof fb.onAuthStateChanged!=='function')return block('FIREBASE_AUTH_NOT_READY');
   started=true;
   unsubscribe=fb.onAuthStateChanged(fb.auth,user=>{
-    authWork=authWork.then(()=>evaluateUser(user)).catch(error=>block('AUTH_STATE_FAILED:'+String(error?.code||error?.message||error)));
+    // Invalidate the old grant before a queued membership lookup can finish.
+    const revision=++authRevision;disconnectRuntime();
+    if(!user){explicitLogout=false;return Promise.resolve(block('AUTH_REQUIRED',{preserveLocal:true}));}
+    userBase(user);emit();
+    authWork=authWork.then(()=>evaluateUser(user,revision)).catch(error=>revision===authRevision?block('AUTH_STATE_FAILED:'+String(error?.code||error?.message||error)):{...state});
     return authWork;
   });
   return {...state};
@@ -86,6 +113,9 @@ async function signOut(){
   try{await fb.signOut(fb.auth);return {...state};}catch(error){explicitLogout=false;throw error;}
 }
 root.addEventListener('mi-cartera-v2-firebase-ready',()=>{start()});
+root.addEventListener('v2-local-owner-ready',connectRuntime);
+// Same-owner pending recovery verifies its retained custody without a remote reread.
+root.addEventListener('mi-cartera-v2-sync',event=>{if(event.detail?.source==='verified-local-session')connectRuntime()});
 root.addEventListener('mi-cartera-v2-firebase-error',e=>block('FIREBASE_BOOTSTRAP_FAILED:'+String(e.detail||root.firebaseV2BootstrapError||'')));
 root.addEventListener('v2-version-state',e=>{
   if(e.detail?.ready)start().then(()=>{const user=root.firebaseAuthV2?.auth?.currentUser;if(user&&!state.ready)return evaluateUser(user)});

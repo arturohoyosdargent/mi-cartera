@@ -2,6 +2,7 @@
 // All customers, sessions and asynchronous transport responses are fictional.
 const {test}=require('node:test'),a=require('node:assert/strict');
 const {boot}=require('./dom-harness.cjs');
+const {collect}=require('./collection-form-driver.cjs');
 const clone=value=>JSON.parse(JSON.stringify(value));
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 
@@ -15,7 +16,7 @@ async function setup() {
   h.auth={uid:'test-admin',role:'admin',ready:true,authenticated:true,member:true};
   h.w.MiCarteraV2AuthCloudGate.state=()=>({...h.auth});
   h.w.MiCarteraV2AuthCloudGate.requireReady=()=>({...h.auth});
-  h.w.MiCarteraV2Dates.today=()=> '2026-10-12';h.w.prompt=()=> '40';
+  h.w.MiCarteraV2Dates.today=()=> '2026-10-12';
   h.previews=[];h.w.MiCarteraV2SharePreview={previewPayment:id=>h.previews.push(id),
     previewCredit:id=>h.previews.push(id)};
   h.resetCount=0;h.w.MiCarteraV2CustomerExperience={resetForm:()=>h.resetCount++};
@@ -43,7 +44,7 @@ async function delayedCreation(h,kind,options) {
   return {pending,release,op:h.commits[0]};
 }
 async function completeFinancialAction(h,action) {
-  if(action==='payment')return h.w.V2UI.collect('fictional-old-credit');
+  if(action==='payment')return collect(h,'fictional-old-credit','40');
   const pending=h.w.V2UI[action]('fictional-old-credit'),doc=h.w.document;
   if(action==='refinance')doc.getElementById('v2RenewCapital').value='200';
   doc.getElementById('v2RenewDate').value='2026-10-12';

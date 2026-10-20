@@ -38,11 +38,13 @@ for(const [name,Q] of APIs)test(name+' mixed journal preserves closures while or
 test('actual hosted runtime flush and both reconnect listeners cannot replay an admin closure',async()=>{
  const closed=record('fictional-admin-closed','CERRADO_ADMIN',{administrativeClosure:{noReplay:true}}),s=storage([closed]),listeners=[],executed=[],w={navigator:{onLine:true},localStorage:s,addEventListener:(event,fn)=>{if(event==='online')listeners.push(fn)}};
  w.MiCarteraV2VersionGuard={requireReady(){}};w.MiCarteraV2AuthCloudGate={requireReady:()=>({uid:'fictional-owner',role:'admin'})};w.MiCarteraV2PilotConfig={evaluate:()=>({ready:true})};
+ w.MI_CARTERA_V2_FIREBASE_TEMPLATE={projectId:'demo-mi-cartera-v2'};
+ const activeKey='mi-cartera-v2-cloud-operations-scoped:'+encodeURIComponent(JSON.stringify(['demo-mi-cartera-v2','v2-mi-cartera-pilot','fictional-owner']));s.values.set(activeKey,s.raw);
  w.MiCarteraV2FirestoreAdapter={createFirestoreAtomicAdapter:()=>({})};w.MiCarteraV2Store={createStore:()=>({execute:async operation=>{executed.push(clone(operation));return {status:'APPLIED'}}})};w.MiCarteraV2SyncBridge={configure(){}};
  const context=vm.createContext({window:w,globalThis:w});
  for(const file of ['core/sync-errors.js','core/offline-operation-queue.js','cloud/operational-sync.js','cloud/runtime-cloud.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'../app',file),'utf8'),context,{filename:file});
  const runtime=w.MiCarteraV2CloudRuntime.configure({mode:'PILOT',cloudEnabled:true,allowRealWrites:true,orgId:'v2-mi-cartera-pilot'});
  a.equal((await runtime.flush()).pending,0);for(const listener of listeners)await listener();a.equal(executed.length,0);a.equal(s.getItem(s.key),s.raw);a.equal(s.getItem(s.closedKey),s.closedRaw);
  // The ordinary operation continues to flush through the same real runtime wiring.
- const q=w.MiCarteraV2OfflineQueue.createQueue(s,s.key);q.enqueue(record('fictional-new').operation);for(const listener of listeners)await listener();a.deepEqual(executed.map(row=>row.id),['fictional-new']);a.deepEqual(JSON.parse(s.getItem(s.key))[0],closed);
+ const q=w.MiCarteraV2OfflineQueue.createQueue(s,activeKey);q.enqueue({...record('fictional-new').operation,type:'CLIENT_SAVED'});for(const listener of listeners)await listener();a.deepEqual(executed.map(row=>row.id),['fictional-new']);a.deepEqual(JSON.parse(s.getItem(activeKey))[0],closed);a.equal(s.getItem(s.key),s.raw,'legacy UID-only custody is never consumed or rewritten');
 });

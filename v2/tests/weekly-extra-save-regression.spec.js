@@ -1,3 +1,4 @@
+const {collect:collectViaForm}=require('./collection-form-driver.cjs');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {boot}=require('./dom-harness.cjs');
@@ -57,10 +58,10 @@ test('the restored fifth row can be collected after the four normal weekly insta
   const h=await boot({fullShell:true,state:fixture()});try{
     const get=fill(h);h.w.MiCarteraV2DurableActions.install();await get('saveCredit').onclick();
     const creditId=h.get().credits[0].id;h.w.MiCarteraV2SharePreview.previewPayment=()=>{};
-    h.w.prompt=()=> '400';await h.w.MiCarteraV2DurableActions.collect(creditId);
+    await collectViaForm(h,creditId,'400');
     const intermediate=h.get().credits[0];
     assert.deepEqual(intermediate.schedule.map(q=>q.balance),[0,0,0,0,320]);
-    h.w.prompt=()=> '320';await h.w.MiCarteraV2DurableActions.collect(creditId);
+    await collectViaForm(h,creditId,'320');
     const d=h.get(),credit=d.credits[0],payment=d.payments.at(-1);
     assert.equal(d.payments.length,2,JSON.stringify(h.alerts));
     assert.deepEqual(credit.schedule.map(q=>q.balance),[0,0,0,0,0]);

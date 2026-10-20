@@ -62,3 +62,17 @@ La matriz completa incluye Inicio, Clientes, Créditos, Cobranza, pagos normales
 Una regresión se informa antes de modificar más código. No autoriza reimplementar funciones protegidas. Se corrige primero sobre la versión más reciente; un rollback imprescindible usa la estable inmediatamente anterior según `docs/VERSIONING_POLICY.md`, con tag remoto y artefacto exacto conservados. El tag histórico de 43a7afa permanece intacto como respaldo adicional, sin convertirse en destino fijo.
 
 Referencia técnica de GitHub: [workflow SHA y contextos](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts), [dispatch manual y rama predeterminada](https://docs.github.com/es/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
+
+## Ampliación B3 autorizada · preparación local 18/10/2026
+
+El usuario autorizó expresamente la publicación coordinada de las cuatro Functions y B3, conservando los controles anteriores. La propuesta local sustituye el paso exclusivamente Hosting por v2-coordinated-publish.cjs: Node22, dependencias exactas con lockfile/auditoría, allowlist de cuatro nombres, inventario/versión Hosting/ruleset previo, verificación Auth antes de activar reglas/Hosting y recuperación de componentes. No despliega createCarteraUser ni restaura datos. No autoriza usar Firebase CLI local como publicador alternativo.
+
+La ejecución falla cerrada sin facturación/APIs/identidad necesarias o si faltan contratos presentes en las reglas reales. El 18/10 se detectó billingEnabled:false, CloudBuild/ArtifactRegistry/Run deshabilitados y cuenta runtime predeterminada ausente. Las reglas remotas también contienen ocho contratos v2Worker/v2Owned/v2Contact/v2Classification no integrados en esta rama. No sobrescribirlos: integrar y validar antes de publicar. La credencial local de GitHub CLI es inválida y GCM no ofrece credencial no interactiva. No se modificó configuración remota ni se publicó parcialmente.
+
+## Continuación Spark · 18/10/2026
+
+La alternativa preparada utiliza un servidor Node externo y conserva Spark: no activa facturación ni despliega Cloud Functions. El backend ofrece cinco endpoints verificados por Auth; socios, renovaciones y caja quedan sujetos a transición autoritativa y mutex global. Los ocho helpers de gestores y sus lecturas se recuperaron; el legado V1 es compatible con el snapshot remoto y no se reintroducen las concesiones históricas de escritura inseguras.
+
+El nuevo workflow v2-spark-candidate-qa.yml es exclusivamente QA manual con contents:read. El gate spark-release-readiness.cjs exige API callable-v2, protocolo2, cinco servicios y huella aprobada; no publica. El publicador de cuatro Functions anterior sigue bloqueado bajo Spark y no sirve para esta variante. No publicar Hosting mediante una ruta alternativa.
+
+Estado actual BLOQUEADO: sin origen externo permanente ni identidad dedicada/TLS verificados; GitHub CLI mantiene credencial inválida; falta validación física PC/Xiaomi del nuevo transporte y paridad de bajas/fusión de clientes. La configuración de frontend activa conserva el transporte anterior hasta existir backend validado. Fuente/código preparado no significa versión publicable. Ver SPARK_BACKEND_OPERATIONS_20261018.md.

@@ -6,15 +6,18 @@ const ORG='v2-mi-cartera-pilot',K='mi-cartera-v2-validation-state',OWNER='mi-car
 const MAP={clients:'clients',credits:'credits',payments:'payments',entries:'cashMovements',expenses:'cashMovements',audit:'audit',routes:'commercial'};
 const MANAGER_ONLY=new Set(['entries','expenses','audit','routes']);
 const clone=v=>JSON.parse(JSON.stringify(v));
+const storage=()=>root.MiCarteraV2SessionStorage;
+const orgFor=auth=>auth?.orgId||root.MiCarteraV2AuthCloudGate?.ORG||ORG;
 let hydrationEpoch=0;
 function hydrationGuard(auth){
-  const epoch=hydrationEpoch,raw=root.localStorage.getItem(K),owner=root.localStorage.getItem(OWNER);
+  const epoch=hydrationEpoch,raw=root.localStorage.getItem(K),owner=root.localStorage.getItem(OWNER),token=storage()?.capture?.();
   const stamp=a=>JSON.stringify([a?.uid,a?.role,Array.isArray(a?.routeIds)?a.routeIds:[],root.MiCarteraV2AuthCloudGate?.ORG||ORG]);
   const expected=stamp(auth);
   return ()=>{
     let current;
     try{current=root.MiCarteraV2AuthCloudGate?.requireReady?.()}catch{throw Error('V2_HYDRATION_SCOPE_CHANGED')}
     if(epoch!==hydrationEpoch||stamp(current)!==expected||root.localStorage.getItem(OWNER)!==owner)throw Error('V2_HYDRATION_SCOPE_CHANGED');
+    try{if(token)storage().assertCurrent(token)}catch{throw Error('V2_HYDRATION_SCOPE_CHANGED')}
     if(pending())throw Error('V2_HYDRATION_PENDING_LOCAL_OPERATIONS');
     if(root.localStorage.getItem(K)!==raw)throw Error('V2_HYDRATION_LOCAL_CHANGED');
   };
@@ -38,21 +41,23 @@ function mergeMissing(remote,local,collisions){
 }
 function pending(){
   try{
+    if(storage())return storage().pending();
     const uid=root.MiCarteraV2AuthCloudGate?.state?.().uid||root.MiCarteraV2AuthCloudGate?.requireReady?.()?.uid;
     if(!uid)return false;
     // The scoped key is authoritative; the legacy unscoped key is checked once as a
     // safety stop for operations created by the earlier local-only build.
     for(const key of ['mi-cartera-v2-cloud-operations:'+uid,'mi-cartera-v2-cloud-operations']){
       const q=JSON.parse(root.localStorage.getItem(key)||'[]');
-      if(Array.isArray(q)&&q.some(x=>!['SINCRONIZADO','BLOQUEADO','CONFLICTO'].includes(x?.status)))return true;
+      if(!Array.isArray(q)||q.some(x=>!queueTerminal(x)))return true;
     }
     return false;
   }catch{return true}
 }
+function queueTerminal(row){return !!row&&typeof row==='object'&&(['SINCRONIZADO','BLOQUEADO','CONFLICTO','CERRADO_ADMIN'].includes(row.status)||row.noReplay===true||row.administrativeClosure?.noReplay===true||row.operation?.noReplay===true||row.operation?.administrativeClosure?.noReplay===true||row.operation?.status==='CERRADO_ADMIN');}
 async function readCollection(name,auth){
   const f=root.firestoreV2;
   if(!f?.db||!f?.collection||!f?.getDocs)throw new Error('V2_FIRESTORE_READ_NOT_READY');
-  const base=f.collection(f.db,'orgs',ORG,name),refs=[];
+  const base=f.collection(f.db,'orgs',orgFor(auth),name),refs=[];
   if(auth.role==='cobrador'){
     if(!f.query||!f.where)throw new Error('V2_FIRESTORE_QUERY_NOT_READY');
     if(name==='payments')refs.push(f.query(base,f.where('userId','==',auth.uid)));
@@ -89,7 +94,7 @@ async function pushLocalMissing(local,names,rows,auth,assertCurrent=hydrationGua
       if(typeof f.runTransaction!=='function')throw Error('V2_FIRESTORE_ATOMIC_UPLOAD_REQUIRED');
       try{
         const added=await f.runTransaction(f.db,async tx=>{
-          assertCurrent();const ref=f.doc(f.db,'orgs',ORG,name,id),existing=await tx.get(ref);assertCurrent();
+          assertCurrent();const ref=f.doc(f.db,'orgs',orgFor(auth),name,id),existing=await tx.get(ref);assertCurrent();
           if(existing.exists())return false;
           tx.set(ref,data,{merge:false});return true;
         });
@@ -117,9 +122,9 @@ function restorePartnerSession(auth){
   try{
     local=JSON.parse(root.localStorage.getItem(K)||'null');
     if(!local||typeof local!=='object'||Array.isArray(local)||local.session!=null)return;
-    const own='mi-cartera-v2-cloud-operations:'+auth.uid,keys=new Set(['mi-cartera-v2-cloud-operations',own]);
-    for(let i=0;i<root.localStorage.length;i++){const key=root.localStorage.key(i);if(key?.startsWith('mi-cartera-v2-cloud-operations:'))keys.add(key)}
-    for(const key of keys){const rows=JSON.parse(root.localStorage.getItem(key)||'[]');if(!Array.isArray(rows)||rows.some(x=>!x||typeof x!=='object'||(key!==own&&x.status!=='SINCRONIZADO')))return;}
+    const ownKeys=new Set((storage()?.queueKeys?.(storage().scope())||['mi-cartera-v2-cloud-operations:'+auth.uid]).filter(key=>key!=='mi-cartera-v2-cloud-operations')),keys=new Set(['mi-cartera-v2-cloud-operations',...ownKeys]);
+    for(let i=0;i<root.localStorage.length;i++){const key=root.localStorage.key(i);if(key?.startsWith('mi-cartera-v2-cloud-operations:')||key?.startsWith('mi-cartera-v2-cloud-operations-scoped:'))keys.add(key)}
+    for(const key of keys){const rows=JSON.parse(root.localStorage.getItem(key)||'[]');if(!Array.isArray(rows)||rows.some(x=>!x||typeof x!=='object'||(!ownKeys.has(key)&&!queueTerminal(x))))return;}
   }catch{return}
   const session={actorId:auth.uid,role:auth.role,routeIds:Array.isArray(auth.routeIds)?auth.routeIds:[]};
   root.localStorage.setItem(K,JSON.stringify({...local,session}));
@@ -127,8 +132,10 @@ function restorePartnerSession(auth){
   root.MiCarteraPartners?.render?.();
 }
 async function rehydrate(){
-  const auth=root.MiCarteraV2AuthCloudGate?.requireReady?.();
-  if(!auth?.uid)throw new Error('V2_AUTH_REQUIRED');
+  const verified=root.MiCarteraV2AuthCloudGate?.requireReady?.();
+  if(!verified?.uid)throw new Error('V2_AUTH_REQUIRED');
+  const auth={...verified,orgId:root.MiCarteraV2AuthCloudGate?.ORG||ORG};
+  if(storage())storage().activate({projectId:root.MI_CARTERA_V2_FIREBASE_TEMPLATE?.projectId,orgId:auth.orgId,uid:auth.uid});
   restorePartnerSession(auth);
   if(pending())return {status:'SKIPPED_PENDING_LOCAL_OPERATIONS'};
   const assertCurrent=hydrationGuard(auth);
@@ -142,7 +149,7 @@ async function rehydrate(){
   if(upload.written||upload.checked)rows=await Promise.all(names.map(n=>readCollection(n,auth)));
   assertCurrent();
   const manager=managers(auth);
-  const next={...local,clients:[],credits:[],payments:[],cashMovements:manager?[]:(Array.isArray(local.cashMovements)?local.cashMovements:[]),audit:[],commercial:[]};
+  const next={...local,clients:[],credits:[],payments:[],cashMovements:manager?[]:((local.session?.actorId===auth.uid||root.localStorage.getItem(OWNER)===auth.uid)&&Array.isArray(local.cashMovements)?local.cashMovements:[]),audit:[],commercial:[]};
   for(let i=0;i<names.length;i++){
     const name=names[i],target=MAP[name];
     const effective=manager&&upload.available?mergeMissing(rows[i],localRows(local,name),upload.collisions?.get(name)):rows[i];
@@ -152,8 +159,10 @@ async function rehydrate(){
   next.session={...(local.session||{}),actorId:auth.uid,role:auth.role,routeIds:Array.isArray(auth.routeIds)?auth.routeIds:[]};
   assertCurrent();
   root.localStorage.setItem(K,JSON.stringify(clone(next)));
-  dispatch('mi-cartera-v2-rehydrated',{ok:true,counts:{clients:next.clients.length,credits:next.credits.length,payments:next.payments.length,cashMovements:next.cashMovements.length},uploaded:upload.written,uploadFailed:upload.failed});
+  if(storage())await storage().confirm(storage().capture());
+  dispatch('mi-cartera-v2-rehydrated',{ok:true,scope:storage()?.scope?.(),counts:{clients:next.clients.length,credits:next.credits.length,payments:next.payments.length,cashMovements:next.cashMovements.length},uploaded:upload.written,uploadFailed:upload.failed});
   dispatch('mi-cartera-v2-sync',{ok:true,source:'cloud-rehydration'});
+  root.V2UI?.render?.();root.MiCarteraV2Cards?.render?.();
   root.MiCarteraV2Agenda?.render?.();root.MiCarteraV2DashboardParity?.render?.();root.MiCarteraV2AdminParity?.render?.();
   return {status:'REHYDRATED',uploaded:upload.written,uploadFailed:upload.failed};
   }catch(error){
@@ -163,7 +172,7 @@ async function rehydrate(){
 }
 function clearOnLogout(e){
   if(e?.detail?.authenticated!==false)return;
-  if(root.navigator?.onLine===false)return;
+  if(storage()){dispatch('mi-cartera-v2-sync',{ok:true,source:'session-projection'});root.MiCarteraV2Agenda?.render?.();root.MiCarteraV2DashboardParity?.render?.();root.MiCarteraV2AdminParity?.render?.();return;}
   if(e?.detail?.preserveLocal===true){
     const local=readLocal();
     // Preserve the existing actor's ownership proof before hiding its local session.
@@ -198,6 +207,14 @@ async function onAuth(e){
   return running;
 }
 root.addEventListener('v2-auth-cloud-state',onAuth);
+// A queued operation was never projected as paid. Refresh from accepted Cloud
+// rows after replay; ordinary hydration events have no result and cannot loop.
+root.addEventListener('mi-cartera-v2-sync',async e=>{
+  if(e?.detail?.ok!==true||!(e.detail.result?.applied>0))return;
+  let current;try{current=root.MiCarteraV2AuthCloudGate?.requireReady?.()}catch{return}
+  if(!current?.uid||e.detail.actorId&&e.detail.actorId!==current.uid)return;
+  return onAuth({detail:{...current,ready:true}});
+});
 root.MiCarteraV2CloudRehydration={rehydrate,pending,pushLocalMissing};
 // If Firebase restores an existing browser session before this script finishes
 // loading, consume the already-published ready state after the shell is present.

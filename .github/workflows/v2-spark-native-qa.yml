@@ -1,0 +1,42 @@
+name: B3 Spark native focused QA
+on:
+  push:
+    branches: [candidate/continuation-20261015]
+    paths: ['v2/**', '.github/workflows/v2-spark-native-qa.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Native contracts and synchronization regressions only
+        run: >-
+          node --test
+          v2/tests/spark-native-payment.spec.cjs
+          v2/tests/spark-native-cash.spec.cjs
+          v2/tests/spark-native-credit.spec.cjs
+          v2/tests/spark-native-partners.spec.cjs
+          v2/tests/spark-native-runtime.spec.cjs
+          v2/tests/spark-native-transport.spec.cjs
+          v2/tests/spark-native-replay-projection.spec.cjs
+          v2/tests/spark-native-identity.spec.cjs
+      - name: Compatibility of changed queue and projection boundaries
+        run: >-
+          node --test
+          v2/tests/sync-errors.spec.js
+          v2/tests/offline-operation-queue.spec.js
+          v2/tests/operational-sync.spec.js
+          v2/tests/runtime-retry.spec.js
+          v2/tests/cloud-rehydration.spec.js
+      - name: Confirm immutable source
+        run: git diff --exit-code
+      - name: Candidate only
+        run: echo 'No credentials or production deployment. Physical PC and Xiaomi validation and approval of this exact SHA remain required.'

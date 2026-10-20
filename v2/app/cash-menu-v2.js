@@ -34,6 +34,19 @@
   }
   const movementDate = item => root.MiCarteraV2Dates?.normalize?.(item.date) || String(item.date || '').slice(0,10);
   const signed = item => Number(item.amount || 0) * (item.type === 'INGRESO' ? 1 : -1);
+  function calculateLiquidity(rows,asOf=today()){
+    const seen=new Set();let physicalCash=0,reserved=0,valid=true;
+    for(const item of rows||[]){
+      if(!item||item.tombstone||item.deletedAt||item.cashAccountId&&item.cashAccountId!=='leader')continue;
+      if(item.id&&seen.has(item.id))continue;if(item.id)seen.add(item.id);
+      if(!['INGRESO','EGRESO'].includes(item.type)||typeof item.amount!=='number'||!Number.isFinite(item.amount)||item.amount<0){valid=false;continue;}
+      const date=movementDate(item)||asOf;
+      if(item.type==='INGRESO'){if(date<=asOf)physicalCash+=item.amount;}
+      else if(date<=asOf)physicalCash-=item.amount;else reserved+=item.amount;
+    }
+    const round=n=>Math.round(n*100)/100;
+    return {physicalCash:round(physicalCash),reserved:round(reserved),available:valid?round(physicalCash-reserved):null,valid};
+  }
   const inRange = (item, r) => !r.invalid && (!r.from || movementDate(item)>=r.from) && (!r.to || movementDate(item)<=r.to);
   function historyControls(){
     if ($('cashHistoryPeriod')) return;
@@ -58,6 +71,13 @@
     if ($('cashIncomeTotal')) $('cashIncomeTotal').textContent = money(income);
     if ($('cashExpenseTotal')) $('cashExpenseTotal').textContent = money(expense);
     if ($('cashBalance')) $('cashBalance').textContent = money(movements.reduce((sum,item)=>sum+signed(item),0));
+    if(root.MI_CARTERA_V2_PILOT_CONFIG?.backendMode==='external'){
+      const liquidity=calculateLiquidity(data().cashMovements);
+      if($('cashBalance'))$('cashBalance').textContent=liquidity.valid?money(liquidity.physicalCash):'Revisar datos';
+      let notice=$('sparkCashLiquidity');
+      if(!notice&&$('cash')){notice=document.createElement('p');notice.id='sparkCashLiquidity';notice.className='metric';$('cash').appendChild(notice);}
+      if(notice)notice.textContent=liquidity.valid?'Caja central actual: '+money(liquidity.physicalCash)+' · Reservado para egresos futuros: '+money(liquidity.reserved)+' · Disponible: '+money(liquidity.available):'La caja contiene datos pendientes de revisión.';
+    }else $('sparkCashLiquidity')?.remove();
     if ($('cashOpeningBalance')) $('cashOpeningBalance').textContent = r.invalid ? 'Rango inválido' : money(opening);
     if ($('cashClosingBalance')) $('cashClosingBalance').textContent = r.invalid ? 'Rango inválido' : money(opening+income-expense);
     if ($('cashMonthlyIncome')) $('cashMonthlyIncome').textContent = money(monthlyIncome);
@@ -177,5 +197,5 @@ root.addEventListener('v2-auth-cloud-state',invalidateDraft);
   const refresh=()=>{renderSummary();renderHistory();};
   root.addEventListener?.('storage', refresh);
   root.addEventListener?.('mi-cartera-v2-rehydrated', refresh);
-  root.MiCarteraV2CashMenu = {install, renderSummary, renderHistory, localDate};
+  root.MiCarteraV2CashMenu = {install, renderSummary, renderHistory, localDate, calculateLiquidity};
 })(window);

@@ -3,6 +3,7 @@
 const {test}=require('node:test');
 const a=require('node:assert/strict');
 const {boot}=require('./dom-harness.cjs');
+const {beginCollection,collect}=require('./collection-form-driver.cjs');
 const clone=value=>JSON.parse(JSON.stringify(value));
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 
@@ -18,7 +19,7 @@ async function setup() {
   d.clients[0].name='Cliente FICTICIO de integridad';d.credits=[credit()];
   d.payments=[];d.cashMovements=[];d.audit=[];h.set(d);
   h.previews=[];h.w.MiCarteraV2SharePreview={previewPayment:id=>h.previews.push(id)};
-  h.w.MiCarteraV2Dates.today=()=> '2026-10-11';h.w.prompt=()=> '40';
+  h.w.MiCarteraV2Dates.today=()=> '2026-10-11';
   h.auth={uid:'test-admin',role:'admin',ready:true,authenticated:true,
     member:true,routeIds:['r1']};
   h.w.MiCarteraV2AuthCloudGate.state=()=>({...h.auth});
@@ -43,7 +44,7 @@ function pausePayments(h) {
   };
 }
 async function pendingPayment(h) {
-  const release=pausePayments(h),pending=h.w.V2UI.collect('fictional-credit');
+  const release=pausePayments(h),pending=beginCollection(h,'fictional-credit','40');
   await tick();a.equal(h.commits.length,1);return {release,pending};
 }
 function unchanged(h,before,message) {
@@ -56,7 +57,7 @@ test('rejected or unconfirmed payment ACK keeps credit, cash, audit and preview 
       const before=h.get();h.w.MiCarteraV2SyncBridge.submit=async op=> {
         h.commits.push(clone(op));return {status,operationId:op.operationId};
       };
-      await h.w.V2UI.collect('fictional-credit');unchanged(h,before,status);
+      await collect(h,'fictional-credit');unchanged(h,before,status);
       a.equal(h.commits.length,1);a.ok(h.alerts.length);
     }finally{await h.close();}
   }
@@ -64,7 +65,7 @@ test('rejected or unconfirmed payment ACK keeps credit, cash, audit and preview 
 
 test('one accepted partial payment persists its exact allocation and cash once',async()=> {
   const h=await setup();try {
-    h.w.prompt=()=> '55';await h.w.V2UI.collect('fictional-credit');const d=h.get();
+    await collect(h,'fictional-credit','55');const d=h.get();
     a.equal(d.payments.length,1,h.alerts.join('\n'));a.equal(d.cashMovements.length,1);
     a.equal(d.audit.length,1);a.equal(d.cashMovements[0].amount,55);
     a.equal(d.credits[0].principalPaid,45.83);a.equal(d.credits[0].interestPaid,9.17);
@@ -83,15 +84,15 @@ test('transaction-store ACK shape applies this payment in a configured commercia
     h.w.MiCarteraV2SyncBridge.submit=async op=> {
       h.commits.push(clone(op));return {status:'APPLIED',operation:{id:op.operationId}};
     };
-    await h.w.V2UI.collect('fictional-credit');
+    await collect(h,'fictional-credit');
     a.equal(h.get().payments.length,1,h.alerts.join('\n'));a.equal(h.commits.length,1);
   }finally{await h.close();}
 });
 
 test('overpayment and cancellation never submit or mutate financial state',async()=> {
   for(const raw of ['121','0','-1',null]) {
-    const h=await setup();try {const before=h.get();h.w.prompt=()=>raw;
-      await h.w.V2UI.collect('fictional-credit');unchanged(h,before,String(raw));
+    const h=await setup();try {const before=h.get();
+      await collect(h,'fictional-credit',raw);unchanged(h,before,String(raw));
       a.equal(h.commits.length,0);
     }finally{await h.close();}
   }
@@ -105,7 +106,7 @@ test('mismatched local actor, owner or Firebase identity blocks payment before s
       if(kind==='firebase')h.w.firebaseAuthV2.auth.currentUser={uid:'fictional-other'};
       if(kind==='role')h.auth.role='supervisor';
       if(kind==='membership')h.auth.member=false;
-      const before=h.get();await h.w.V2UI.collect('fictional-credit');
+      const before=h.get();await collect(h,'fictional-credit');
       unchanged(h,before,kind);a.equal(h.commits.length,0,kind);
     }finally{await h.close();}
   }
@@ -170,8 +171,8 @@ test('payment ACK merges an independently committed cash movement and refreshed 
 test('payments for different credits acknowledged in reverse order retain both collections',async()=> {
   const h=await setup();try {
     const d=h.get();d.credits.push(credit('fictional-credit-b'));h.set(d);
-    const release=pausePayments(h),first=h.w.V2UI.collect('fictional-credit'),
-      second=h.w.V2UI.collect('fictional-credit-b');await tick();
+    const release=pausePayments(h),first=beginCollection(h,'fictional-credit','40'),
+      second=beginCollection(h,'fictional-credit-b','40');await tick();
     a.equal(h.commits.length,2);release('fictional-credit-b');await second;
     release();await first;const actual=h.get();
     a.equal(actual.payments.length,2);a.equal(actual.cashMovements.length,2);a.equal(actual.audit.length,2);
@@ -219,9 +220,13 @@ test('a wrong operation ACK cannot apply financial entities or open a receipt',a
 
 test('a credit changed while the payment confirmation is open blocks stale submission',async()=> {
   const h=await setup();try {
-    let current;h.w.confirm=()=> {current=h.get();current.credits[0].version=2;
-      current.credits[0].schedule[0].balance=20;h.set(current);return true;};
-    await h.w.V2UI.collect('fictional-credit');unchanged(h,current,'stale confirmation');
+    let current;
+    const pending=beginCollection(h,'fictional-credit','40',{beforeConfirm:()=> {
+      current=h.get();current.credits[0].version=2;
+      current.credits[0].schedule[0].balance=20;h.set(current);
+    }});
+    h.w.document.getElementById('v2CollectionCancel').click();await pending;
+    unchanged(h,current,'stale confirmation');
     a.equal(h.commits.length,0);
   }finally{await h.close();}
 });
@@ -233,7 +238,7 @@ test('double taps create one pending payment and rejection releases the retry gu
     release('fictional-credit',{status:'ERROR'});await pending;unchanged(h,before,'failed payment');
     h.w.MiCarteraV2SyncBridge.submit=async op=> {h.commits.push(clone(op));
       return {status:'COMMITTED',operationId:op.operationId};};
-    await h.w.V2UI.collect('fictional-credit');a.equal(h.get().payments.length,1);
+    await collect(h,'fictional-credit');a.equal(h.get().payments.length,1);
     a.equal(h.commits.length,2);
   }finally{await h.close();}
 });

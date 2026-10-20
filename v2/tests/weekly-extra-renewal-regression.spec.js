@@ -1,3 +1,4 @@
+const {collect:collectViaForm}=require('./collection-form-driver.cjs');
 const {test}=require('node:test');
 const a=require('node:assert/strict');
 const {boot}=require('./dom-harness.cjs');
@@ -69,9 +70,9 @@ test('refinance persists the accepted fifth once and collecting four normal rows
     a.equal(d.cashMovements.length,1);a.equal(d.cashMovements[0].amount,280);
     const reload=JSON.parse(h.w.localStorage.getItem('mi-cartera-v2-validation-state'));a.equal(reload.credits[1].schedule.length,5);
     await h.w.MiCarteraV2DurableActions.refinance(old.id);a.equal(h.commits.length,1,'a renewed predecessor cannot create another debt');
-    h.w.prompt=()=> '400';await h.w.MiCarteraV2DurableActions.collect(credit.id);
+    await collectViaForm(h,credit.id,'400');
     a.deepEqual(h.get().credits[1].schedule.map(q=>q.balance),[0,0,0,0,320]);
-    h.w.prompt=()=> '320';await h.w.MiCarteraV2DurableActions.collect(credit.id);
+    await collectViaForm(h,credit.id,'320');
     const paid=h.get(),payment=paid.payments.at(-1);a.deepEqual(paid.credits[1].schedule.map(q=>q.balance),[0,0,0,0,0]);
     a.equal(payment.amount,320);a.equal(payment.totalInstallments,5);a.equal(payment.installmentApplications[0].number,5);a.equal(payment.balanceAfterPayment,0);
     a.equal(paid.payments.length,2);a.equal(paid.cashMovements.filter(m=>m.type==='INGRESO').reduce((sum,m)=>sum+m.amount,0),720);

@@ -1,0 +1,25 @@
+// Real session projection/runtime/queue; every Cloud/SDK boundary is fictional memory.
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const {Window}=require('happy-dom'),Q=require('../core/offline-operation-queue'),S=require('../cloud/operational-sync');
+const APP=path.join(__dirname,'../app'),ORG='v2-mi-cartera-pilot',UID='fixture-runtime-admin';
+const deferred=()=>{let resolve;return {promise:new Promise(done=>resolve=done),resolve}};
+async function fixture(source,{projectId='demo-mi-cartera-v2',barrier=null,reject=false}={}){
+ const w=new Window({url:'https://fixture.invalid/',settings:{disableJavaScriptFileLoading:true,disableJavaScriptEvaluation:true}}),calls=[];
+ let auth={uid:UID,role:'admin',ready:true,authenticated:true,member:true,routeIds:[]};
+ w.MI_CARTERA_V2_FIREBASE_TEMPLATE={projectId};w.MI_CARTERA_V2_PILOT_CONFIG={orgId:ORG};w.firebaseAuthV2={auth:{currentUser:{uid:UID}}};
+ w.MiCarteraV2AuthCloudGate={ORG,requireReady:()=>({...auth}),state:()=>({...auth})};
+ Object.defineProperty(w.navigator,'locks',{configurable:true,value:{request:async(_name,_options,callback)=>callback()}});
+ const c=vm.createContext(w),load=file=>vm.runInContext(fs.readFileSync(file,'utf8'),c,{filename:file});load(path.join(APP,'session-storage-v2.js'));
+ async function activate(){w.MiCarteraV2SessionStorage.activate({projectId:w.MI_CARTERA_V2_FIREBASE_TEMPLATE.projectId,orgId:ORG,uid:auth.uid});const raw=JSON.parse(w.localStorage.getItem(w.MiCarteraV2SessionStorage.KEY));raw.session={actorId:auth.uid,role:auth.role};w.localStorage.setItem(w.MiCarteraV2SessionStorage.KEY,JSON.stringify(raw));await w.MiCarteraV2SessionStorage.confirm(w.MiCarteraV2SessionStorage.capture())}await activate();
+ w.MiCarteraV2VersionGuard={requireReady(){}};w.MiCarteraV2PilotConfig={evaluate:()=>({ready:true})};w.MiCarteraV2FirestoreAdapter={createFirestoreAtomicAdapter:()=>({})};
+ w.MiCarteraV2Store={createStore:()=>({execute:async op=>{calls.push(op);if(barrier)await barrier.promise;if(reject)throw Error('NETWORK_UNAVAILABLE');return {status:'COMMITTED',operationId:op.id}}})};w.MiCarteraV2OfflineQueue=Q;w.MiCarteraV2OperationalSync=S;w.MiCarteraV2SyncBridge={configure(sync){this.sync=sync},status:()=>({pending:0})};
+ load(path.join(__dirname,source));const runtime=w.MiCarteraV2CloudRuntime.configure({orgId:ORG,db:{},doc(){},runTransaction(){}});
+ const input={operationId:'fixture-runtime-operation',type:'CASH_MOVEMENT',entities:[{collection:'entries',kind:'create',data:{id:'fixture-runtime-cash',amount:5,version:1}}]};
+ return {w,runtime,input,calls,activate,change:uid=>{auth={...auth,uid};w.firebaseAuthV2.auth.currentUser={uid};w.dispatchEvent(new w.CustomEvent('v2-auth-cloud-state',{detail:auth}))},close:()=>w.happyDOM.abort()};
+}
+for(const source of ['../cloud/runtime-cloud.js','../app/cloud/runtime-cloud.js']){
+ test(source+' queued custody uses project/org/UID and leaves old queue bytes untouched',async()=>{const h=await fixture(source,{reject:true});try{const legacy='[{"id":"fixture-closed","status":"CERRADO_ADMIN","administrativeClosure":{"noReplay":true}}]';h.w.localStorage.setItem('mi-cartera-v2-cloud-operations:'+UID,legacy);const out=await h.w.MiCarteraV2SyncBridge.sync.submit(h.input);assert.equal(out.status,'QUEUED');const key='mi-cartera-v2-cloud-operations-scoped:'+encodeURIComponent(JSON.stringify(['demo-mi-cartera-v2',ORG,UID]));assert.equal(JSON.parse(h.w.localStorage.getItem(key))[0].id,h.input.operationId);assert.equal(h.w.localStorage.getItem('mi-cartera-v2-cloud-operations:'+UID),legacy);assert.equal(h.w.MiCarteraV2SessionStorage.pending(),true)}finally{await h.close()}});
+ test(source+' a late generic ACK is rejected after A-B-A session generation changes',async()=>{const barrier=deferred(),h=await fixture(source,{barrier});try{const task=h.w.MiCarteraV2SyncBridge.sync.submit(h.input);await new Promise(done=>setImmediate(done));h.change('fixture-other-user');await h.activate();h.change(UID);await h.activate();barrier.resolve();await assert.rejects(task,/V2_.*(SCOPE|SESSION|ACTOR|TAB).*CHANGED/);assert.equal(h.calls.length,1);assert.equal(h.runtime.inspect().length,0)}finally{barrier.resolve();await h.close()}});
+ test(source+' a runtime cannot write after another tab invalidates its projection',async()=>{const h=await fixture(source);try{h.w.dispatchEvent(new h.w.StorageEvent('storage',{key:h.w.MiCarteraV2SessionStorage.KEY}));await assert.rejects(h.w.MiCarteraV2SyncBridge.sync.submit(h.input),/V2_SESSION_OTHER_TAB_CHANGED/);assert.equal(h.calls.length,0)}finally{await h.close()}});
+ test(source+' a runtime cannot write after the Firebase project changes for the same UID',async()=>{const h=await fixture(source);try{h.w.MI_CARTERA_V2_FIREBASE_TEMPLATE={projectId:'demo-other-project'};await assert.rejects(h.w.MiCarteraV2SyncBridge.sync.submit(h.input),/V2_.*(PROJECT|SCOPE|SESSION)/);assert.equal(h.calls.length,0)}finally{await h.close()}});
+}

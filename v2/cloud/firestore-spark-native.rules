@@ -1,0 +1,857 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function validRole(r) { return r in ['admin','supervisor','cobrador','consulta']; }
+    function admin() { return signedIn() && me().role == 'admin'; }
+    function supervisor() { return signedIn() && me().role == 'supervisor'; }
+    function manager() { return admin() || supervisor(); }
+    function sameOrg(org) { return signedIn() && me().orgId == org; }
+    function assignedRoute(rid) { return signedIn() && me().routeIds is list && rid in me().routeIds; }
+    function validUserProfile(uid) {
+      return request.resource.data.uid == uid
+        && request.resource.data.orgId is string
+        && request.resource.data.orgId == me().orgId
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && validRole(request.resource.data.role)
+        && request.resource.data.routeIds is list
+        && request.resource.data.active is bool;
+    }
+    // V2 pilot authorization is deliberately separate from the legacy /users profile.
+    // A V1 user profile cannot grant V2 access by itself.
+    function v2Org(orgId) { return orgId == 'v2-mi-cartera-pilot'; }
+    function v2Member(orgId) {
+      return signedIn() && v2Org(orgId)
+        && exists(/databases/$(database)/documents/orgs/$(orgId)/members/$(request.auth.uid));
+    }
+    function v2Me(orgId) {
+      return get(/databases/$(database)/documents/orgs/$(orgId)/members/$(request.auth.uid)).data;
+    }
+    function v2Active(orgId) { return v2Member(orgId) && v2Me(orgId).active == true; }
+    function v2Manager(orgId) { return v2Active(orgId) && v2Me(orgId).role in ['admin','supervisor']; }
+    function v2Collector(orgId) { return v2Active(orgId) && v2Me(orgId).role == 'cobrador'; }
+    function v2AssignedRoute(orgId, rid) { return v2Active(orgId) && v2Me(orgId).routeIds is list && rid in v2Me(orgId).routeIds; }
+
+    function v2WorkerMember(orgId) { return v2Active(orgId) && v2Me(orgId).role == 'gestor' && v2Me(orgId).workerId is string; }
+    function v2WorkerLive(orgId) {
+      let member = v2Me(orgId);
+      let worker = get(/databases/$(database)/documents/orgs/$(orgId)/routes/$(member.workerId)).data;
+      return signedIn() && v2Org(orgId) && member.active == true && member.role == 'gestor'
+        && member.workerId is string && worker.recordType == 'WORKER' && worker.active == true
+        && worker.authUid == request.auth.uid && member.routeIds is list && worker.routeId in member.routeIds
+        && get(/databases/$(database)/documents/orgs/$(orgId)/routes/$(worker.routeId)).data.active == true;
+    }
+    function v2Owned(orgId, data) { let member = v2Me(orgId); return v2WorkerLive(orgId) && data.workerId == member.workerId && member.routeIds is list && data.routeId in member.routeIds; }
+    function v2WorkerRead(orgId, data) { return v2WorkerLive(orgId) && data.workerId == v2Me(orgId).workerId; }
+    function v2ContactAccess(orgId, clientId) {
+      let key = "client-access-" + v2Me(orgId).workerId + "-" + clientId;
+      let path = /databases/$(database)/documents/orgs/$(orgId)/routes/$(key);
+      return v2WorkerLive(orgId) && exists(path) && get(path).data.recordType == 'CLIENT_ACCESS'
+        && get(path).data.active == true && get(path).data.workerId == v2Me(orgId).workerId
+        && get(path).data.clientId == clientId;
+    }
+    function v2ContactForCredit(orgId, clientId) {
+      let key = "client-access-" + v2Me(orgId).workerId + "-" + clientId;
+      return v2ContactAccess(orgId, clientId)
+        && get(/databases/$(database)/documents/orgs/$(orgId)/routes/$(key)).data.creditCount > 0;
+    }
+    function v2ClassificationAbsent(data) {
+      return !data.keys().hasAny(['portfolioClassification','portfolioClassificationReason','portfolioClassificationUpdatedAt']);
+    }
+    function v2WorkerCash(orgId, data, collection) {
+      return v2Owned(orgId, data) && data.cashAccountId == v2Me(orgId).workerId && data.amount > 0 && (
+        (collection == 'entries' && data.type == 'INGRESO' && data.concept in ['COBRO_CUOTA','COBRO_INTERES']
+          && !exists(/databases/$(database)/documents/orgs/$(orgId)/payments/$(data.ref))
+          && getAfter(/databases/$(database)/documents/orgs/$(orgId)/payments/$(data.ref)).data.workerId == data.workerId
+          && getAfter(/databases/$(database)/documents/orgs/$(orgId)/payments/$(data.ref)).data.userId == request.auth.uid
+          && getAfter(/databases/$(database)/documents/orgs/$(orgId)/payments/$(data.ref)).data.cashMovementId == data.id
+          && getAfter(/databases/$(database)/documents/orgs/$(orgId)/payments/$(data.ref)).data.amount == data.amount)
+        || (collection == 'expenses' && data.type == 'EGRESO' && data.concept in ['DESEMBOLSO_CREDITO','DESEMBOLSO_REFINANCIAMIENTO']
+          && !exists(/databases/$(database)/documents/orgs/$(orgId)/credits/$(data.ref))
+          && getAfter(/databases/$(database)/documents/orgs/$(orgId)/credits/$(data.ref)).data.workerId == data.workerId
+          && getAfter(/databases/$(database)/documents/orgs/$(orgId)/credits/$(data.ref)).data.disbursementMovementId == data.id
+          && ((data.concept == 'DESEMBOLSO_CREDITO' && data.amount == getAfter(/databases/$(database)/documents/orgs/$(orgId)/credits/$(data.ref)).data.capital)
+            || (data.concept == 'DESEMBOLSO_REFINANCIAMIENTO' && data.amount == getAfter(/databases/$(database)/documents/orgs/$(orgId)/credits/$(data.ref)).data.netDisbursement)))
+      );
+    }
+
+                                                        // Spark-native payment v1. Preparation has no financial effects. All financial
+    // grants below require a final, immutable operation and the complete bundle.
+    function npGet(o, collection, id) { return get(/databases/$(database)/documents/orgs/$(o)/$(collection)/$(id)).data; }
+    function npAfter(o, collection, id) { return getAfter(/databases/$(database)/documents/orgs/$(o)/$(collection)/$(id)).data; }
+    function npKey(id) { return id is string && id.matches('^[A-Za-z0-9_-]{1,100}$'); }
+    function npMin(a,b) { return a<b?a:b; }
+    function npMax(a,b) { return a>b?a:b; }
+    function npCents(v) { return int(math.round(v * 100)); }
+    function npMoney(v) { return (v is int || v is float) && v == math.round(v * 100) / 100.0 && math.abs(v) <= 9000000000; }
+    function npMember(o) { return signedIn() && v2Org(o) && npGet(o, 'members', request.auth.uid).active == true; }
+    function npPad(n) { return (n<10?'0':'')+string(n); }
+    function npToday() { let t=request.time-duration.value(5,'h'); return string(t.year())+'-'+npPad(t.month())+'-'+npPad(t.day()); }
+    function npCommercialLive(o,c) { return (!exists(/databases/$(database)/documents/orgs/$(o)/routes/$(c.routeId)) || npGet(o,'routes',c.routeId).get('active',true)!=false) && (c.get('workerId','')=='' || !exists(/databases/$(database)/documents/orgs/$(o)/routes/$(c.workerId)) || npGet(o,'routes',c.workerId).get('active',true)!=false); }
+    function npActor(o, c) {
+      let m = npGet(o, 'members', request.auth.uid);
+      return signedIn() && v2Org(o) && m.active == true
+        && (m.role in ['admin','supervisor']
+          || (m.role == 'cobrador' && c.routeId in m.routeIds && npCommercialLive(o,c))
+          || (m.role == 'gestor' && v2Owned(o, c)));
+    }
+    function npOpen(c) { return c.status == 'ACTIVO' && c.get('tombstone', false) == false
+      && c.get('noReplay', false) == false && c.get('renewedTo', '') == ''
+      && c.get('administrativeClosure', {}).get('noReplay', false) == false; }
+    function npProposal(o, p, id) {
+      let c = npGet(o, 'credits', p.creditId);
+      let pay = p.payment;
+      let e = p.entry;
+      let a = p.audit;
+      return p.keys().hasOnly(['id','protocol','actorId','creditId','paymentId','entryId','auditId','expectedVersion','amountCents','credit','payment','entry','audit'])
+        && p.id == id && npKey(id) && npKey(p.creditId) && npKey(p.paymentId) && npKey(p.entryId) && npKey(p.auditId)
+        && p.protocol == 'spark-payment-v1' && p.actorId == request.auth.uid && npActor(o, c) && npOpen(c)
+        && p.expectedVersion is int && p.expectedVersion == c.version && p.expectedVersion >= 1
+        && p.credit.id == c.id && p.credit.version == c.version + 1
+        && p.credit.nativePaymentOperationId == id
+        && p.credit.diff(c).affectedKeys().hasOnly(['principalPaid','interestPaid','penaltyPaid','status','schedule','version','updatedAt','acceptedAt','nativePaymentOperationId'])
+        && c.schedule is list && c.schedule.size() > 0 && p.credit.schedule is list && p.credit.schedule.size() == c.schedule.size()
+        && npMoney(c.capital) && npMoney(c.get('principalPaid',0)) && npMoney(c.get('interestPaid',0)) && npMoney(c.get('penaltyPaid',0))
+        && p.credit.penaltyPaid == c.get('penaltyPaid',0)
+        && p.amountCents is int && p.amountCents > 0 && npMoney(pay.amount) && npCents(pay.amount) == p.amountCents
+        && pay.keys().hasOnly(['id','creditId','clientId','routeId','userId','workerId','workerAttribution','amount','date','concept','capitalAmount','interestAmount','penaltyAmount','operationId','version','installmentNumber','installmentNo','installmentFrom','installmentTo','totalInstallments','installmentApplications','balanceAfterPayment','cashMovementId','method'])
+        && pay.id == p.paymentId && pay.operationId == id && pay.creditId == c.id && pay.clientId == c.clientId
+        && pay.userId == p.actorId && pay.routeId == c.routeId && pay.workerId == c.get('workerId','')
+        && pay.workerAttribution == {'source':'CREDIT_ASSIGNMENT_AT_PAYMENT'}
+        && pay.concept == 'CUOTA' && pay.version == 1 && pay.cashMovementId == p.entryId
+        && pay.date is string && pay.date == npToday()
+        && npMoney(pay.capitalAmount) && npMoney(pay.interestAmount) && pay.penaltyAmount == 0
+        && e.keys().hasOnly(['id','ref','amount','date','type','concept','routeId','version','actorId','operationId','creditId','cashAccountId'])
+        && e.id == p.entryId && e.ref == pay.id && e.amount == pay.amount && e.date == pay.date
+        && e.type == 'INGRESO' && e.concept == 'COBRO_CUOTA' && e.version == 1
+        && e.routeId == c.routeId && e.creditId == c.id && e.actorId == p.actorId && e.operationId == id
+        && e.cashAccountId == (c.get('workerId','') == '' ? 'leader' : c.workerId)
+        && a.id == p.auditId && a.actorId == p.actorId && a.role == npGet(o,'members',request.auth.uid).role
+        && a.action in ['PAYMENT','PAYMENT_RECORDED'] && a.entityType == 'PAYMENT' && a.entityId == pay.id && a.operationId == id && a.version == 1
+        && a.detail.amount == pay.amount && a.detail.get('creditId', c.id) == c.id
+        && a.detail.get('capitalAmount', pay.capitalAmount) == pay.capitalAmount && a.detail.get('interestAmount', pay.interestAmount) == pay.interestAmount;
+    }
+    function npDelta(old, amount, before) { return npMin(npCents(old.get('balance', old.amount)), npMax(0, amount - before)); }
+    function npApp(a, number, used, bal) { return a.keys().hasOnly(['number','amount','balanceBefore','balanceAfter','status']) && a.number==number && a.amount==used / 100.0 && a.balanceBefore==bal / 100.0 && a.balanceAfter==(bal-used) / 100.0 && a.status==(bal==used?'PAGADA':'PARCIAL'); }
+    function npRow(c, p, d, j) {
+      let i = d.start + j;
+      let old = c.schedule[i];
+      let next = p.credit.schedule[i];
+      let bal = npCents(old.get('balance', old.amount));
+      let paid = npCents(old.get('paid',0));
+      let used = npMin(bal,npMax(0,p.amountCents-d.prefix[j]));
+      let count = d.applicationPrefix[j];
+      return npMoney(old.get('balance',old.amount)) && npMoney(old.get('paid',0)) && bal >= 0 && paid >= 0
+        && d.prefix[j] is int && d.prefix[j+1] is int && d.prefix[j+1] == d.prefix[j]+bal
+        && count is int && d.applicationPrefix[j+1] == count+(used>0?1:0)
+        && (used==0 ? next==old : next.diff(old).affectedKeys().hasOnly(['paid','balance','status'])
+          && next.paid==(paid+used) / 100.0 && next.balance==(bal-used) / 100.0 && next.status==(bal==used?'PAGADA':'PARCIAL'))
+        && (used==0 || npApp(p.payment.installmentApplications[count],i+1,used,bal));
+    }
+    function npPartRow(c,p,d,j) { return d.start+j >= d.end || npRow(c,p,d,j); }
+    function npCertificate(o,d,id) {
+      let p=npGet(o,'paymentProposals',d.operationId);
+      let c=npGet(o,'credits',d.creditId);
+      let previous=d.index==0?{'prefix':[0],'applicationPrefix':[0],'end':0}:npGet(o,'paymentCertificates',d.operationId+'--'+string(d.index-1));
+      return d.keys().hasOnly(['id','operationId','actorId','creditId','expectedVersion','index','start','end','prefix','applicationPrefix'])
+        && npKey(d.operationId) && d.index is int && d.index>=0 && d.id==id && id==d.operationId+'--'+string(d.index)
+        && d.actorId==request.auth.uid && p.actorId==d.actorId && d.creditId==p.creditId && npActor(o,c)
+        && d.expectedVersion==p.expectedVersion && c.version==d.expectedVersion && npOpen(c)
+        && d.start==d.index*1 && d.start<c.schedule.size() && d.end==npMin(d.start+1,c.schedule.size())
+        && previous.end==d.start && d.prefix is list && d.prefix.size()==d.end-d.start+1
+        && d.applicationPrefix is list && d.applicationPrefix.size()==d.prefix.size()
+        && d.prefix[0]==previous.prefix[previous.prefix.size()-1]
+        && d.applicationPrefix[0]==previous.applicationPrefix[previous.applicationPrefix.size()-1]
+        && npPartRow(c,p,d,0);
+    }
+    function npStamped(actual, target) { return actual.keys().hasAll(target.keys())
+      && actual.diff(target).affectedKeys().hasOnly(['acceptedAt']) && actual.acceptedAt == request.time; }
+    function npFinalMoney(c, p, cert) {
+      let balance = cert.prefix[cert.prefix.size()-1];
+      let principal = npCents(c.capital) - npCents(c.get('principalPaid',0));
+      let capital = p.amountCents == balance ? principal : npMin(principal,int(math.round(p.amountCents * principal / balance)));
+      let applications = p.payment.installmentApplications;
+      return balance > 0 && p.amountCents <= balance && principal >= 0 && principal <= balance
+        && c.get('principalPaid',0) >= 0 && c.get('interestPaid',0) >= 0
+        && p.payment.capitalAmount >= 0 && p.payment.interestAmount >= 0 && capital <= p.amountCents && cert.end == c.schedule.size()
+        && npCents(p.payment.capitalAmount) == capital && npCents(p.payment.interestAmount) == p.amountCents-capital
+        && p.credit.principalPaid == (npCents(c.get('principalPaid',0))+capital) / 100.0
+        && p.credit.interestPaid == (npCents(c.get('interestPaid',0))+p.amountCents-capital) / 100.0
+        && p.credit.status == (p.amountCents==balance?'PAGADO':'ACTIVO')
+        && p.payment.balanceAfterPayment == (balance-p.amountCents) / 100.0
+        && cert.applicationPrefix[cert.applicationPrefix.size()-1] == applications.size() && applications.size() > 0
+        && p.payment.installmentNumber == applications[0].number && p.payment.installmentNo == applications[0].number
+        && p.payment.installmentFrom == applications[0].number && p.payment.installmentTo == applications[applications.size()-1].number
+        && p.payment.totalInstallments == c.schedule.size();
+    }
+    function npBundle(o, op, id) {
+      let p = npGet(o,'paymentProposals',id);
+      let c = npGet(o,'credits',p.creditId);
+      let cert = npGet(o,'paymentCertificates',op.certificateId);
+      return op.keys().hasOnly(['id','type','protocol','actorId','status','proposalId','certificateId','writeCount','appliedAt'])
+        && op.id == id && op.proposalId == id && op.type == 'PAYMENT' && op.protocol == 'spark-payment-v1'
+        && op.actorId == request.auth.uid && p.actorId == op.actorId && op.status == 'APPLIED' && op.writeCount == 4 && op.appliedAt == request.time
+        && npMember(o) && p.audit.role == npGet(o,'members',request.auth.uid).role && p.payment.date == npToday() && npOpen(c) && c.version == p.expectedVersion
+        && cert.operationId == id && cert.creditId == c.id && cert.expectedVersion == c.version && npFinalMoney(c,p,cert)
+        && npStamped(npAfter(o,'credits',p.creditId),p.credit) && npStamped(npAfter(o,'payments',p.paymentId),p.payment)
+        && npStamped(npAfter(o,'entries',p.entryId),p.entry) && npStamped(npAfter(o,'audit',p.auditId),p.audit)
+        && npCashAfter(o,id,p.entry.cashAccountId,p.amountCents);
+    }
+    function npCompanion(o, operationId, collection, id) {
+      let p = npGet(o,'paymentProposals',operationId);
+      let op = npAfter(o,'operations',operationId);
+      return signedIn() && v2Org(o) && p.actorId == request.auth.uid && op.actorId == p.actorId
+        && op.protocol == 'spark-payment-v1' && op.type == 'PAYMENT' && op.status == 'APPLIED' && op.appliedAt == request.time
+        && (collection!='credit' || npActor(o,resource.data))
+        && npStamped(request.resource.data,p[collection]) && request.resource.data.id == id;
+    }
+    function npMetadataType(type) { return type in ['CLIENT_CREATE','CLIENT_UPDATE','CLIENT_CREATED','CLIENT_UPDATED','ROUTE_SAVED','WORKER_SAVED','WORKER_ASSIGNMENT','CREDIT_REFERENCE_UPDATED']; }
+    function npMetadataOperation(op,id) { return op.keys().hasOnly(['id','type','fingerprint','status','createdAt','appliedAt','writeCount','actorId']) && op.id==id && npMetadataType(op.type); }
+    function npMetadataRoute(d,id) { return !(id in ['spark-financial-capability','spark-financial-mutex','spark-native-cash']) && d.recordType in ['ROUTE','WORKER','ASSIGNMENT','CLIENT_ACCESS']; }
+    function npMetadataCredit() { return request.resource.data.version == resource.data.version+1
+      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['workerId','routeId','assignedAt','beneficiaryReference','version','updatedAt']); }
+    match /orgs/v2-mi-cartera-pilot { allow read: if true; allow write: if false; }
+    match /orgs/{o}/members/{id} { allow get: if signedIn() && v2Org(o) && request.auth.uid==id; allow write: if false; }
+    match /orgs/{o}/paymentProposals/{id} {
+      allow get: if npMember(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/paymentProposals/$(id)) || resource.data.actorId==request.auth.uid);
+      allow create: if signedIn() && v2Org(o) && npProposal(o,request.resource.data,id);
+      allow update,delete: if false;
+    }
+    match /orgs/{o}/paymentCertificates/{id} {
+      allow get: if npMember(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/paymentCertificates/$(id)) || resource.data.actorId==request.auth.uid);
+      allow create: if signedIn() && v2Org(o) && npCertificate(o,request.resource.data,id);
+      allow update,delete: if false;
+    }
+    match /orgs/{o}/credits/{id} {
+      allow read: if v2Org(o) && (v2Manager(o) || (v2Collector(o) && v2AssignedRoute(o,resource.data.routeId)) || v2WorkerRead(o,resource.data));
+      allow update: if signedIn() && v2Org(o) && (npCompanion(o,request.resource.data.get('nativePaymentOperationId',''),'credit',id) || ncCreditCompanion(o,id) || (v2Manager(o) && npMetadataCredit()));
+      allow create: if signedIn() && v2Org(o) && ncCreditCompanion(o,id);
+      allow delete: if false;
+    }
+    match /orgs/{o}/payments/{id} {
+      allow get: if npMember(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/payments/$(id)) || v2Manager(o) || resource.data.userId==request.auth.uid);
+      allow list: if v2Org(o) && (v2Manager(o) || (v2Collector(o) && resource.data.userId==request.auth.uid) || v2WorkerRead(o,resource.data));
+      allow create: if signedIn() && v2Org(o) && (npCompanion(o,request.resource.data.operationId,'payment',id) || ncCompanion(o,request.resource.data.operationId,'payment',id));
+      allow update,delete: if false;
+    }
+    match /orgs/{o}/entries/{id} {
+      allow get: if npMember(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/entries/$(id)) || v2Manager(o) || resource.data.get('actorId','')==request.auth.uid);
+      allow list: if v2Org(o) && (v2Manager(o) || v2WorkerRead(o,resource.data));
+      allow create: if signedIn() && v2Org(o) && (npCompanion(o,request.resource.data.operationId,'entry',id) || ncCompanion(o,request.resource.data.operationId,'entry',id));
+      allow update,delete: if false;
+    }
+    match /orgs/{o}/audit/{id} {
+      allow get: if npMember(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/audit/$(id)) || v2Manager(o) || resource.data.actorId==request.auth.uid);
+      allow list: if v2Org(o) && (v2Manager(o) || resource.data.actorId==request.auth.uid && npMember(o));
+      allow create: if signedIn() && v2Org(o) && (npCompanion(o,request.resource.data.operationId,'audit',id) || ncCompanion(o,request.resource.data.operationId,'audit',id) || (v2Manager(o) && npMetadataType(request.resource.data.action) && request.resource.data.actorId==request.auth.uid));
+      allow update,delete: if false;
+    }
+    match /orgs/{o}/operations/{id} {
+      allow get: if npMember(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/operations/$(id)) || v2Manager(o) || resource.data.get('actorId','')==request.auth.uid);
+      allow list: if v2Org(o) && v2Manager(o);
+      allow create: if signedIn() && v2Org(o) && (request.resource.data.get('protocol','')=='spark-payment-v1' && npBundle(o,request.resource.data,id) || request.resource.data.get('protocol','')=='spark-credit-v1' && ncBundle(o,request.resource.data,id) || (v2Manager(o) && npMetadataOperation(request.resource.data,id)));
+      allow update,delete: if false;
+    }
+    match /orgs/{o}/clients/{id} {
+      allow read: if v2Org(o) && (v2Manager(o) || (v2Collector(o) && v2AssignedRoute(o,resource.data.routeId)) || v2WorkerRead(o,resource.data));
+      allow create: if v2Org(o) && v2Manager(o); allow update: if v2Org(o) && v2Manager(o); allow delete: if false;
+    }
+    match /orgs/{o}/expenses/{id} {
+      allow create: if signedIn() && v2Org(o) && ncCompanion(o,request.resource.data.operationId,'expense',id);
+      allow update,delete: if false;
+    }
+    match /orgs/{o}/{collection}/{id} {
+      allow read: if v2Org(o) && v2Manager(o) && collection in ['capital','expenses','cashClosures','routes'];
+      allow create: if v2Org(o) && v2Manager(o) && collection=='routes' && npMetadataRoute(request.resource.data,id);
+      allow update: if v2Org(o) && v2Manager(o) && collection=='routes' && npMetadataRoute(resource.data,id) && npMetadataRoute(request.resource.data,id);
+      allow delete: if false;
+    }
+
+    // Only the protected release initializes a verified position. Browser writes
+    // can apply the exact delta of an accompanying, accepted native operation.
+    function npCashAfter(o,operationId,accountId,deltaCents) {
+      let d=npAfter(o,'financialControls','cash--'+accountId);
+      let release=npGet(o,'financialControls','release');
+      return release.protocol=='SPARK_NATIVE_BASELINE' && release.state=='ACTIVE' && release.orgId==o
+        && release.projectId==request.auth.token.aud && d.baselineId==release.baselineId
+        && d.protocol=='spark-cash-v1' && d.recordType=='CASH_POSITION' && d.accountId==accountId
+        && d.lastOperationId==operationId && d.acceptedAt==request.time;
+    }
+    function npCashPayment(o,op,d) {
+      let p=npGet(o,'paymentProposals',op.id);
+      return op.type=='PAYMENT' && op.actorId==p.actorId && d.accountId==p.entry.cashAccountId
+        && p.payment.date==npToday() && d.availableCents==resource.data.availableCents+p.amountCents;
+    }
+    function npCashCredit(o,op,d) {
+      let p=npGet(o,'creditProposals',op.id);
+      let delta=p.entry!=null?npCents(p.entry.amount):p.expense!=null?-npCents(p.expense.amount):0;
+      return op.type==p.type && op.actorId==p.actorId && d.accountId=='leader'
+        && (p.type=='CREDIT_CREATE'?p.expense.date:p.credit.date)==npToday()
+        && d.availableCents==resource.data.availableCents+delta;
+    }
+    function npCashUpdate(o,d,id) {
+      let before=resource.data;
+      let op=npAfter(o,'operations',d.lastOperationId);
+      let release=npGet(o,'financialControls','release');
+      return npMember(o) && id=='cash--'+d.accountId && before.protocol=='spark-cash-v1'
+        && release.protocol=='SPARK_NATIVE_BASELINE' && release.state=='ACTIVE' && release.orgId==o
+        && release.projectId==request.auth.token.aud && before.baselineId==release.baselineId
+        && before.recordType=='CASH_POSITION' && before.baselineId is string && before.asOf<=npToday()
+        && d.diff(before).affectedKeys().hasOnly(['availableCents','version','lastOperationId','acceptedAt'])
+        && d.availableCents is int && d.availableCents>=0 && d.availableCents<=900000000000
+        && d.version==before.version+1 && d.acceptedAt==request.time && d.lastOperationId!=before.lastOperationId
+        && op.id==d.lastOperationId && op.actorId==request.auth.uid && op.status=='APPLIED' && op.appliedAt==request.time
+        && (op.protocol=='spark-payment-v1'?npCashPayment(o,op,d):op.protocol=='spark-credit-v1'?npCashCredit(o,op,d):op.protocol=='spark-partners-v1'&&nsCash(o,op,d));
+    }
+    function npCashRead(o,d) {
+      let m=npGet(o,'members',request.auth.uid);
+      return npMember(o) && (m.role in ['admin','supervisor']
+        || d.accountId!='leader' && (m.get('workerId','')==d.accountId
+          || m.role=='cobrador' && npGet(o,'routes',d.accountId).routeId in m.routeIds));
+    }
+    match /orgs/{o}/financialControls/{id} {
+      allow get: if signedIn() && v2Org(o) && (v2Manager(o) || npCashRead(o,resource.data));
+      allow list,create,delete: if false;
+      allow update: if signedIn() && v2Org(o) && npCashUpdate(o,request.resource.data,id);
+    }
+    // Standalone Spark credit v1 block. Requires the approved np* payment helpers.
+    // Integrator must remove overlapping broad financial grants, reserve native
+    // protocol metadata, and add companion helpers to existing financial matches.
+    // Cash baseline and uniqueness baseline are provisioned by protected CI only.
+    function ncKey(id) { return id is string && id.matches('^[A-Za-z0-9_-]{1,100}$'); }
+    function ncManager(o) { return npMember(o) && npGet(o,'members',request.auth.uid).role in ['admin','supervisor']; }
+    function ncOpen(c) { return c.get('tombstone',false)==false && c.get('noReplay',false)==false
+      && c.get('administrativeClosure',{}).get('noReplay',false)==false && c.get('status','')!='CERRADO_ADMIN'; }
+    function ncDay(d) {
+      let parts=d.split('-');
+      let t=timestamp.date(int(parts[0]),int(parts[1]),int(parts[2]));
+      return d is string && d.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && string(t.year())+'-'+npPad(t.month())+'-'+npPad(t.day())==d;
+    }
+    function ncNewCredit(p) {
+      let c=p.credit;
+      return c.keys().hasOnly(['id','clientId','routeId','workerId','capital','total','rate','term','freq','restDay','firstPaymentDate','requestedFirstPaymentDate','schedule','principalPaid','interestPaid','penaltyPaid','status','version','nativeCreditOperationId','date','maturity','renewedFrom','operationId','renewalMode','previousBalance','netDisbursement','updatedAt','createdAt'])
+        && c.id==p.creditId && ncKey(c.id) && ncKey(c.clientId) && c.version==1 && c.status=='ACTIVO'
+        && c.principalPaid==0 && c.interestPaid==0 && c.penaltyPaid==0 && c.nativeCreditOperationId==p.id
+        && npMoney(c.capital) && c.capital>0 && npMoney(c.total) && c.total>0
+        && (c.rate is int || c.rate is float) && c.rate>=0
+        && npCents(c.total)==int(math.round(c.capital*(1+c.rate / 100.0)*100))
+        && c.term is int && c.term>0 && c.freq in ['daily','weekly','biweekly','monthly']
+        && c.schedule is list && c.schedule.size()>0 && c.term<=c.schedule.size()
+        && (p.type=='CREDIT_CREATE'||c.firstPaymentDate==c.schedule[0].date) && ncDay(c.firstPaymentDate)
+        && ncDay(c.get('requestedFirstPaymentDate',c.firstPaymentDate))
+        && (c.get('restDay','')=='' || int(c.restDay)>=0 && int(c.restDay)<=6)
+        && p.extraTotalCents is int && p.extraTotalCents>=0 && p.extraTotalCents<npCents(c.total)
+        && c.get('maturity',c.schedule[c.schedule.size()-1].date)==c.schedule[c.schedule.size()-1].date;
+    }
+    function ncAudit(o,p) {
+      let a=p.audit;
+      return a.id==p.auditId && ncKey(a.id) && a.actorId==p.actorId && a.role==npGet(o,'members',request.auth.uid).role
+        && a.role in ['admin','supervisor'] && a.entityType=='CREDIT' && a.entityId==p.creditId
+        && a.operationId==p.id && a.version==1
+        && a.action==(p.type=='CREDIT_CREATE'?'CREDIT_CREATED':p.type=='REFINANCE'?'CREDIT_REFINANCED':'INTEREST_RENEWAL');
+    }
+    function ncCash(p,d,type,concept,ref,amount) {
+      return d.keys().hasOnly(['id','date','type','amount','concept','ref','routeId','version','actorId','operationId','creditId','cashAccountId','updatedAt','createdAt'])
+        && ncKey(d.id) && d.type==type && d.concept==concept && d.ref==ref && npMoney(d.amount) && d.amount>0 && d.amount==amount
+        && d.date==npToday() && d.routeId==p.credit.routeId && d.version==1 && d.actorId==p.actorId
+        && d.operationId==p.id && d.creditId==p.creditId && d.cashAccountId=='leader';
+    }
+    function ncClient(o,p) {
+      let c=npGet(o,'clients',p.credit.clientId);
+      return c.id==p.credit.clientId && ncOpen(c) && p.credit.routeId==c.get('routeId',c.get('route',''))
+        && p.credit.get('workerId','')==c.get('workerId','');
+    }
+    function ncCreate(o,p) {
+      return p.oldCreditId=='' && p.expectedVersion==0 && p.oldCredit==null && p.payment==null && p.paymentId=='' && p.entry==null && p.entryId==''
+        && p.expenseId==p.expense.id && ncCash(p,p.expense,'EGRESO','DESEMBOLSO_CREDITO',p.creditId,p.credit.capital)
+        && !p.credit.keys().hasAny(['renewedFrom','renewalMode','previousBalance','netDisbursement','operationId']);
+    }
+    function ncInterest(c) { return math.round(((c.capital-c.get('principalPaid',0))*c.get('rate',0) / 100.0)*100) / 100.0; }
+    function ncOld(o,p) {
+      let c=npGet(o,'credits',p.oldCreditId);
+      let n=p.oldCredit;
+      return ncKey(p.oldCreditId) && p.oldCreditId!=p.creditId && ncOpen(c) && c.status=='ACTIVO' && c.get('renewedTo','')==''
+        && c.version==p.expectedVersion && p.expectedVersion is int && p.expectedVersion>=1
+        && c.get('schedule',[]) is list && npMoney(c.capital) && npMoney(c.get('principalPaid',0)) && npMoney(c.get('interestPaid',0)) && npMoney(c.get('penaltyPaid',0))
+        && n.id==c.id && n.version==c.version+1 && n.status=='RENOVADO' && n.renewedTo==p.creditId && n.renewedAt==p.credit.date && n.nativeCreditOperationId==p.id
+        && n.diff(c).affectedKeys().hasOnly(['status','renewedTo','renewedAt','version','principalPaid','interestPaid','penaltyPaid','nativeCreditOperationId','acceptedAt','updatedAt'])
+        && n.principalPaid==c.get('principalPaid',0) && n.penaltyPaid==c.get('penaltyPaid',0)
+        && n.interestPaid==(p.type=='INTEREST_RENEWAL'?math.round((c.get('interestPaid',0)+ncInterest(c))*100) / 100.0:c.get('interestPaid',0))
+        && p.credit.clientId==c.clientId && p.credit.routeId==c.get('routeId','') && p.credit.get('workerId','')==c.get('workerId','')
+        && p.credit.renewedFrom==c.id && p.credit.operationId==p.id && p.credit.date==npToday()
+        && npMoney(p.credit.previousBalance) && p.credit.previousBalance>=0 && p.audit.detail.from==c.id;
+    }
+    function ncInterestPayment(o,p) {
+      let c=npGet(o,'credits',p.oldCreditId);
+      let pay=p.payment;
+      let amount=ncInterest(c);
+      return pay.keys().hasOnly(['id','creditId','clientId','date','amount','concept','capitalAmount','interestAmount','penaltyAmount','method','operationId','version','routeId','userId','workerId','workerAttribution'])
+        && amount>0 && p.credit.capital==math.round((c.capital-c.get('principalPaid',0))*100) / 100.0 && p.credit.renewalMode=='INTEREST' && p.credit.netDisbursement==0
+        && pay.id==p.paymentId && ncKey(pay.id) && pay.creditId==c.id && pay.clientId==c.clientId && pay.routeId==p.credit.routeId
+        && pay.userId==p.actorId && pay.workerId==c.get('workerId','') && pay.workerAttribution=={'source':'CREDIT_ASSIGNMENT_AT_RENEWAL'}
+        && pay.date==npToday() && pay.concept=='INTERES' && pay.capitalAmount==0 && pay.interestAmount==amount && pay.penaltyAmount==0 && pay.amount==amount && pay.operationId==p.id && pay.version==1
+        && p.entryId==p.entry.id && ncCash(p,p.entry,'INGRESO','COBRO_INTERES',pay.id,amount)
+        && p.expenseId=='' && p.expense==null && p.audit.detail.interest==amount;
+    }
+    function ncRefinance(p) {
+      return p.paymentId=='' && p.payment==null && p.entryId=='' && p.entry==null
+        && p.credit.renewalMode=='REFINANCE' && npMoney(p.credit.netDisbursement) && p.credit.netDisbursement>=0
+        && (p.credit.netDisbursement==0?p.expenseId==''&&p.expense==null:p.expenseId==p.expense.id&&ncCash(p,p.expense,'EGRESO','DESEMBOLSO_REFINANCIAMIENTO',p.creditId,p.credit.netDisbursement))
+        && p.audit.detail.previousBalance==p.credit.previousBalance && p.audit.detail.newCapital==p.credit.capital && p.audit.detail.cashDisbursed==p.credit.netDisbursement;
+    }
+    function ncProposal(o,p,id) {
+      return p.keys().hasOnly(['id','type','protocol','actorId','creditId','oldCreditId','expectedVersion','extraTotalCents','paymentId','entryId','expenseId','auditId','credit','oldCredit','payment','entry','expense','audit'])
+        && p.id==id && ncKey(id) && p.protocol=='spark-credit-v1' && p.actorId==request.auth.uid && ncManager(o)
+        && p.type in ['CREDIT_CREATE','INTEREST_RENEWAL','REFINANCE'] && ncKey(p.creditId)
+        && ncNewCredit(p) && p.audit.operationId==id
+        && p.audit.actorId==p.actorId && p.audit.role==npGet(o,'members',request.auth.uid).role;
+    }
+    function ncPrepared(o,p) {
+      return ncManager(o) && p.actorId==request.auth.uid && p.audit.role==npGet(o,'members',request.auth.uid).role
+        && (p.type=='CREDIT_CREATE'?ncClient(o,p):npGet(o,'credits',p.oldCreditId).version==p.expectedVersion&&ncOpen(npGet(o,'credits',p.oldCreditId))&&npGet(o,'credits',p.oldCreditId).status=='ACTIVO'&&npGet(o,'credits',p.oldCreditId).get('renewedTo','')=='');
+    }
+    function ncAuthorized(o,p,kind) {
+      let a=npGet(o,'creditAuthorizations',p.id+'--'+kind);
+      return a.operationId==p.id && a.actorId==p.actorId && a.kind==kind;
+    }
+    function ncAuthorization(o,a,id) {
+      let p=npGet(o,'creditProposals',a.operationId);
+      return a.keys().hasOnly(['id','protocol','operationId','actorId','creditId','expectedVersion','kind'])
+        && a.id==id && id==p.id+'--'+a.kind && a.protocol=='spark-credit-v1'
+        && a.actorId==request.auth.uid && a.actorId==p.actorId && a.creditId==p.creditId && a.expectedVersion==p.expectedVersion
+        && ncManager(o) && p.audit.role==npGet(o,'members',request.auth.uid).role
+        && (a.kind=='context'?(p.type=='CREDIT_CREATE'?ncClient(o,p):ncOld(o,p))
+          :a.kind=='ledger'?(p.type=='CREDIT_CREATE'?ncCreate(o,p):p.type=='INTEREST_RENEWAL'?ncInterestPayment(o,p):ncRefinance(p))
+          :a.kind=='audit'&&ncAudit(o,p)&&ncAuditDetails(p));
+    }
+    function ncDateStamp(s) { let parts=s.split('-'); return timestamp.date(int(parts[0]),int(parts[1]),int(parts[2])); }
+    function ncIso(t) { return string(t.year())+'-'+npPad(t.month())+'-'+npPad(t.day()); }
+    function ncWeekday(t) { return ((int(math.floor(t.toMillis() / 86400000))+4)%7+7)%7; }
+    function ncMonthly(start,n) {
+      let index=start.month()-1+n;
+      let year=start.year()+int(index / 12);
+      let month=index%12+1;
+      let end=timestamp.date(year+(month==12?1:0),month==12?1:month+1,1)-duration.value(1,'d');
+      return timestamp.date(year,month,npMin(start.day(),end.day()));
+    }
+    function ncRegularDate(c,n,previous) {
+      let start=ncDateStamp(c.get('requestedFirstPaymentDate',c.firstPaymentDate));
+      let candidate=c.freq=='monthly'?ncMonthly(start,n):start+duration.value(n*(c.freq=='daily'?1:c.freq=='weekly'?7:14),'d');
+      let rest=c.get('restDay','')==''?-1:int(c.restDay);
+      let shifted=candidate+duration.value(rest>=0&&ncWeekday(candidate)==rest?1:0,'d');
+      let prior=previous==''?shifted:ncDateStamp(previous)+duration.value(1,'d');
+      let due=shifted>=prior?shifted:prior;
+      return due+duration.value(rest>=0&&ncWeekday(due)==rest?1:0,'d');
+    }
+    function ncRegularRow(p,d,previous,r) {
+      let n=d.regularPrefix[0];
+      let regular=npCents(p.credit.total)-p.extraTotalCents;
+      let base=int(math.floor(regular / p.credit.term));
+      let amount=n==p.credit.term-1?regular-base*(p.credit.term-1):base;
+      return n<p.credit.term && r.number==n+1 && r.get('n',n+1)==n+1
+        && r.get('type','CUOTA')=='CUOTA' && r.get('paymentType','CUOTA')=='CUOTA'
+        && ncDateStamp(r.date)==ncRegularDate(p.credit,n,previous.lastRegularDate)
+        && npCents(r.amount)==amount && d.lastRegularDate==r.date && d.extraPrefix[1]==d.extraPrefix[0];
+    }
+    function ncExtraRow(p,d,previous,r) {
+      let n=d.start-d.regularPrefix[0]+1;
+      return r.number=='A'+string(n) && r.n==r.number && r.type=='ADICIONAL' && r.paymentType=='ADICIONAL'
+        && d.lastRegularDate==previous.lastRegularDate && d.extraPrefix[1]==d.extraPrefix[0]+npCents(r.amount);
+    }
+    function ncCalendarRow(p,d,previous) {
+      let r=p.credit.schedule[d.start];
+      return r.keys().hasOnly(['number','n','date','amount','paid','balance','status','extra','type','paymentType'])
+        && ncDay(r.date) && (d.index==0||r.date>previous.lastDate) && d.lastDate==r.date
+        && npMoney(r.amount) && r.amount>0 && r.paid==0 && r.balance==r.amount && r.status=='PENDIENTE'
+        && d.prefix[1]==d.prefix[0]+npCents(r.amount)
+        && d.regularPrefix[1]==d.regularPrefix[0]+(r.get('extra',false)==true?0:1)
+        && (r.get('extra',false)==true?ncExtraRow(p,d,previous,r):ncRegularRow(p,d,previous,r));
+    }
+    function ncCalendar(o,d,id) {
+      let p=npGet(o,'creditProposals',d.operationId);
+      let previous=d.index==0?{'end':0,'prefix':[0],'regularPrefix':[0],'extraPrefix':[0],'lastRegularDate':'','lastDate':''}:npGet(o,'creditCalendars',d.operationId+'--new-'+string(d.index-1));
+      return d.keys().hasOnly(['id','operationId','actorId','phase','creditId','expectedVersion','index','start','end','prefix','regularPrefix','extraPrefix','lastRegularDate','lastDate'])
+        && ncManager(o) && p.actorId==request.auth.uid && d.actorId==p.actorId && d.id==id && d.phase=='new'
+        && d.index is int && d.index>=0 && id==p.id+'--new-'+string(d.index) && d.start==d.index && d.end==d.start+1 && d.start<p.credit.schedule.size()
+        && d.creditId==p.creditId && d.expectedVersion==0 && previous.end==d.start
+        && d.prefix.size()==2 && d.regularPrefix.size()==2 && d.extraPrefix.size()==2
+        && d.prefix[0] is int && d.prefix[1] is int && d.regularPrefix[0] is int && d.regularPrefix[1] is int && d.extraPrefix[0] is int && d.extraPrefix[1] is int
+        && d.prefix[0]==previous.prefix[previous.prefix.size()-1] && d.regularPrefix[0]==previous.regularPrefix[previous.regularPrefix.size()-1] && d.extraPrefix[0]==previous.extraPrefix[previous.extraPrefix.size()-1]
+        && ncCalendarRow(p,d,previous);
+    }
+    function ncNewRow(o,p,d) { return npGet(o,'creditCalendars',d.id)==d; }
+    match /orgs/{o}/creditCalendars/{id} {
+      allow get: if ncManager(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/creditCalendars/$(id))||resource.data.actorId==request.auth.uid);
+      allow create: if signedIn() && v2Org(o) && ncCalendar(o,request.resource.data,id);
+      allow update,delete: if false;
+    }
+    function ncOldRow(o,p,d) {
+      let r=npGet(o,'credits',p.oldCreditId).schedule[d.start];
+      let paid=r.get('paid',0);
+      let balance=r.get('balance',r.amount-paid);
+      return npMoney(r.amount) && r.amount>0 && npMoney(paid) && paid>=0 && npMoney(balance) && balance>=0
+        && npCents(paid)+npCents(balance)==npCents(r.amount) && d.prefix[1]==d.prefix[0]+npCents(balance)
+        && d.regularPrefix[1]==d.regularPrefix[0] && d.lastDate=='' && d.lastRegularDate=='' && d.extraPrefix==[0,0];
+    }
+    function ncCertificate(o,d,id) {
+      let p=npGet(o,'creditProposals',d.operationId);
+      let rows=d.phase=='new'?p.credit.schedule:npGet(o,'credits',p.oldCreditId).get('schedule',[]);
+      let previous=d.index==0?{'end':0,'prefix':[0],'regularPrefix':[0],'extraPrefix':[0],'lastRegularDate':'','lastDate':''}:npGet(o,'creditCertificates',d.operationId+'--'+d.phase+'-'+string(d.index-1));
+      return d.keys().hasOnly(['id','operationId','actorId','phase','creditId','expectedVersion','index','start','end','prefix','regularPrefix','extraPrefix','lastRegularDate','lastDate'])
+        && ncKey(d.operationId) && d.id==id && d.phase in ['new','old'] && d.index is int && d.index>=0 && id==d.operationId+'--'+d.phase+'-'+string(d.index)
+        && ncPrepared(o,p) && d.actorId==request.auth.uid && d.start==d.index && d.end==d.start+1 && d.start<rows.size()
+        && d.creditId==(d.phase=='new'?p.creditId:p.oldCreditId) && d.expectedVersion==(d.phase=='new'?0:p.expectedVersion)
+        && d.prefix is list && d.prefix.size()==2 && d.regularPrefix is list && d.regularPrefix.size()==2
+        && d.prefix[0] is int && d.prefix[1] is int && d.regularPrefix[0] is int && d.regularPrefix[1] is int
+        && d.extraPrefix is list && d.extraPrefix.size()==2 && d.extraPrefix[0] is int && d.extraPrefix[1] is int
+        && previous.end==d.start && d.prefix[0]==previous.prefix[previous.prefix.size()-1] && d.regularPrefix[0]==previous.regularPrefix[previous.regularPrefix.size()-1]
+        && d.extraPrefix[0]==previous.extraPrefix[previous.extraPrefix.size()-1]
+        && (d.phase!='new'||d.index!=0||(ncAuthorized(o,p,'context')&&ncAuthorized(o,p,'ledger')&&ncAuthorized(o,p,'audit')))
+        && (d.phase=='new'?ncNewRow(o,p,d):p.type!='CREDIT_CREATE'&&ncOldRow(o,p,d));
+    }
+    function ncNewCertificate(o,p,id) {
+      let cert=npGet(o,'creditCertificates',id);
+      return id==p.id+'--new-'+string(p.credit.schedule.size()-1) && cert.phase=='new' && cert.operationId==p.id && cert.actorId==p.actorId
+        && cert.creditId==p.creditId && cert.expectedVersion==0 && cert.end==p.credit.schedule.size()
+        && cert.prefix[1]==npCents(p.credit.total) && cert.regularPrefix[1]==p.credit.term && cert.extraPrefix[1]==p.extraTotalCents;
+    }
+    function ncRenewMoney(o,p,id) {
+      let c=npGet(o,'credits',p.oldCreditId);
+      let rows=c.get('schedule',[]);
+      let cert=rows.size()>0?npGet(o,'creditCertificates',id):{'prefix':[0,npMax(0,npCents(c.total)-npCents(c.get('principalPaid',0))-npCents(c.get('interestPaid',0))-npCents(c.get('penaltyPaid',0)))]};
+      let balance=cert.prefix[1];
+      return (rows.size()==0?id=='':id==p.id+'--old-'+string(rows.size()-1)&&cert.phase=='old'&&cert.operationId==p.id&&cert.actorId==p.actorId&&cert.creditId==c.id&&cert.expectedVersion==p.expectedVersion&&cert.end==rows.size())
+        && npCents(p.credit.previousBalance)==balance
+        && (p.type=='INTEREST_RENEWAL'?p.credit.netDisbursement==0:npCents(p.credit.capital)>=balance&&npCents(p.credit.netDisbursement)==npCents(p.credit.capital)-balance);
+    }
+    function ncCount(p) { return 2+(p.oldCredit==null?0:1)+(p.payment==null?0:1)+(p.entry==null?0:1)+(p.expense==null?0:1); }
+    function ncIndexKey(c) {
+      return 'credit--'+c.clientId+'--'+string(npCents(c.capital))+'--'+string(npCents(c.total))+'--'+string(c.term)+'--'+c.freq+'--'+c.firstPaymentDate;
+    }
+    function ncIndexRecord(p,baselineId) {
+      return {'id':ncIndexKey(p.credit),'protocol':'spark-credit-index-v1','recordType':'CREDIT_UNIQUENESS','state':'ACTIVE',
+        'clientId':p.credit.clientId,'capitalCents':npCents(p.credit.capital),'totalCents':npCents(p.credit.total),
+        'term':p.credit.term,'freq':p.credit.freq,'firstPaymentDate':p.credit.firstPaymentDate,'creditId':p.creditId,
+        'operationId':p.id,'actorId':p.actorId,'baselineId':baselineId,'version':1};
+    }
+    function ncIndexAfter(o,p) {
+      let release=npGet(o,'financialControls','release');
+      let d=npAfter(o,'financialControls',ncIndexKey(p.credit));
+      return release.protocol=='SPARK_NATIVE_BASELINE' && release.state=='ACTIVE' && release.orgId==o
+        && release.projectId==request.auth.token.aud && release.creditIndexProtocol=='spark-credit-index-v1'
+        && npStamped(d,ncIndexRecord(p,release.baselineId));
+    }
+    function ncIndexCreate(o,d,id) {
+      let p=npGet(o,'creditProposals',d.operationId);
+      let op=npAfter(o,'operations',d.operationId);
+      return ncManager(o) && p.actorId==request.auth.uid && d.actorId==request.auth.uid
+        && id==ncIndexKey(p.credit) && op.id==p.id && op.proposalId==p.id && op.actorId==p.actorId
+        && op.protocol=='spark-credit-v1' && op.type==p.type && op.status=='APPLIED' && op.appliedAt==request.time
+        && ncIndexAfter(o,p);
+    }
+    function ncOptionalCompanions(o,p) {
+      return (p.payment==null||npStamped(npAfter(o,'payments',p.paymentId),p.payment))
+        && (p.entry==null||npStamped(npAfter(o,'entries',p.entryId),p.entry))
+        && (p.expense==null||npStamped(npAfter(o,'expenses',p.expenseId),p.expense));
+    }
+    function ncBundle(o,op,id) {
+      let p=npGet(o,'creditProposals',id);
+      return op.keys().hasOnly(['id','type','protocol','actorId','status','proposalId','newCertificateId','oldCertificateId','writeCount','appliedAt'])
+        && op.id==id && op.proposalId==id && op.type==p.type && op.protocol=='spark-credit-v1' && op.actorId==request.auth.uid && op.actorId==p.actorId
+        && op.status=='APPLIED' && op.appliedAt==request.time && op.writeCount==ncCount(p) && ncManager(o)
+        && p.audit.role==npGet(o,'members',request.auth.uid).role
+        && ncNewCertificate(o,p,op.newCertificateId) && (p.oldCredit==null?op.oldCertificateId=='':npStamped(npAfter(o,'credits',p.oldCreditId),p.oldCredit))
+        && npStamped(npAfter(o,'credits',p.creditId),p.credit) && npStamped(npAfter(o,'audit',p.auditId),p.audit) && ncOptionalCompanions(o,p);
+    }
+    function ncAuditDetails(p) {
+      return p.type=='CREDIT_CREATE'?p.audit.detail.accepted==true&&p.audit.detail.clientId==p.credit.clientId&&p.audit.detail.capital==p.credit.capital
+        :p.audit.detail.from==p.oldCreditId&&(p.type=='INTEREST_RENEWAL'?p.audit.detail.interest==p.payment.amount
+          :p.audit.detail.previousBalance==p.credit.previousBalance&&p.audit.detail.newCapital==p.credit.capital&&p.audit.detail.cashDisbursed==p.credit.netDisbursement);
+    }
+    function ncField(o,p,op,field) {
+      return field=='credit'?!exists(/databases/$(database)/documents/orgs/$(o)/credits/$(p.creditId))&&ncPrepared(o,p)&&ncIndexAfter(o,p)
+        :field=='oldCredit'?p.type!='CREDIT_CREATE'&&ncPrepared(o,p)&&ncRenewMoney(o,p,op.oldCertificateId)
+        :field!='audit'||npCashAfter(o,op.id,'leader',p.entry!=null?npCents(p.entry.amount):p.expense!=null?-npCents(p.expense.amount):0);
+    }
+    function ncCompanion(o,operationId,field,id) {
+      let p=npGet(o,'creditProposals',operationId);
+      let op=npAfter(o,'operations',operationId);
+      return ncManager(o) && p.actorId==request.auth.uid && p.audit.role==npGet(o,'members',request.auth.uid).role
+        && op.id==operationId && op.proposalId==operationId && op.actorId==p.actorId && op.type==p.type && op.protocol=='spark-credit-v1'
+        && op.status=='APPLIED' && op.appliedAt==request.time && op.writeCount==ncCount(p)
+        && p[field]!=null && p[field].id==id && npStamped(request.resource.data,p[field]) && ncField(o,p,op,field);
+    }
+    function ncCreditCompanion(o,id) {
+      let operationId=request.resource.data.nativeCreditOperationId;
+      let p=npGet(o,'creditProposals',operationId);
+      return id==p.creditId?ncCompanion(o,operationId,'credit',id):id==p.oldCreditId&&ncCompanion(o,operationId,'oldCredit',id);
+    }
+    match /orgs/{o}/creditProposals/{id} {
+      allow get: if ncManager(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/creditProposals/$(id))||resource.data.actorId==request.auth.uid);
+      allow create: if signedIn() && v2Org(o) && ncProposal(o,request.resource.data,id);
+      allow update,delete: if false;
+    }
+    match /orgs/{o}/creditCertificates/{id} {
+      allow get: if ncManager(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/creditCertificates/$(id))||resource.data.actorId==request.auth.uid);
+      allow create: if signedIn() && v2Org(o) && ncCertificate(o,request.resource.data,id);
+      allow update,delete: if false;
+    }
+    match /orgs/{o}/creditAuthorizations/{id} {
+      allow get: if ncManager(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/creditAuthorizations/$(id))||resource.data.actorId==request.auth.uid);
+      allow create: if signedIn() && v2Org(o) && ncAuthorization(o,request.resource.data,id);
+      allow update,delete: if false;
+    }
+    match /orgs/{o}/financialControls/{id} {
+      allow create: if signedIn() && v2Org(o) && id.matches('^credit--.*$') && ncIndexCreate(o,request.resource.data,id);
+    }
+    // Integration hooks, not standalone broad grants:
+    // credits create/update: ncCreditCompanion(o,id)
+    // payments/entries/expenses/audit create: ncCompanion(o,request.resource.data.operationId,'payment'/'entry'/'expense'/'audit',id)
+    // operations create: ncBundle(o,request.resource.data,id)
+    // Spark partner loan journals. Preparation is immutable and moves no money.
+    // Large legacy journals are proved one row at a time within Rules limits.
+    function nsManager(o) { return ncManager(o); }
+    function nsTypes(t) { return t in ['PARTNER_LOAN_CREATED','PARTNER_INTEREST_PAID','PARTNER_CAPITAL_RETURNED','PARTNER_SETTLED','PARTNER_CONTACT_UPDATED']; }
+    function nsPrepared(o,p) {
+      return nsManager(o) && p.actorId==request.auth.uid && p.audit.role==npGet(o,'members',request.auth.uid).role
+        && (p.expectedVersion==0?!exists(/databases/$(database)/documents/orgs/$(o)/entries/$(p.loanId))
+          :npGet(o,'entries',p.loanId).version==p.expectedVersion && npGet(o,'entries',p.loanId).get('tombstone',false)==false
+           && npGet(o,'entries',p.loanId).get('noReplay',false)==false && npGet(o,'entries',p.loanId).get('administrativeClosure',{}).get('noReplay',false)==false);
+    }
+    function nsProposal(o,p,id) {
+      return p.keys().hasOnly(['id','protocol','type','actorId','loanId','expectedVersion','financial','date','dateParts','loanDateParts','firstDueParts','dueParts','nextTermParts','deltaCents','registryKey','master','expense','audit','journal','nextTerm'])
+        && p.id==id && npKey(id) && p.protocol=='spark-partners-v1' && nsTypes(p.type) && p.actorId==request.auth.uid && nsManager(o)
+        && npKey(p.loanId) && p.master.id==p.loanId && p.master.partnerLoan.id==p.loanId && p.master.nativePartnerOperationId==id
+        && p.expectedVersion is int && p.expectedVersion>=0 && p.master.version==p.expectedVersion+1
+        && (p.expectedVersion==0)==(p.type=='PARTNER_LOAN_CREATED') && p.financial==(p.type!='PARTNER_CONTACT_UPDATED')
+        && ncDay(p.date) && p.date<=npToday() && p.deltaCents is int && p.audit.actorId==p.actorId && p.audit.operationId==id
+        && p.audit.role==npGet(o,'members',request.auth.uid).role && nsPrepared(o,p);
+    }
+    function nsPhone(v) { return v is string && v.matches('^([1-9][0-9]{9,14})?$'); }
+    function nsLoan(l) {
+      return l.id is string && l.partner is string && l.partner==l.partner.trim() && l.partner.size()>0 && l.partner.size()<=200
+        && ncDay(l.date) && ncDay(l.firstDue) && npMoney(l.principal) && l.principal>0 && npMoney(l.rate) && l.rate>0
+        && l.historical is bool && l.interestPayments is list && l.repayments is list && l.terms is list && l.terms.size()>0;
+    }
+    function nsCreated(p) {
+      let m=p.master;
+      let l=m.partnerLoan;
+      let start=ncDateStamp(l.date);
+      let first=ncDateStamp(l.firstDue);
+      let months=(first.year()-start.year())*12+first.month()-start.month();
+      return m.keys().hasOnly(['id','date','type','amount','category','concept','ref','version','partnerLoan','partnerPhone','updatedAt','nativePartnerOperationId'])
+        && l.keys().hasOnly(['id','partner','date','principal','rate','firstDue','historical','interestPayments','repayments','terms','closedAt'])
+        && nsLoan(l) && m.date==l.date && m.type=='INGRESO' && m.category=='PRESTAMO_SOCIO' && m.concept=='Préstamo de '+l.partner && m.ref==m.id
+        && m.amount==(l.historical?0:l.principal) && l.date==p.date && l.interestPayments.size()==0 && l.repayments.size()==0 && l.terms.size()==1 && l.closedAt==null
+        && months>=1 && months<=2400 && ncMonthly(start,months)==first && nsPhone(m.get('partnerPhone',''))
+        && l.terms[0].keys().hasOnly(['from','amount']) && l.terms[0].from==l.firstDue
+        && l.terms[0].amount==math.round(l.principal*l.rate) / 100.0 && l.terms[0].amount>0;
+    }
+    function nsContext(o,p) {
+      let old=npGet(o,'entries',p.loanId);
+      let m=p.master;
+      let l=m.partnerLoan;
+      let b=old.partnerLoan;
+      let interest=p.type=='PARTNER_INTEREST_PAID';
+      return old.type=='INGRESO' && old.category=='PRESTAMO_SOCIO' && nsLoan(b)
+        && m.diff(old).affectedKeys().hasOnly(['partnerLoan','partnerPhone','version','updatedAt','acceptedAt','nativePartnerOperationId'])
+        && (p.type=='PARTNER_CONTACT_UPDATED'?m.partnerLoan==b && nsPhone(m.partnerPhone)
+          :m.get('partnerPhone','')==old.get('partnerPhone','') && l.diff(b).affectedKeys().hasOnly(['interestPayments','repayments','terms','closedAt'])
+           && l.interestPayments.size()==b.interestPayments.size()+(interest?1:0) && l.repayments.size()==b.repayments.size()+(interest?0:1)
+           && l.terms.size()==b.terms.size()+(p.nextTerm==null?0:1)
+           && (interest?l.repayments==b.repayments && l.terms==b.terms && l.closedAt==b.closedAt && l.interestPayments[b.interestPayments.size()]==p.journal
+             :l.interestPayments==b.interestPayments && l.repayments[b.repayments.size()]==p.journal
+              && (p.nextTerm==null?l.terms==b.terms && l.closedAt==p.date:l.terms[b.terms.size()]==p.nextTerm && l.closedAt==b.closedAt)));
+    }
+    function nsDue(l,due) {
+      let start=ncDateStamp(l.date);
+      let t=ncDateStamp(due);
+      let months=(t.year()-start.year())*12+t.month()-start.month();
+      return months>=1 && months<=2400 && due>=l.firstDue && ncMonthly(start,months)==t && (l.closedAt==null||due<=l.closedAt);
+    }
+    function nsNextTerm(l,p) {
+      let start=ncDateStamp(l.date);
+      let paid=ncDateStamp(p.date);
+      let months=npMax(1,(paid.year()-start.year())*12+paid.month()-start.month());
+      let candidate=ncMonthly(start,months);
+      return p.nextTerm.keys().hasOnly(['from','amount']) && npMoney(p.nextTerm.amount) && p.nextTerm.amount>0
+        && ncDateStamp(p.nextTerm.from)==(candidate>paid?candidate:ncMonthly(start,months+1));
+    }
+    function nsExpense(o,p) {
+      let e=p.expense;
+      let j=p.journal;
+      let l=npGet(o,'entries',p.loanId).partnerLoan;
+      return e.keys().hasOnly(['id','date','type','amount','category','concept','ref','partnerLoanId','version','operationId','interestDue','userId','cashAccountId'])
+        && npKey(e.id) && e.type=='EGRESO' && e.date==p.date && e.date>=l.date && e.date==npToday()
+        && npMoney(e.amount) && e.amount>0 && e.ref==p.loanId && e.partnerLoanId==p.loanId && e.version==1 && e.operationId==p.id && e.userId==p.actorId && e.cashAccountId=='leader'
+        && j.id==e.id && j.date==e.date && j.amount==e.amount && p.deltaCents==-npCents(e.amount)
+        && (p.type=='PARTNER_INTEREST_PAID'?e.category=='INTERES_SOCIO' && j.keys().hasOnly(['id','date','due','amount']) && e.interestDue==j.due && j.due<=p.date && nsDue(l,j.due) && p.nextTerm==null
+          :e.category=='DEVOLUCION_CAPITAL_SOCIO' && j.keys().hasOnly(['id','date','amount']) && !e.keys().hasAny(['interestDue']) && (p.nextTerm==null||nsNextTerm(l,p)));
+    }
+    function nsLedger(o,p) {
+      return p.type=='PARTNER_LOAN_CREATED'?p.expense==null && p.journal==null && p.nextTerm==null && p.deltaCents==npCents(p.master.amount) && p.date==npToday()
+        :p.type=='PARTNER_CONTACT_UPDATED'?p.expense==null && p.journal==null && p.nextTerm==null && p.deltaCents==0
+        :nsExpense(o,p);
+    }
+    function nsAudit(p) {
+      let a=p.audit;
+      return npKey(a.id) && a.actorId==p.actorId && a.action==p.type && a.entityType=='PARTNER_LOAN' && a.entityId==p.loanId && a.operationId==p.id && a.version==1
+        && a.detail.ids is list && a.detail.ids==(p.expense==null?[p.loanId]:[p.loanId,p.expense.id]);
+    }
+    function nsAuthorization(o,a,id) {
+      let p=npGet(o,'partnerProposals',a.operationId);
+      return a.keys().hasOnly(['id','protocol','operationId','actorId','loanId','expectedVersion','kind']) && a.protocol=='spark-partners-v1'
+        && a.id==id && id==p.id+'--'+a.kind && a.actorId==request.auth.uid && a.actorId==p.actorId && a.loanId==p.loanId && a.expectedVersion==p.expectedVersion
+        && nsPrepared(o,p) && (a.kind=='context'?(p.expectedVersion==0?nsCreated(p):nsContext(o,p)):a.kind=='ledger'?nsLedger(o,p):a.kind=='audit'&&nsAudit(p));
+    }
+    function nsAuthorized(o,p,kind) { let a=npGet(o,'partnerAuthorizations',p.id+'--'+kind); return a.operationId==p.id && a.actorId==p.actorId && a.kind==kind; }
+    function nsInitial() { return {'repaidCents':0,'lastRepayDate':'','maxPaidDue':'','duplicateId':false,'duplicateDue':false,'termCents':0,'termFound':false,'eligibleRepayments':0}; }
+    function nsOldRow(old,next) { return next.diff(old).affectedKeys().hasOnly(['amount']) && next.amount==old.amount; }
+    function nsRepayment(p,old,next,s,t) {
+      return nsOldRow(old,next) && npKey(old.id) && ncDay(old.date) && npMoney(old.amount) && old.amount>0
+        && t=={'repaidCents':s.repaidCents+npCents(old.amount),'lastRepayDate':npMax(s.lastRepayDate,old.date),'maxPaidDue':s.maxPaidDue,
+          'duplicateId':s.duplicateId||old.id==p.expense.id,'duplicateDue':s.duplicateDue,'termCents':s.termCents,'termFound':s.termFound,'eligibleRepayments':s.eligibleRepayments+(old.date<=p.date?1:0)};
+    }
+    function nsInterest(p,old,next,s,t) {
+      return nsOldRow(old,next) && npKey(old.id) && ncDay(old.date) && ncDay(old.due) && npMoney(old.amount) && old.amount>=0
+        && t=={'repaidCents':s.repaidCents,'lastRepayDate':s.lastRepayDate,'maxPaidDue':npMax(s.maxPaidDue,old.due),
+          'duplicateId':s.duplicateId||old.id==p.expense.id,'duplicateDue':s.duplicateDue||old.due==p.journal.get('due',''),'termCents':s.termCents,'termFound':s.termFound,'eligibleRepayments':s.eligibleRepayments};
+    }
+    function nsTerm(p,old,next,s,t,rowIndex) {
+      let eligible=rowIndex<1+s.eligibleRepayments && old.from<=p.journal.get('due','');
+      return nsOldRow(old,next) && ncDay(old.from) && npMoney(old.amount) && old.amount>=0
+        && t=={'repaidCents':s.repaidCents,'lastRepayDate':s.lastRepayDate,'maxPaidDue':s.maxPaidDue,'duplicateId':s.duplicateId,'duplicateDue':s.duplicateDue,
+          'termCents':eligible?npCents(old.amount):s.termCents,'termFound':s.termFound||eligible,'eligibleRepayments':s.eligibleRepayments};
+    }
+    function nsScan(o,p,d,previous) {
+      let l=npGet(o,'entries',p.loanId).partnerLoan;
+      let n=p.master.partnerLoan;
+      let i=d.index;
+      let r=l.repayments.size();
+      let q=l.interestPayments.size();
+      return i<r?d.kind=='repayment' && d.rowIndex==i && nsRepayment(p,l.repayments[i],n.repayments[i],previous.state,d.state)
+        :i<r+q?d.kind=='interest' && d.rowIndex==i-r && nsInterest(p,l.interestPayments[i-r],n.interestPayments[i-r],previous.state,d.state)
+        :i<r+q+l.terms.size() && d.kind=='term' && d.rowIndex==i-r-q && nsTerm(p,l.terms[i-r-q],n.terms[i-r-q],previous.state,d.state,d.rowIndex);
+    }
+    function nsCertificate(o,d,id) {
+      let p=npGet(o,'partnerProposals',d.operationId);
+      let previous=d.index==0?{'state':nsInitial(),'index':-1}:npGet(o,'partnerCertificates',d.operationId+'--'+string(d.index-1));
+      return d.keys().hasOnly(['id','operationId','actorId','loanId','expectedVersion','index','kind','rowIndex','state'])
+        && d.id==id && id==p.id+'--'+string(d.index) && d.index is int && d.index>=0 && previous.index==d.index-1
+        && d.actorId==request.auth.uid && d.actorId==p.actorId && d.loanId==p.loanId && d.expectedVersion==p.expectedVersion && p.expense!=null && nsPrepared(o,p)
+        && (d.index!=0||(nsAuthorized(o,p,'context')&&nsAuthorized(o,p,'ledger')&&nsAuthorized(o,p,'audit'))) && nsScan(o,p,d,previous);
+    }
+    function nsFinalMoney(o,p,cert) {
+      let l=npGet(o,'entries',p.loanId).partnerLoan;
+      let s=cert.state;
+      let total=l.repayments.size()+l.interestPayments.size()+l.terms.size();
+      let remaining=npCents(l.principal)-s.repaidCents;
+      return cert.id==p.id+'--'+string(total-1) && cert.index==total-1 && cert.operationId==p.id && cert.actorId==p.actorId && cert.expectedVersion==p.expectedVersion
+        && !s.duplicateId && !s.duplicateDue && (p.type=='PARTNER_INTEREST_PAID'?s.termFound && s.termCents==npCents(p.expense.amount)
+          :remaining>0 && npCents(p.expense.amount)<=remaining && p.date>=s.lastRepayDate
+           && (p.nextTerm==null?npCents(p.expense.amount)==remaining && s.maxPaidDue<=p.date
+             :npCents(p.expense.amount)<remaining && p.type!='PARTNER_SETTLED' && s.maxPaidDue<p.nextTerm.from));
+    }
+    function nsRegistryAfter(o,p) {
+      let d=npAfter(o,'financialControls','partner-keys');
+      let b=npGet(o,'financialControls','partner-keys');
+      let release=npGet(o,'financialControls','release');
+      let key=p.master.partnerLoan.partner.lower()+'|'+p.master.partnerLoan.date+'|'+string(npCents(p.master.partnerLoan.principal));
+      return p.registryKey==key && !(key in b.claims) && d.claims.diff(b.claims).affectedKeys().hasOnly([key]) && d.claims[key]==p.loanId
+        && b.recordType=='PARTNER_KEY_INDEX' && b.protocol=='spark-partners-v1' && release.partnerIndexProtocol=='spark-partners-v1'
+        && release.state=='ACTIVE' && release.protocol=='SPARK_NATIVE_BASELINE' && release.orgId==o && release.projectId==request.auth.token.aud && b.baselineId==release.baselineId
+        && d.diff(b).affectedKeys().hasOnly(['claims','version','lastOperationId','acceptedAt']) && d.version==b.version+1 && d.lastOperationId==p.id && d.acceptedAt==request.time;
+    }
+    function nsCount(p) { return 2+(p.expense==null?0:1)+(p.financial?1:0)+(p.expectedVersion==0?1:0); }
+    function nsBundle(o,op,id) {
+      let p=npGet(o,'partnerProposals',id);
+      return op.keys().hasOnly(['id','type','protocol','actorId','status','proposalId','certificateId','writeCount','cashAccountId','deltaCents','appliedAt'])
+        && op.id==id && op.type==p.type && op.protocol=='spark-partners-v1' && op.actorId==request.auth.uid && op.actorId==p.actorId && op.proposalId==id
+        && op.status=='APPLIED' && op.appliedAt==request.time && op.writeCount==nsCount(p) && op.cashAccountId==(p.financial?'leader':'') && op.deltaCents==p.deltaCents && nsPrepared(o,p)
+        && (p.expense==null?op.certificateId=='' && nsAuthorized(o,p,'context') && nsAuthorized(o,p,'ledger') && nsAuthorized(o,p,'audit')
+          :nsFinalMoney(o,p,npGet(o,'partnerCertificates',op.certificateId)))
+        && npStamped(npAfter(o,'entries',p.loanId),p.master) && npStamped(npAfter(o,'audit',p.audit.id),p.audit)
+        && (p.expense==null||npStamped(npAfter(o,'expenses',p.expense.id),p.expense)) && (!p.financial||p.date==npToday());
+    }
+    function nsCompanion(o,id,field,pathId) {
+      let p=npGet(o,'partnerProposals',id);
+      let op=npAfter(o,'operations',id);
+      return nsManager(o) && p.actorId==request.auth.uid && op.id==id && op.protocol=='spark-partners-v1' && op.type==p.type && op.actorId==p.actorId && op.status=='APPLIED' && op.appliedAt==request.time
+        && p[field]!=null && p[field].id==pathId && npStamped(request.resource.data,p[field])
+        && (field!='master'||p.expectedVersion!=0||nsRegistryAfter(o,p))
+        && (field!='audit'||!p.financial||npCashAfter(o,p.id,'leader',p.deltaCents));
+    }
+    function nsRegistryUpdate(o,d,id) { let p=npGet(o,'partnerProposals',d.lastOperationId); let op=npAfter(o,'operations',d.lastOperationId);
+      return id=='partner-keys' && nsManager(o) && p.actorId==request.auth.uid && p.expectedVersion==0 && op.actorId==p.actorId && op.protocol=='spark-partners-v1' && op.type=='PARTNER_LOAN_CREATED' && op.status=='APPLIED' && op.appliedAt==request.time && nsRegistryAfter(o,p); }
+    function nsCash(o,op,d) { let p=npGet(o,'partnerProposals',op.id); return op.type==p.type && op.actorId==p.actorId && p.financial && d.accountId=='leader' && p.date==npToday() && d.availableCents==resource.data.availableCents+p.deltaCents; }
+    match /orgs/{o}/partnerProposals/{id} {
+      allow get: if nsManager(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/partnerProposals/$(id))||resource.data.actorId==request.auth.uid);
+      allow create: if signedIn() && v2Org(o) && nsProposal(o,request.resource.data,id); allow update,delete: if false;
+    }
+    match /orgs/{o}/partnerAuthorizations/{id} {
+      allow get: if nsManager(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/partnerAuthorizations/$(id))||resource.data.actorId==request.auth.uid);
+      allow create: if signedIn() && v2Org(o) && nsAuthorization(o,request.resource.data,id); allow update,delete: if false;
+    }
+    match /orgs/{o}/partnerCertificates/{id} {
+      allow get: if nsManager(o) && (!exists(/databases/$(database)/documents/orgs/$(o)/partnerCertificates/$(id))||resource.data.actorId==request.auth.uid);
+      allow create: if signedIn() && v2Org(o) && nsCertificate(o,request.resource.data,id); allow update,delete: if false;
+    }
+    match /orgs/{o}/entries/{id} {
+      allow create,update: if signedIn() && v2Org(o) && nsCompanion(o,request.resource.data.get('nativePartnerOperationId',''),'master',id);
+    }
+    match /orgs/{o}/expenses/{id} { allow create: if signedIn() && v2Org(o) && nsCompanion(o,request.resource.data.operationId,'expense',id); }
+    match /orgs/{o}/audit/{id} { allow create: if signedIn() && v2Org(o) && nsCompanion(o,request.resource.data.operationId,'audit',id); }
+    match /orgs/{o}/operations/{id} { allow create: if signedIn() && v2Org(o) && request.resource.data.get('protocol','')=='spark-partners-v1' && nsBundle(o,request.resource.data,id); }
+    match /orgs/{o}/financialControls/{id} { allow update: if signedIn() && v2Org(o) && nsRegistryUpdate(o,request.resource.data,id); }
+// Legacy V1 rules remain unchanged in behavior, but explicitly exclude the V2 pilot org
+    // so overlapping Firestore matches cannot broaden V2 permissions.
+    match /users/{uid} {
+      allow read: if signedIn() && ((request.auth.uid == uid && sameOrg(resource.data.orgId)) || (manager() && sameOrg(resource.data.orgId)));
+      allow create: if admin() && validUserProfile(uid);
+      allow update: if admin() && validUserProfile(uid)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.orgId == resource.data.orgId;
+      allow delete: if admin() && sameOrg(resource.data.orgId);
+    }
+    match /orgs/{orgId}/routes/{id} {
+      allow read: if !v2Org(orgId) && sameOrg(orgId) && (manager() || resource.data.collectorId == request.auth.uid);
+      allow create, update, delete: if !v2Org(orgId) && sameOrg(orgId) && manager();
+    }
+    match /orgs/{orgId}/clients/{id} {
+      allow read: if !v2Org(orgId) && sameOrg(orgId) && (manager() || assignedRoute(resource.data.routeId));
+      allow create: if !v2Org(orgId) && sameOrg(orgId) && (manager() || assignedRoute(request.resource.data.routeId));
+      allow update: if !v2Org(orgId) && sameOrg(orgId) && (manager() || (assignedRoute(resource.data.routeId) && request.resource.data.routeId == resource.data.routeId));
+      allow delete: if !v2Org(orgId) && manager() && sameOrg(orgId);
+    }
+    match /orgs/{orgId}/credits/{id} {
+      allow read: if !v2Org(orgId) && sameOrg(orgId) && (manager() || assignedRoute(resource.data.routeId));
+      allow create: if !v2Org(orgId) && sameOrg(orgId) && (manager() || assignedRoute(request.resource.data.routeId));
+      allow update: if !v2Org(orgId) && sameOrg(orgId) && (manager() || (assignedRoute(resource.data.routeId) && request.resource.data.routeId == resource.data.routeId));
+      allow delete: if !v2Org(orgId) && sameOrg(orgId) && manager();
+    }
+    match /orgs/{orgId}/payments/{id} {
+      allow read: if !v2Org(orgId) && sameOrg(orgId) && (manager() || request.auth.uid == resource.data.userId);
+      allow create: if !v2Org(orgId) && sameOrg(orgId) && (manager() || (request.resource.data.userId == request.auth.uid && assignedRoute(request.resource.data.routeId)));
+      allow update: if !v2Org(orgId) && sameOrg(orgId) && (manager() || (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid && assignedRoute(resource.data.routeId) && request.resource.data.routeId == resource.data.routeId));
+      allow delete: if !v2Org(orgId) && sameOrg(orgId) && manager();
+    }
+    match /orgs/{orgId}/cashClosures/{id} {
+      allow read: if !v2Org(orgId) && sameOrg(orgId) && (manager() || resource.data.userId == request.auth.uid);
+      allow create: if !v2Org(orgId) && sameOrg(orgId) && (manager() || request.resource.data.userId == request.auth.uid);
+      allow update: if !v2Org(orgId) && sameOrg(orgId) && (manager() || (resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid));
+      allow delete: if !v2Org(orgId) && sameOrg(orgId) && manager();
+    }
+    match /orgs/{orgId}/approvals/{id} {
+      allow read: if !v2Org(orgId) && sameOrg(orgId) && (manager() || resource.data.requestedByUid == request.auth.uid);
+      allow create: if !v2Org(orgId) && sameOrg(orgId) && request.resource.data.requestedByUid == request.auth.uid;
+      allow update: if !v2Org(orgId) && sameOrg(orgId) && (manager() || (resource.data.requestedByUid == request.auth.uid && request.resource.data.requestedByUid == resource.data.requestedByUid && request.resource.data.status == resource.data.status));
+      allow delete: if !v2Org(orgId) && sameOrg(orgId) && admin();
+    }
+    match /orgs/{orgId}/{collection}/{id} {
+      allow read, write: if !v2Org(orgId) && sameOrg(orgId) && manager() && collection in ['capital','entries','expenses','audit'];
+    }
+  }
+}
