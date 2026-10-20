@@ -1,0 +1,37 @@
+{
+  "at": "2026-10-20T23:38:50.233Z",
+  "projectId": "demo-mi-cartera-native",
+  "emulator": "http://127.0.0.1:18325",
+  "firebaseSDK": "10.14.1",
+  "rulesSHA256": "16e42be0a92cf44fae6a371fb7019ea367f8fed2154df3eca77389e72d4e3b8d",
+  "productionFinancialWrites": 0,
+  "productionRulesWrites": 0,
+  "physicalAndroidTest": false,
+  "results": [
+    {
+      "name": "Official Firebase SDK with current B2 rules: offline queue, atomic payment, lost acknowledgement, retry, second client and actual B2 code rollback",
+      "status": "PASS",
+      "paymentAmount": 40,
+      "creditVersion": 2,
+      "financialWrites": 4,
+      "operationReceipts": 1,
+      "nativeControlsCreated": 0
+    }
+  ],
+  "build": "v2-pilot-20261020-b2-compatible-1",
+  "parentCommit": "38f3a335aaca241618d92605c5935e8155964c6d",
+  "sourceHashes": {
+    "v2/app/cloud/runtime-cloud.js": "741a9ca7febf994f15d39bc44a08b1cdc72db28e25c886c0335d309ea16836ab",
+    "v2/app/firebase-bootstrap.js": "e8d6297eb5d5999ef5a08ab335f846153350760b1b8ae83dca012e5020af235e",
+    "v2/app/firebase-v2-template.js": "f600714cc48def3c8687abc4825819b427f6048f50b858b8e26652c510dfa6cc",
+    "v2/app/operation-sync-bridge.js": "c5fbc06fbf8852f21faef93390049d9a935e1f97df3e65264a1b5fb469a58d87",
+    "v2/cloud/runtime-cloud.js": "741a9ca7febf994f15d39bc44a08b1cdc72db28e25c886c0335d309ea16836ab"
+  },
+  "approvedFocusedCases": 7,
+  "approvedFocusedCasesRerun": false,
+  "metadataOnlyChangesAfterSdkCheck": [
+    "v2/app/release.json",
+    "v2/app/service-worker.js",
+    "v2/app/version-guard.js"
+  ]
+}

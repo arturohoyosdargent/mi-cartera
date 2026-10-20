@@ -8,7 +8,7 @@ try{
   // Only the static release configuration may select a financial backend.
   // Endpoint values are never accepted from navigation, tenant storage or a form.
   const backendMode=pilot?.backendMode===undefined?'functions':pilot.backendMode;
-  if(!['functions','external','spark-native'].includes(backendMode))throw Error('V2_BACKEND_MODE_INVALID');
+  if(!['functions','external','spark-native','b2-compatible'].includes(backendMode))throw Error('V2_BACKEND_MODE_INVALID');
   function backendOrigin(value){
     if(typeof value!=='string'||!value||value.trim()!==value)throw Error('V2_EXTERNAL_BACKEND_INVALID_ORIGIN');
     let url;try{url=new URL(value);}catch(_){throw Error('V2_EXTERNAL_BACKEND_INVALID_ORIGIN');}
@@ -35,7 +35,7 @@ try{
   const db=fsSdk.getFirestore(app);
   const auth=authSdk.getAuth(app);
   root.firebaseSdkV2={appSdk,fsSdk,authSdk,app};
-  if(backendMode!=='spark-native'){
+  if(['functions','external'].includes(backendMode)){
     const functionsSdk=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js');
     root.firebaseSdkV2.functionsSdk=functionsSdk;
   const functions=functionsSdk.getFunctions(app,'us-central1');

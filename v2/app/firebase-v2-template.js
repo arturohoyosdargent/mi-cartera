@@ -13,7 +13,7 @@ const template=Object.freeze({
 });
 // Pilot activation: isolated V2 namespace only. The Firestore rules still deny writes to the pilot marker;
 // financial writes remain subject to the V2 cloud adapter/rules and must not target the V1 namespace.
-const pilot=Object.freeze({backendMode:'spark-native',mode:'PILOT',cloudEnabled:true,allowRealWrites:true,orgId:'v2-mi-cartera-pilot',requireGreenQa:true});
+const pilot=Object.freeze({backendMode:'b2-compatible',mode:'PILOT',cloudEnabled:true,allowRealWrites:true,orgId:'v2-mi-cartera-pilot',requireGreenQa:true});
 root.MI_CARTERA_V2_FIREBASE_TEMPLATE=template;
 root.MI_CARTERA_V2_PILOT_CONFIG=root.MI_CARTERA_V2_PILOT_CONFIG||pilot;
 })(window);
