@@ -1,6 +1,6 @@
-# B3 Spark native RC1 · 20/10/2026
+# B3 Spark native RC2 · 20/10/2026
 
-Candidate branch: `candidate/continuation-20261015`. Build: `v2-pilot-20261020-b3-spark-native-rc1`.
+Candidate branch: `candidate/continuation-20261015`. Build: `v2-pilot-20261020-b3-spark-native-rc2`.
 Parent: `7b53fc1d00d1dd6309427f2e8dfb8ee23c977ac5`. Production remains B2. This checkpoint does not authorize production.
 
 ## Implemented and checked
@@ -8,7 +8,7 @@ Parent: `7b53fc1d00d1dd6309427f2e8dfb8ee23c977ac5`. Production remains B2. This 
 - Native Firestore payment transaction binds credit balance and schedule, immutable receipt, cash delta, audit and accepted operation. Exact retries return the original receipt. A collector credits central cash without permission to read its private balance.
 - Credit creation, interest renewal and refinance use immutable domain authorizations and row certificates. Calendar proofs preserve rest days, month-end dates and optional weekly extras.
 - Single partner-loan creation, interest payment, capital return, settlement and contact update are implemented and integrated. Journals are preserved, expenses and cash are atomic, maturity duplicates are rejected and canonical document paths are enforced.
-- Offline financial submissions retain the original unconfirmed intent. Transport failures and lost acknowledgements retry the same operation ID; no payment is projected before Cloud acceptance.
+- Offline financial submissions traverse the real UI bridge and retain the original unconfirmed intent. Transport failures and lost acknowledgements retry the same operation ID; no payment is projected before Cloud acceptance.
 - Old-session online callbacks cannot alter a previous user's queue. A session change during replay suspends untouched intents. Confirmed replay refreshes the current Cloud projection without a hydration loop.
 - Actual PWA shell and service worker include cash, credit, partners and payment factories. Spark bootstrap does not import Functions.
 
@@ -16,7 +16,7 @@ Parent: `7b53fc1d00d1dd6309427f2e8dfb8ee23c977ac5`. Production remains B2. This 
 
 Previous 55 + 29 checks, eight recovered worker contracts and the stable 361-case Actions result are retained as historical evidence. They are not recertified physical-device checks.
 
-On the current implementation: 65 native unit cases passed, plus five focused compatibility scripts. A separate identity check binds this build. Emulator evidence includes 21 credit rule cases; 12 partner rule cases; five partner SDK cases with two independent clients; four private-cash payment SDK cases; four technical read-isolation checks; and two offline/reconnection SDK checks. Evidence retains its source/rules hashes: tests from earlier hashes are historical, not represented as all running on one final production artifact.
+On the current implementation: 68 native cases including identity and the actual UI bridge passed, plus five focused compatibility scripts. Emulator evidence includes 21 credit rule cases; 12 partner rule cases; five partner SDK cases with two independent clients; four private-cash payment SDK cases; four technical read-isolation checks; and two offline/reconnection SDK checks. Evidence retains its source/rules hashes: tests from earlier hashes are historical, not represented as all running on one final production artifact.
 
 ## Isolated validation and remaining boundaries
 
