@@ -106,11 +106,11 @@
     const total = list.reduce((sum, row) => sum + row.amount, 0);
     if ($('agendaSummary')) $('agendaSummary').textContent = `${list.length} cuotas pendientes · ${money(total)} por cobrar · ${groups.length} cliente${groups.length === 1 ? '' : 's'}`;
     $('agendaList').innerHTML = groups.length ? groups.map(group => {
-      const promise=group.rows.map(promiseState).find(Boolean),hasOverdue = group.rows.some(overdue);
+      const promise=group.rows.map(promiseState).filter(Boolean).sort((left,right)=>String(left.date).localeCompare(String(right.date)))[0],hasOverdue = group.rows.some(overdue);
       const groupTotal = group.rows.reduce((sum, row) => sum + row.amount, 0);
       const detail = group.rows.map(row => {
-        const late = overdue(row);
-        return `<div class="v2-agenda-detail-row${late ? ' is-overdue' : ''}"><span>Cuota ${esc(row.number)} · ${esc(row.date || 'Sin fecha')} · ${money(row.amount)}${late ? ' · VENCIDA' : ''}</span><button type="button" class="btn green" onclick="MiCarteraV2Agenda.remind('${esc(row.id)}')">📤 Recordar</button></div>`;
+        const late = overdue(row),commitment=promiseState(row);
+        return `<div class="v2-agenda-detail-row${late ? ' is-overdue' : ''}"><span>Cuota ${esc(row.number)} · ${esc(row.date || 'Sin fecha')} · ${money(row.amount)}${late ? ' · VENCIDA' : ''}${commitment?' · COMPROMISO '+esc(commitment.state)+' · '+money(commitment.amount)+' · '+esc(commitment.date):''}</span><button type="button" class="btn green" onclick="MiCarteraV2Agenda.remind('${esc(row.id)}')">📤 Recordar</button></div>`;
       }).join('');
       return `<div class="card v2-agenda-client-card${promise?' v2-agenda-promise-card':''}${hasOverdue?' v2-agenda-overdue-card':''}"><div class="v2-agenda-client-head"><div><b>${esc(group.client.name)}</b><br><span>${esc(group.route || 'Sin ruta')} · ${group.rows.length} cuota${group.rows.length === 1 ? '' : 's'}</span></div><div class="v2-agenda-client-total">${money(groupTotal)}${promise?' <span class="v2-agenda-promise-label">🟠 COMPROMISO '+promise.state+' · '+money(promise.amount)+' · '+esc(promise.date)+'</span>':''}${hasOverdue?' <span class="v2-agenda-overdue-label">🔴 VENCIDO</span>':''}</div></div><details class="v2-agenda-detail"><summary>Ver detalle de ${group.rows.length} cuota${group.rows.length===1?'':'s'}</summary>${detail}</details><div class="row"><button type="button" class="btn green" onclick="MiCarteraV2Agenda.remind('${esc(group.rows[0].id)}')">📤 Recordar próximo</button><button type="button" class="btn" onclick="show('credits');window.MiCarteraV2CreditOverdue?.focus?.('${esc(group.rows[0].creditId)}')">Ver crédito</button></div></div>`;
     }).join('') : '<div class="card">No hay cuotas pendientes en este periodo.</div>';
