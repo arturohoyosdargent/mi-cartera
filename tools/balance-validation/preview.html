@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es" data-build="__CANDIDATE_BUILD__">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Caja y Balance — validación ficticia</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f3f6f7;color:#172d38;font:16px system-ui,sans-serif}main{max-width:1000px;margin:auto;padding:16px}.card{background:white;border:1px solid #d4dfe4;border-radius:12px;padding:16px;margin:12px 0}.metric b{display:block;margin-top:8px;font-size:1.3em}button,.input,select{font:inherit;max-width:100%;padding:10px;border:1px solid #8ca4af;border-radius:8px}.btn,button{cursor:pointer;background:#dfedf4;color:#172d38;margin:4px 0}label{display:flex;flex-direction:column;gap:6px}.blocked{color:#8e2525;overflow-wrap:anywhere}[hidden]{display:none!important}[data-v2-cash-actions]{display:none!important}#candidateVersion{overflow-wrap:anywhere}.controls{display:flex;flex-wrap:wrap;gap:8px}
+  </style>
+  <script defer src="preview.js"></script>
+  <script defer src="/source/core/partner-loans.js"></script>
+  <script defer src="/source/app/date-utils-v2.js"></script>
+  <script defer src="/source/app/cash-menu-v2.js"></script>
+  <script defer src="/source/app/partner-loans-ui.js"></script>
+  <script defer src="/source/app/dashboard-parity-v2.js"></script>
+</head>
+<body><main>
+  <header class="card">
+    <h1>Caja / Balance — candidata local</h1>
+    <b id="candidateVersion">__CANDIDATE_BUILD__</b>
+    <p>Sólo datos ficticios. No inicia sesión real, no carga Firebase, no publica y no registra operaciones. Corte de prueba: 21/10/2026. No sustituye la aplicación instalada.</p>
+    <div class="controls">
+      <button type="button" data-fixture="deficit">1. Déficit real</button>
+      <button type="button" data-fixture="reservation">2. Reserva futura</button>
+      <button type="button" id="previewSignOut">3. Simular cierre de sesión</button>
+      <button type="button" id="previewRestore">Restablecer identidad ficticia</button>
+    </div>
+    <p id="previewStatus" aria-live="polite"></p>
+    <p>En ambos escenarios: pulsa <b>Calcular escenario</b>. Debe indicar 6 créditos, capital S/ 3,000 y financiamiento adicional S/ 2,200. Al simular el cierre, los saldos y el simulador deben ocultarse.</p>
+  </header>
+  <section id="home" class="card metric">Disponible en Inicio<b id="mCapitalAvailable"></b></section>
+  <section id="cash"><h2>Balance / Caja</h2><div class="card metric">Caja física<b id="cashBalance"></b></div><div id="cashHistory"></div></section>
+  <section id="partners" hidden></section>
+</main></body>
+</html>
