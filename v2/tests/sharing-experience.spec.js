@@ -30,7 +30,7 @@ assert.ok(!proposal.includes('MiCarteraV2CustomerExperience.whatsapp')&&!proposa
 assert.ok(proposal.includes('El crédito NO queda registrado'),'proposal mutation warning missing');
 assert.ok(preview.includes("fileShare(file,'Préstamo Ya · Detalle del crédito',"),'credit detail preview must share the prebuilt graphical PNG');
 assert.ok(preview.includes("root.navigator.share({title,text:String(text||''),files:[file]})"),'native graphical file transport missing from preview');
-assert.ok(credit.includes('status(q)'),'credit detail text must render installment status');
+const creditMessageContext={window:{}};require('node:vm').runInNewContext(credit,creditMessageContext);const shortCreditMessage=creditMessageContext.window.MiCarteraV2CreditShare.textSummary({},{name:'Ana María Pérez'});assert.match(shortCreditMessage,/^Hola Ana,/);assert.ok(shortCreditMessage.length<300);assert.doesNotMatch(shortCreditMessage,/María|Pérez|S\x2f|Cronograma|Capital:|Total:|Saldo:|PAGADA|PENDIENTE|VENCIDA/);
 assert.ok(renderer.includes("txt(x,'Estado',565,675"),'credit image schedule status column missing');
 assert.ok(renderer.includes('installmentStatus(q)'),'credit image must calculate installment status');
 assert.ok(renderer.includes("'RECORDATORIO DE PAGO'")&&renderer.includes('function reminder(d,c)')&&renderer.includes('cv.width=720;cv.height=1080'),'canonical renderer must provide compact reminder card');

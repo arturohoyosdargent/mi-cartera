@@ -41,10 +41,11 @@ async function run() {
   const original = JSON.stringify({payment,credit});
   const receipt = window.MiCarteraV2PaymentReceipt;
   const text = receipt.text(payment,client,credit);
-  assert.equal(text,'¡Gracias, Cliente de prueba! 🙌\nRegistré tu pago de S/ 40.00.\nTu puntualidad nos ayuda a mantener tu crédito disponible y seguir creciendo juntos. 🌱');
+  assert.equal(text,'¡Gracias, Cliente! 🙌\nTe compartimos tu comprobante de pago. PRÉSTAMO YA · Gracias por tu confianza.');
   assert.equal(window.MiCarteraV2ShareCard.receiptInstallmentLabel(payment,credit),'CUOTA 1 DE 4');
   assert.equal(window.MiCarteraV2ShareCard.receiptTotals(payment,credit).balance,200);
   await receipt.image(payment,client,credit);
+  assert.equal(drawn.find(x=>x[1]===94&&x[2]===474)?.[0], 'S/ 40.00');
   assert.equal(drawn.find(x=>x[1]===390&&x[2]===539)?.[0], 'CUOTA 1 DE 4');
   const pending = window.MiCarteraV2SharePreview.previewPayment(payment.id);
   await new Promise(resolve=>setImmediate(resolve));
@@ -62,10 +63,17 @@ async function run() {
   assert.equal(receipt.text({...payment,installmentNumber:2},client,credit),text);
   const paid = {...credit,schedule:credit.schedule.map(q=>({...q,balance:0}))};
   // Settling the credit later must not retrospectively mark this older receipt cancelled.
-  const historical = receipt.text({...payment,amount:60,installmentNumber:4},client,paid);
-  assert.equal(window.MiCarteraV2ShareCard.receiptInstallmentLabel({...payment,amount:60,installmentNumber:4},paid),'CUOTA 4 DE 4');
-  assert.equal(historical,'¡Gracias, Cliente de prueba! 🙌\nRegistré tu pago de S/ 60.00.\nTu puntualidad nos ayuda a mantener tu crédito disponible y seguir creciendo juntos. 🌱');
-  assert.ok(!historical.includes('CANCELADO'));
+  const historicalPayment = {...payment,amount:60,installmentNumber:4};
+  const historical = receipt.text(historicalPayment,client,paid);
+  assert.equal(window.MiCarteraV2ShareCard.receiptInstallmentLabel(historicalPayment,paid),'CUOTA 4 DE 4');
+  assert.equal(historical,text);
+  drawn.length=0;
+  await receipt.image(historicalPayment,client,paid);
+  assert.equal(drawn.find(x=>x[1]===94&&x[2]===474)?.[0], 'S/ 60.00');
+  assert.equal(drawn.find(x=>x[1]===390&&x[2]===539)?.[0], 'CUOTA 4 DE 4');
+  assert.ok(!drawn.some(x=>String(x[0]).includes('CANCELADO')));
+  assert.equal(writes,0);
+  assert.equal(JSON.stringify({payment,credit}),original);
   assert.ok(!receipt.text({...payment,concept:'INTERES'},client,credit).includes('Cuota correspondiente a:'));
   console.log('receipt-installment-identity.spec.js PASS');
 }

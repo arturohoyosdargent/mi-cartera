@@ -29,7 +29,7 @@ async function previewReminder(item){
   const cr=item.credit||creditFor(db(),item.creditId),normalize=s=>String(s||'').replace(/\\r\\n|\\n/g,'\n');
   if(!cr)return alert('No se encontró el crédito del recordatorio.');
   const ownerUid=root.MiCarteraV2AuthCloudGate?.state?.().uid,assertOwner=()=>{const auth=root.MiCarteraV2AuthCloudGate?.state?.();if(ownerUid&&(!auth?.ready||auth.uid!==ownerUid))throw Error('La sesión cambió. Vuelve a abrir el recordatorio.');};
-  const message=normalize(root.MiCarteraV2CollectionReminderShare?.text?.(item.client,item.amount,item.date)||`Hola ${item.client.name||''}, te recordamos que tienes un pago pendiente de ${money(item.amount)}${item.date?' con vencimiento el '+fmt(item.date):''}.`);
+  const name=String(item.client?.name||'').trim().split(/\s+/)[0]||'cliente',message=normalize(root.MiCarteraV2CollectionReminderShare?.text?.(item.client,item.amount,item.date)||`Hola ${name}, te recordamos tu pago pendiente. Los detalles están en la ficha.\nPRÉSTAMO YA · Gracias por tu confianza.`);
   try{
     assertOwner();const blob=await root.MiCarteraV2CreditShare.image(cr,item.client);assertOwner();
     const file=new File([blob],'prestamo-ya-detalle-credito.png',{type:'image/png'}),imageUrl=root.URL.createObjectURL(file);

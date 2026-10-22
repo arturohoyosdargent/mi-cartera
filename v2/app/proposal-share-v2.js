@@ -43,9 +43,8 @@
   }
 
   function message(d){
-    const extras=Number(d.extraTotal||0)>0?`\nCuota adicional total: ${money(d.extraTotal)}`:'';
-    const rows=Array.isArray(d.schedule)&&d.schedule.length?`\n\nCRONOGRAMA\n${d.schedule.map(q=>`${q.number??q.n??''}. ${q.date} · ${q.extra?'Pago adicional':'Cuota'} · ${money(q.amount)}`).join('\n')}`:'';
-    return `PRÉSTAMO YA — PROPUESTA DE CRÉDITO\nCliente: ${d.client}\nCapital: ${money(d.capital)}\nInterés: ${d.rate}%\nTotal a pagar: ${money(d.total)}\nCuotas: ${d.term}\nCuota referencial: ${money(d.installment)}${extras}\nFrecuencia: ${frequencyLabel(d.freq)}\nPrimera fecha de pago: ${d.first}${d.maturity?`\nFecha estimada de última cuota: ${d.maturity}`:''}${rows}\n\nEsta es una propuesta. El crédito NO queda registrado hasta su aceptación y posterior guardado en Mi Cartera PRO.`;
+    const client=findClient(d),name=String(client?.name||d.client||'').trim().split(/\s+/)[0]||'cliente';
+    return `Hola ${name}, te compartimos nuestra propuesta ${d.kind==='renewal'?'de renovación':'de crédito'}. Revisa la ficha y confírmanos si estás de acuerdo.\nEl crédito NO queda registrado hasta su aceptación y posterior guardado en Mi Cartera PRO.`;
   }
 
   function findClient(d){

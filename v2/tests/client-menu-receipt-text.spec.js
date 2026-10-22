@@ -82,25 +82,31 @@ const applications=[
 ];
 function receiptState(){const state=clientState();state.clients=[state.clients[0]];state.credits=[{id:'cr1',clientId:'c1',capital:280,total:280,rate:0,term:7,freq:'daily',status:'ACTIVO',principalPaid:220,interestPaid:0,penaltyPaid:0,version:1,schedule:Array.from({length:7},(_,i)=>({number:i+1,date:'2026-10-'+String(i+1).padStart(2,'0'),amount:40,paid:i<5?40:i===5?20:0,balance:i<5?0:i===5?20:40,status:i<5?'PAGADA':i===5?'PARCIAL':'PENDIENTE'}))}];state.payments=[{id:'p1',creditId:'cr1',clientId:'c1',amount:60,date:'2026-10-07',concept:'CUOTA',installmentApplications:applications,installmentFrom:5,installmentTo:6,totalInstallments:7,balanceAfterPayment:60}];return state;}
 
-// Wrong amount, duplicated quota/date/balance or literal escaped newlines changes the outgoing customer message.
-test('receipt text uses the total actually paid and the exact three-line thank-you message',async()=>{
+function shortReceiptMessage(message){
+  a.match(message,/^¡Gracias, Ana!/);a.match(message,/comprobante de pago/);
+  a.ok(message.length<300);a.doesNotMatch(message,/FICTICIA|S\/|Cuota|Saldo|Capital|\\n/);
+}
+
+// Financial details belong to the PNG; the editable suggestion addresses only the first name.
+test('WhatsApp contenido: receipt text is brief while the PNG retains the actual payment',async()=>{
   const h=await boot({fullShell:true,state:receiptState()});try{
     const d=h.get(),p=d.payments[0],c=d.clients[0],cr=d.credits[0],before=h.get();
-    const expected='¡Gracias, Ana FICTICIA! 🙌\nRegistré tu pago de S/ 60.00.\nTu puntualidad nos ayuda a mantener tu crédito disponible y seguir creciendo juntos. 🌱';
-    a.equal(h.w.MiCarteraV2PaymentReceipt.text(p,c,cr),expected);
+    shortReceiptMessage(h.w.MiCarteraV2PaymentReceipt.text(p,c,cr));
+    await h.w.MiCarteraV2PaymentReceipt.image(p,c,cr);
+    a.ok(h.drawn.includes('S/ 60.00'));a.ok(h.drawn.includes('Total abonado'));a.ok(h.drawn.includes('S/ 220.00'));
     a.deepEqual(h.get(),before);a.equal(h.commits.length,0);
   }finally{await h.close();}
 });
 
 // The editable preview must use the same new message without losing real allocation details in summary or PNG.
-test('receipt preview shares the edited text with a PNG retaining complete and partial real applications',async()=>{
+test('WhatsApp contenido: receipt preview shares the edited text with a PNG retaining complete and partial real applications',async()=>{
   const h=await boot({fullShell:true,state:receiptState()});try{
     const before=h.get();let outgoing;
     Object.defineProperty(h.w.navigator,'canShare',{value:()=>true,configurable:true});
     Object.defineProperty(h.w.navigator,'share',{value:async data=>{outgoing=data;},configurable:true});
     const pending=h.w.MiCarteraV2SharePreview.previewPayment('p1');await tick();
     const modal=h.w.document.getElementById('v2SharePreview'),message=modal.querySelector('#v2SharePreviewMessage');
-    a.equal(message.value,'¡Gracias, Ana FICTICIA! 🙌\nRegistré tu pago de S/ 60.00.\nTu puntualidad nos ayuda a mantener tu crédito disponible y seguir creciendo juntos. 🌱');
+    shortReceiptMessage(message.value);
     a.match(modal.querySelector('.v2-share-preview-summary').textContent,/Cuota 5: S\/ 40\.00 · COMPLETADA/);
     a.match(modal.querySelector('.v2-share-preview-summary').textContent,/Cuota 6: S\/ 20\.00 · PARCIAL \(pendiente S\/ 20\.00\)/);
     a.ok(h.drawn.includes('Cuota 5: S/ 40.00 · COMPLETADA'));a.ok(h.drawn.includes('Cuota 6: S/ 20.00 · PARCIAL (pendiente S/ 20.00)'));

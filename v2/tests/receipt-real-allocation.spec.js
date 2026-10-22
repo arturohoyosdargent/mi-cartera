@@ -20,13 +20,13 @@ test('D/E actual single and three-quota collections persist the exact applied qu
   }finally{await h.close();}}
 });
 
-test('F/G actual S/60 and free S/57 keep the complete S/40 and real partial allocation in PNG with a short receipt message',async()=>{
+test('WhatsApp contenido: F/G actual S/60 and free S/57 keep the complete S/40 and real partial allocation in PNG with a short receipt message',async()=>{
   for(const amount of [60,57]){const h=await setup(40);try{const {d,p}=await collect(h,amount),partial=amount-40,left=40-partial;
     a.deepEqual(p.installmentApplications,[application(5,40,40,0),application(6,partial,40,left)]);
     a.equal(h.w.MiCarteraV2ShareCard.receiptInstallmentLabel(p,d.credits[0]),'CUOTAS 5–6 DE 24 · PARCIAL');
     const details=h.w.MiCarteraV2ShareCard.receiptInstallmentDetails(p,d.credits[0]);a.match(details,/Cuota 5: S\/ 40\.00 · COMPLETADA/);a.ok(details.includes('Cuota 6: S/ '+partial.toFixed(2)+' · PARCIAL (pendiente S/ '+left.toFixed(2)+')'));
-    const text=h.w.MiCarteraV2PaymentReceipt.text(p,d.clients[0],d.credits[0]);a.equal(text,'¡Gracias, Cliente FICTICIO! 🙌\nRegistré tu pago de S/ '+amount.toFixed(2)+'.\nTu puntualidad nos ayuda a mantener tu crédito disponible y seguir creciendo juntos. 🌱');a.ok(!text.includes('\\n'));
-    await h.w.MiCarteraV2PaymentReceipt.image(p,d.clients[0],d.credits[0]);for(const line of details.split('\n'))a.ok(h.drawn.includes(line),'missing PNG allocation '+line);
+    const text=h.w.MiCarteraV2PaymentReceipt.text(p,d.clients[0],d.credits[0]);a.equal(text,'¡Gracias, Cliente! 🙌\nTe compartimos tu comprobante de pago. PRÉSTAMO YA · Gracias por tu confianza.');a.ok(!text.includes('\\n'));
+    await h.w.MiCarteraV2PaymentReceipt.image(p,d.clients[0],d.credits[0]);a.equal(h.drawn[h.drawn.lastIndexOf('Monto recibido')+1],'S/ '+amount.toFixed(2));for(const line of details.split('\n'))a.ok(h.drawn.includes(line),'missing PNG allocation '+line);
     a.equal(d.credits[0].schedule[5].balance,left);a.equal(p.capitalAmount,amount);a.equal(p.interestAmount,0);
   }finally{await h.close();}}
 });
@@ -64,20 +64,20 @@ test('I/J pending double taps commit one payment, one balance update and one cas
   }finally{await h.close();}
 });
 
-test('K exact first-payment allocation survives subsequent payments, final settlement and closing/reopening',async()=>{
+test('WhatsApp contenido: K exact first-payment allocation survives subsequent payments, final settlement and closing/reopening',async()=>{
   const h=await setup(40,7);let reopened;try{const {d,p}=await collect(h,60),first=clone(p),label=h.w.MiCarteraV2ShareCard.receiptInstallmentLabel(p,d.credits[0]),details=h.w.MiCarteraV2ShareCard.receiptInstallmentDetails(p,d.credits[0]);h.w.MiCarteraV2SharePreview.close();await collect(h,60);const after=h.get();a.equal(debt(after.credits[0]),0);a.deepEqual(after.payments[0],first);a.equal(h.w.MiCarteraV2ShareCard.receiptInstallmentLabel(after.payments[0],after.credits[0]),label);a.equal(h.w.MiCarteraV2ShareCard.receiptInstallmentDetails(after.payments[0],after.credits[0]),details);
-    const text=h.w.MiCarteraV2PaymentReceipt.text(after.payments[0],after.clients[0],after.credits[0]);a.equal(text,'¡Gracias, Cliente FICTICIO! 🙌\nRegistré tu pago de S/ 60.00.\nTu puntualidad nos ayuda a mantener tu crédito disponible y seguir creciendo juntos. 🌱');a.equal(h.w.MiCarteraV2ShareCard.receiptTotals(after.payments[0],after.credits[0]).balance,60);
+    const text=h.w.MiCarteraV2PaymentReceipt.text(after.payments[0],after.clients[0],after.credits[0]);a.equal(text,'¡Gracias, Cliente! 🙌\nTe compartimos tu comprobante de pago. PRÉSTAMO YA · Gracias por tu confianza.');a.equal(h.w.MiCarteraV2ShareCard.receiptTotals(after.payments[0],after.credits[0]).balance,60);await h.w.MiCarteraV2PaymentReceipt.image(after.payments[0],after.clients[0],after.credits[0]);a.equal(h.drawn[h.drawn.lastIndexOf('Monto recibido')+1],'S/ 60.00');
     reopened=await boot({fullShell:true,state:after});const persisted=reopened.get();a.deepEqual(persisted.payments[0],first);a.equal(reopened.w.MiCarteraV2ShareCard.receiptInstallmentLabel(persisted.payments[0],persisted.credits[0]),label);a.equal(reopened.w.MiCarteraV2ShareCard.receiptInstallmentDetails(persisted.payments[0],persisted.credits[0]),details);a.equal(reopened.w.MiCarteraV2PaymentReceipt.text(persisted.payments[0],persisted.clients[0],persisted.credits[0]),text);a.equal(reopened.w.MiCarteraV2ShareCard.receiptTotals(persisted.payments[0],persisted.credits[0]).balance,60);a.equal(h.commits.length,2);a.equal(reopened.commits.length,0);
   }finally{await h.close();if(reopened)await reopened.close();}
 });
 
-test('selected old-payment preview and shared PNG retain its real partial application and posterior balance',async()=>{
+test('WhatsApp contenido: selected old-payment preview and shared PNG retain its real partial application and posterior balance',async()=>{
   const h=await setup(40,7);try{
     const {p}=await collect(h,60);h.w.MiCarteraV2SharePreview.close();await collect(h,60);h.w.MiCarteraV2SharePreview.close();
     let outgoing;Object.defineProperty(h.w.navigator,'canShare',{value:()=>true,configurable:true});Object.defineProperty(h.w.navigator,'share',{value:data=>{outgoing=data;return Promise.resolve();},configurable:true});
     const state=clone(h.get()),pending=h.w.MiCarteraV2SharePreview.previewPayment(p.id);await new Promise(resolve=>setImmediate(resolve));
     const modal=h.w.document.getElementById('v2SharePreview');a.match(modal.innerHTML,/<b>Saldo posterior:<\/b> S\/ 60\.00/);
-    const message=modal.querySelector('#v2SharePreviewMessage');a.equal(message.value,'¡Gracias, Cliente FICTICIO! 🙌\nRegistré tu pago de S/ 60.00.\nTu puntualidad nos ayuda a mantener tu crédito disponible y seguir creciendo juntos. 🌱');a.match(modal.innerHTML,/Cuota 5: S\/ 40\.00 · COMPLETADA/);a.match(modal.innerHTML,/Cuota 6: S\/ 20\.00 · PARCIAL \(pendiente S\/ 20\.00\)/);a.ok(!message.value.includes('\\n'));
-    message.value='Gracias por tu pago, te envío el comprobante.';await modal.querySelectorAll('.v2-share-preview-actions button')[2].onclick();a.equal(await pending,'file-share');a.equal(outgoing.text,message.value);a.equal(outgoing.files[0].type,'image/png');a.ok(outgoing.files[0].size>0);a.deepEqual(h.get(),state);a.equal(h.commits.length,2);
+    const message=modal.querySelector('#v2SharePreviewMessage');a.equal(message.value,'¡Gracias, Cliente! 🙌\nTe compartimos tu comprobante de pago. PRÉSTAMO YA · Gracias por tu confianza.');a.match(modal.innerHTML,/Cuota 5: S\/ 40\.00 · COMPLETADA/);a.match(modal.innerHTML,/Cuota 6: S\/ 20\.00 · PARCIAL \(pendiente S\/ 20\.00\)/);a.ok(!message.value.includes('\\n'));
+    message.value='Gracias por tu pago, te envío el comprobante.';await modal.querySelectorAll('.v2-share-preview-actions button')[2].onclick();a.equal(await pending,'file-share');a.equal(outgoing.text,message.value);a.equal(outgoing.files[0].type,'image/png');a.ok(outgoing.files[0].size>0);a.equal(h.drawn[h.drawn.lastIndexOf('Monto recibido')+1],'S/ 60.00');a.deepEqual(h.get(),state);a.equal(h.commits.length,2);
   }finally{await h.close()}
 });

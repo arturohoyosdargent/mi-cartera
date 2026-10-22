@@ -28,7 +28,7 @@ function renew(h,creditId,method,capital){
   return pending;
 }
 
-test('actual shell retains every operational screen and durable financial flow across two sessions and reopening',async()=>{
+test('WhatsApp contenido: actual shell retains every operational screen and durable financial flow across two sessions and reopening',async()=>{
   const db=new Map();let pc=await boot({fullShell:true}),mobile,reopened;
   try{
     const initial=pc.get();initial.clients[0].name='María CLIENTE FICTICIA';initial.clients[0].route='Ruta FICTICIA';initial.clients[0].version=1;pc.set(initial);db.set('clients/c1',clone(initial.clients[0]));
@@ -45,11 +45,11 @@ test('actual shell retains every operational screen and durable financial flow a
     const creditId=pc.get().credits[0]?.id;a.ok(creditId,pc.alerts.join('\n'));a.equal(cash(pc.get()),800);a.equal(debt(pc.get().credits[0]),240);
     await collectViaForm(pc,creditId,'37.50');
     const paid=pc.get(),payment=paid.payments[0];a.ok(payment,pc.alerts.join('\n'));a.equal(payment.amount,37.5);a.equal(debt(paid.credits[0]),202.5);a.equal(cash(paid),837.5);
-    a.equal(pc.w.MiCarteraV2PaymentReceipt.text(payment,paid.clients[0],paid.credits[0]),'¡Gracias, María CLIENTE FICTICIA! 🙌\nRegistré tu pago de S/ 37.50.\nTu puntualidad nos ayuda a mantener tu crédito disponible y seguir creciendo juntos. 🌱');
+    a.equal(pc.w.MiCarteraV2PaymentReceipt.text(payment,paid.clients[0],paid.credits[0]),'¡Gracias, María! 🙌\nTe compartimos tu comprobante de pago. PRÉSTAMO YA · Gracias por tu confianza.');
     a.deepEqual(payment.installmentApplications,[{number:1,amount:37.5,balanceBefore:60,balanceAfter:22.5,status:'PARCIAL'}]);
     a.equal(pc.w.MiCarteraV2ShareCard.receiptInstallmentLabel(payment,paid.credits[0]),'CUOTA 1 DE 4 · PARCIAL');
     await pc.w.MiCarteraV2PaymentReceipt.image(payment,paid.clients[0],paid.credits[0]);
-    a.ok(pc.drawn.includes('CUOTA 1 DE 4 · PARCIAL'));a.ok(pc.drawn.includes('Cuota 1: S/ 37.50 · PARCIAL (pendiente S/ 22.50)'));a.deepEqual(pc.get(),paid);
+    a.equal(pc.drawn[pc.drawn.lastIndexOf('Monto recibido')+1],'S/ 37.50');a.ok(pc.drawn.includes('CUOTA 1 DE 4 · PARCIAL'));a.ok(pc.drawn.includes('Cuota 1: S/ 37.50 · PARCIAL (pendiente S/ 22.50)'));a.deepEqual(pc.get(),paid);
     await pc.w.MiCarteraPartners.create(loan);a.equal(cash(pc.get()),837.5,'historical contribution must not increase cash again');
     mobile=await boot({fullShell:true});await attachCloud(mobile,db);await mobile.w.MiCarteraV2CloudRehydration.rehydrate();
     a.deepEqual(mobile.get().cashMovements.sort((a,b)=>a.id.localeCompare(b.id)),pc.get().cashMovements.map(row=>({...row,updatedAt:db.get((row.type==='INGRESO'?'entries/':'expenses/')+row.id).updatedAt})).sort((a,b)=>a.id.localeCompare(b.id)));

@@ -10,6 +10,11 @@ const fixture=()=>({clients:[{id:'fictitious-manuel',name:'Manuel Coronado (prue
     status:'ACTIVO',version:1,schedule:[{number:1,date:'2026-10-11',amount:1200,paid:550,balance:650}]}],
   payments:[],cashMovements:[],audit:[],session:{actorId:'test-admin',role:'ADMIN'}});
 
+function shortRenewalMessage(message){
+  a.match(message,/^Hola Manuel,/);a.match(message,/renovación/);a.ok(message.length<300);
+  a.doesNotMatch(message,/Coronado|prueba ficticia|S\/|Capital:|Total:|Cuotas:|CRONOGRAMA|Neto a desembolsar|Saldo anterior/);
+}
+
 function review(h){
   const get=id=>h.w.document.getElementById(id);
   get('v2RenewDate').value='2026-10-11';get('v2RenewFirstDate').value='2026-10-12';
@@ -59,7 +64,7 @@ test('Manuel proposal keeps net S/ 350.00 in the PNG and preview while sending o
   }finally{await h.close();}
 });
 
-test('saved renewal keeps its net amount in image and WhatsApp payload',async()=>{
+test('WhatsApp contenido: saved renewal keeps its net amount in the image and a brief editable message',async()=>{
   const h=await boot({fullShell:true,state:fixture()});try{
     const previewCredit=h.w.MiCarteraV2SharePreview.previewCredit;
     h.w.MiCarteraV2SharePreview.previewCredit=()=>{};
@@ -71,7 +76,8 @@ test('saved renewal keeps its net amount in image and WhatsApp payload',async()=
     a.equal(credit.netDisbursement,350);a.equal(credit.previousBalance,650);
     a.equal(d.cashMovements.length,1);a.equal(d.cashMovements[0].amount,350);
     const message=h.w.MiCarteraV2CreditShare.textSummary(credit,d.clients[0]);
-    a.match(message,/Neto a desembolsar: S\/ 350\.00/);
+    shortRenewalMessage(message);
+    const details=h.w.MiCarteraV2CreditShare.renewalDetails(credit);a.equal(details.netDisbursement,350);a.equal(details.previousBalance,650);
     h.drawn.length=0;await h.w.MiCarteraV2ShareCard.credit(credit,d.clients[0]);
     a.ok(h.drawn.includes('Neto a desembolsar'));a.ok(h.drawn.includes('S/ 350.00'));
     let outgoing;h.w.navigator.canShare=()=>true;h.w.navigator.share=async value=>{outgoing=value;};
@@ -79,52 +85,61 @@ test('saved renewal keeps its net amount in image and WhatsApp payload',async()=
     await new Promise(resolve=>setImmediate(resolve));
     const modal=get('v2SharePreview'),messageField=get('v2SharePreviewMessage');
     a.ok(messageField,'a saved renewal must visibly disclose its outgoing message');
-    a.match(messageField.value,/Neto a desembolsar: S\/ 350\.00/);
+    shortRenewalMessage(messageField.value);
     a.doesNotMatch(modal.textContent,/No se enviarán.*texto/);
     [...modal.querySelectorAll('.v2-share-preview-actions button')].find(b=>b.textContent==='Confirmar y enviar').click();
     await preview;
-    a.match(outgoing.text,/Neto a desembolsar: S\/ 350\.00/);a.equal(outgoing.files.length,1);
+    a.equal(outgoing.text,messageField.value);shortRenewalMessage(outgoing.text);a.equal(outgoing.files.length,1);
     a.equal(h.commits.length,1,'sharing must not create a second operation');
   }finally{await h.close();}
 });
 
-test('previously saved renewal shares its recorded audit/cash net without rewriting history',async()=>{
+test('WhatsApp contenido: previously saved renewal keeps its verified net in the PNG without rewriting history',async()=>{
   const state=fixture(),credit={...state.credits[0],id:'fictitious-historical',renewedFrom:'fictitious-old',operationId:'fictitious-history-op',schedule:[]};
   state.credits=[credit];
   state.audit=[{id:'fictitious-audit',action:'CREDIT_REFINANCED',entityType:'CREDIT',entityId:credit.id,operationId:credit.operationId,detail:{from:'fictitious-old',previousBalance:650,newCapital:1000,cashDisbursed:350}}];
   state.cashMovements=[{id:'fictitious-expense',type:'EGRESO',concept:'DESEMBOLSO_REFINANCIAMIENTO',ref:credit.id,amount:350}];
   const h=await boot({fullShell:true,state});try{
     const before=JSON.stringify(h.get());
-    a.match(h.w.MiCarteraV2CreditShare.textSummary(credit,state.clients[0]),/Neto a desembolsar: S\/ 350\.00/);
+    shortRenewalMessage(h.w.MiCarteraV2CreditShare.textSummary(credit,state.clients[0]));
+    const details=h.w.MiCarteraV2CreditShare.renewalDetails(credit);a.equal(details.netDisbursement,350);a.equal(details.previousBalance,650);
     await h.w.MiCarteraV2CreditShare.image(credit,state.clients[0]);
     a.ok(h.drawn.includes('S/ 350.00'));a.ok(h.drawn.includes('Neto a desembolsar'));
     let outgoing;h.w.navigator.canShare=()=>true;h.w.navigator.share=async value=>{outgoing=value;};
     const preview=h.w.MiCarteraV2SharePreview.previewCredit(credit.id);
     await new Promise(resolve=>setImmediate(resolve));
     [...h.w.document.getElementById('v2SharePreview').querySelectorAll('.v2-share-preview-actions button')].find(b=>b.textContent==='Confirmar y enviar').click();
-    await preview;a.match(outgoing.text,/Neto a desembolsar: S\/ 350\.00/);
+    await preview;shortRenewalMessage(outgoing.text);a.equal(outgoing.files.length,1);
     a.equal(JSON.stringify(h.get()),before);a.equal(h.commits.length,0);a.equal(credit.netDisbursement,undefined);
   }finally{await h.close();}
 });
 
-test('historical renewal with inconsistent recorded cash never invents a net amount',async()=>{
+test('WhatsApp contenido: historical renewal with inconsistent recorded cash never certifies or draws a net amount',async()=>{
   const state=fixture(),credit={...state.credits[0],id:'fictitious-historical',renewedFrom:'fictitious-old',operationId:'fictitious-history-op'};
   state.credits=[credit];state.audit=[{id:'fictitious-audit',action:'CREDIT_REFINANCED',entityType:'CREDIT',entityId:credit.id,operationId:credit.operationId,detail:{from:'fictitious-old',previousBalance:650,newCapital:1000,cashDisbursed:350}}];
   state.cashMovements=[{id:'fictitious-expense',type:'EGRESO',concept:'DESEMBOLSO_REFINANCIAMIENTO',ref:credit.id,amount:450}];
   const h=await boot({fullShell:true,state});try{
-    a.doesNotMatch(h.w.MiCarteraV2CreditShare.textSummary(credit,state.clients[0]),/Neto a desembolsar/);
+    const before=JSON.stringify(h.get()),details=h.w.MiCarteraV2CreditShare.renewalDetails(credit);
+    a.equal(details.netDisbursement,undefined);a.equal(details.previousBalance,undefined);
+    shortRenewalMessage(h.w.MiCarteraV2CreditShare.textSummary(credit,state.clients[0]));
+    await h.w.MiCarteraV2CreditShare.image(credit,state.clients[0]);a.ok(!h.drawn.includes('Neto a desembolsar'));
+    a.equal(JSON.stringify(h.get()),before);
     a.equal(h.commits.length,0);
   }finally{await h.close();}
 });
 
-test('deleted historical audit or expense cannot certify a renewal net',async()=>{
+test('WhatsApp contenido: deleted historical audit or expense cannot certify or draw a renewal net',async()=>{
   for(const collection of ['audit','cashMovements']){
     const state=fixture(),credit={...state.credits[0],id:'fictitious-historical',renewedFrom:'fictitious-old',operationId:'fictitious-history-op'};
     state.credits=[credit];state.audit=[{id:'fictitious-audit',action:'CREDIT_REFINANCED',entityType:'CREDIT',entityId:credit.id,operationId:credit.operationId,detail:{from:'fictitious-old',previousBalance:650,newCapital:1000,cashDisbursed:350}}];
     state.cashMovements=[{id:'fictitious-expense',type:'EGRESO',concept:'DESEMBOLSO_REFINANCIAMIENTO',ref:credit.id,amount:350}];
     state[collection][0].tombstone=true;state[collection][0].deletedAt='2026-10-11';
     const h=await boot({fullShell:true,state});try{
-      a.doesNotMatch(h.w.MiCarteraV2CreditShare.textSummary(credit,state.clients[0]),/Neto a desembolsar/);
+      const before=JSON.stringify(h.get()),details=h.w.MiCarteraV2CreditShare.renewalDetails(credit);
+      a.equal(details.netDisbursement,undefined);a.equal(details.previousBalance,undefined);
+      shortRenewalMessage(h.w.MiCarteraV2CreditShare.textSummary(credit,state.clients[0]));
+      await h.w.MiCarteraV2CreditShare.image(credit,state.clients[0]);a.ok(!h.drawn.includes('Neto a desembolsar'));
+      a.equal(JSON.stringify(h.get()),before);
       a.equal(h.commits.length,0);
     }finally{await h.close();}
   }
@@ -154,22 +169,24 @@ test('historical net metadata conflicting with recorded disbursement blocks shar
   }finally{await h.close();}
 });
 
-test('known historical net recovers its previous balance from verified audit rather than displaying zero',async()=>{
+test('WhatsApp contenido: known historical net still recovers its previous balance from verified audit',async()=>{
   const state=fixture(),credit={...state.credits[0],id:'fictitious-known-net',renewedFrom:'fictitious-old',operationId:'fictitious-known-op',renewalMode:'REFINANCE',netDisbursement:350};
   state.credits=[credit];state.audit=[{id:'fictitious-audit',action:'CREDIT_REFINANCED',entityType:'CREDIT',entityId:credit.id,operationId:credit.operationId,detail:{from:'fictitious-old',previousBalance:650,newCapital:1000,cashDisbursed:350}}];
   state.cashMovements=[{id:'fictitious-expense',type:'EGRESO',concept:'DESEMBOLSO_REFINANCIAMIENTO',ref:credit.id,amount:350}];
   const h=await boot({fullShell:true,state});try{
-    a.match(h.w.MiCarteraV2CreditShare.textSummary(credit,state.clients[0]),/Saldo anterior: S\/ 650\.00/);
+    shortRenewalMessage(h.w.MiCarteraV2CreditShare.textSummary(credit,state.clients[0]));
+    const details=h.w.MiCarteraV2CreditShare.renewalDetails(credit);a.equal(details.previousBalance,650);a.equal(details.netDisbursement,350);
     a.equal(credit.previousBalance,undefined);a.equal(h.get().credits[0].previousBalance,undefined);
   }finally{await h.close();}
 });
 
-test('legacy renewal-with-balance recovers only matching audit and exact disbursement',async()=>{
+test('WhatsApp contenido: legacy renewal-with-balance still recovers only matching audit and exact disbursement',async()=>{
   const state=fixture(),credit={...state.credits[0],id:'fictitious-legacy-balance',renewedFrom:'fictitious-old',operationId:'fictitious-legacy-op'};
   state.credits=[credit];state.audit=[{id:'fictitious-audit',action:'CREDIT_RENEWED_WITH_BALANCE',entityType:'CREDIT',entityId:credit.id,operationId:credit.operationId,detail:{from:'fictitious-old',previousBalance:650,newCapital:1000,cashDisbursed:350}}];
   state.cashMovements=[{id:'fictitious-expense',type:'EGRESO',concept:'DESEMBOLSO_RENOVACION_CON_SALDO',ref:credit.id,amount:350}];
   const h=await boot({fullShell:true,state});try{
-    a.match(h.w.MiCarteraV2CreditShare.textSummary(credit,state.clients[0]),/Neto a desembolsar: S\/ 350\.00/);
+    shortRenewalMessage(h.w.MiCarteraV2CreditShare.textSummary(credit,state.clients[0]));
+    const details=h.w.MiCarteraV2CreditShare.renewalDetails(credit);a.equal(details.netDisbursement,350);a.equal(details.previousBalance,650);
     a.equal(h.get().credits[0].netDisbursement,undefined);a.equal(h.commits.length,0);
   }finally{await h.close();}
 });
