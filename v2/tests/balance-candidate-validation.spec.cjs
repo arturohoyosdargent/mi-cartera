@@ -7,7 +7,7 @@ const {spawn} = require('node:child_process');
 const {Window} = require('happy-dom');
 const repository = path.resolve(process.env.SOURCE || 'v2', '..');
 const read = relative => fs.readFileSync(path.join(repository, relative), 'utf8');
-const build = 'v2-pilot-20261021-balance-caja-1';
+const build = 'v2-pilot-20261021-caja-operativa-1';
 const manual = 'tools/balance-validation/';
 
 test('the new candidate entry, worker response and runtime guard identify the same Balance release', async () => {

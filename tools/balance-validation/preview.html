@@ -16,17 +16,18 @@
 </head>
 <body><main>
   <header class="card">
-    <h1>Caja / Balance — candidata local</h1>
+    <h1>Caja / Balance operativo — candidata local</h1>
     <b id="candidateVersion">__CANDIDATE_BUILD__</b>
     <p>Sólo datos ficticios. No inicia sesión real, no carga Firebase, no publica y no registra operaciones. Corte de prueba: 21/10/2026. No sustituye la aplicación instalada.</p>
-    <div class="controls">
+    <button type="button" data-fixture="business">Mostrar cartera ficticia integrada</button>
+    <details id="previewInternalCases"><summary>Casos internos de validación</summary><div class="controls">
       <button type="button" data-fixture="deficit">1. Déficit real</button>
       <button type="button" data-fixture="reservation">2. Reserva futura</button>
       <button type="button" id="previewSignOut">3. Simular cierre de sesión</button>
       <button type="button" id="previewRestore">Restablecer identidad ficticia</button>
     </div>
+    <p>Los casos Déficit real y Reserva futura mantienen sus resultados aprobados; el simulador está dentro del análisis interno, no es la pantalla principal. Al simular el cierre, los saldos y el simulador deben ocultarse.</p></details>
     <p id="previewStatus" aria-live="polite"></p>
-    <p>En ambos escenarios: pulsa <b>Calcular escenario</b>. Debe indicar 6 créditos, capital S/ 3,000 y financiamiento adicional S/ 2,200. Al simular el cierre, los saldos y el simulador deben ocultarse.</p>
   </header>
   <section id="home" class="card metric">Disponible en Inicio<b id="mCapitalAvailable"></b></section>
   <section id="cash"><h2>Balance / Caja</h2><div class="card metric">Caja física<b id="cashBalance"></b></div><div id="cashHistory"></div></section>
