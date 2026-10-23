@@ -3,10 +3,10 @@ const {boot,KEY}=require('./dom-harness.cjs');
 const SUPPORT_KEY='mi-cartera-v2-support-tickets';
 const visible=host=>Array.from(host.children).filter(x=>x.matches('.card,.v2-cash-detail')&&!x.hidden&&!x.matches('[data-v2-history-more]'));
 const more=host=>host.querySelector(':scope > [data-v2-history-more]');
-async function setup(role='cobrador'){
+async function setup(role='cobrador',asOf=''){ 
  const h=await boot();h.w.MiCarteraV2AuthCloudGate={ORG:'fixture-org',state:()=>({ready:true,uid:'fixture-user',role})};
  h.w.firebaseAuthV2={auth:{currentUser:{uid:'fixture-user'}}};h.w.localStorage.setItem('mi-cartera-v2-local-owner','fixture-user');
- const d=h.get();d.clients=[{id:'fixture-client',name:'Cliente Ficticio',phone:'999000123'}];
+ const d=h.get();d.session={actorId:'fixture-user',role:role.toUpperCase()};if(asOf)h.w.MiCarteraV2Dates.today=()=>asOf;d.clients=[{id:'fixture-client',name:'Cliente Ficticio',phone:'999000123'}];
  d.credits=Array.from({length:13},(_,i)=>({id:'active-'+i,clientId:'fixture-client',status:'ACTIVE',capital:100,total:100,schedule:[{amount:100,balance:100,date:'2099-01-01'}]}));
  d.payments=Array.from({length:23},(_,i)=>({id:'p'+String(i+1).padStart(2,'0'),date:'2026-10-'+String(i+1).padStart(2,'0'),amount:i+1,clientId:'fixture-client'}));
  d.cashMovements=Array.from({length:23},(_,i)=>({id:'cash-'+i,date:'2026-10-'+String(i+1).padStart(2,'0'),type:'INGRESO',amount:10,category:'APORTE_CAPITAL',concept:'Ingreso ficticio '+i}));
@@ -32,13 +32,15 @@ test('payment search evaluates the full history and displays every match while t
   search.value='';search.dispatchEvent(new h.w.Event('input',{bubbles:true}));a.equal(visible(box).length,10);a.ok(more(box));a.equal(h.w.localStorage.getItem(KEY),before);
  }finally{await h.close();}
 });
-test('cash batches are limited to movement details inside each group, retain full totals and date filtering',async()=>{
- const h=await setup();try{const box=h.w.document.getElementById('cashHistory'),group=box.querySelector('details'),before=h.w.localStorage.getItem(KEY);
-  a.equal(group.querySelectorAll(':scope > .v2-cash-detail').length,23);a.equal(visible(group).length,10);a.match(group.querySelector('summary').textContent,/23 movimientos.*230\.00/);
-  a.equal(h.w.document.getElementById('cashBalance').textContent,'S/ 230.00');more(group).click();a.equal(visible(group).length,20);
-  h.w.MiCarteraV2CashMenu.renderHistory();a.equal(visible(box.querySelector('details')).length,20);
+test('cash ledger table retains every movement, full totals and date filtering without financial writes',async()=>{
+ const h=await setup('admin','2026-10-31');try{const box=h.w.document.getElementById('cashHistory'),before=h.w.localStorage.getItem(KEY);
+  h.w.document.getElementById('cashHistoryPeriod').value='ALL';h.w.MiCarteraV2CashMenu.renderSummary();h.w.MiCarteraV2CashMenu.renderHistory();
+  a.equal(box.querySelectorAll('tbody tr[data-movement-id]').length,23,'the ledger must retain every movement');
+  for(let i=0;i<23;i++)a.ok(box.querySelector('[data-movement-id="cash-'+i+'"]'),'missing movement '+i);
+  a.equal(h.w.document.getElementById('cashBalance').textContent,'S/ 230.00');
+  h.w.MiCarteraV2CashMenu.renderHistory();a.equal(box.querySelectorAll('tbody tr[data-movement-id]').length,23);
   const period=h.w.document.getElementById('cashHistoryPeriod');period.value='RANGE';h.w.document.getElementById('cashHistoryFrom').value='2026-10-01';h.w.document.getElementById('cashHistoryTo').value='2026-10-01';period.dispatchEvent(new h.w.Event('change',{bubbles:true}));
-  const filtered=box.querySelector('details');a.equal(visible(filtered).length,1);a.match(filtered.textContent,/Ingreso ficticio 0/);a.equal(more(filtered),null);
+  const filtered=box.querySelectorAll('tbody tr[data-movement-id]');a.equal(filtered.length,1);a.equal(filtered[0].dataset.movementId,'cash-0');a.match(filtered[0].textContent,/Ingreso ficticio 0/);
   a.equal(h.w.document.getElementById('cashIncomeTotal').textContent,'S/ 10.00');a.equal(h.w.document.getElementById('cashBalance').textContent,'S/ 230.00');a.equal(h.w.localStorage.getItem(KEY),before);a.equal(h.commits.length,0);
  }finally{await h.close();}
 });
