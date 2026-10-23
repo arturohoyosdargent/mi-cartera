@@ -163,12 +163,24 @@ function renewalInput(c,mode){
   panel.innerHTML='<div style="max-width:720px;margin:0 auto"><button class="btn" id="v2RenewCancel">← Volver</button><h2>Renovación de crédito</h2><div class="card"><b>'+esc(client.name||'Cliente')+'</b><div class="metric">'+(mode==='INTEREST'?'Renovación solo interés / saldo':'Renovación de capital')+'</div><div class="metric">Crédito actual: Capital S/ '+money(c.capital).toFixed(2)+' · Saldo pendiente S/ '+balance.toFixed(2)+'</div></div><div class="card"><div class="row"><div><label>Fecha del crédito</label><input class="input" id="v2RenewDate" type="date" value="'+today()+'"></div><div><label>Primera fecha de pago</label><input class="input" id="v2RenewFirstDate" type="date" min="'+today()+'" value="'+today()+'"></div></div><div class="row"><div><label>Capital S/</label><input class="input" id="v2RenewCapital" type="number" step="0.01" value="'+money(defaultCapital).toFixed(2)+'" '+(mode==='INTEREST'?'readonly':'')+'></div><div><label>Interés %</label><input class="input" id="v2RenewRate" type="number" step="0.01" value="'+Number(c.rate||0)+'"></div></div><div class="row"><div><label>Cuotas normales</label><input class="input" id="v2RenewTerm" type="number" min="1" value="'+Number(c.term||1)+'"></div><div><label>Frecuencia</label><select class="select" id="v2RenewFreq"><option value="daily">Diaria</option><option value="weekly">Semanal</option><option value="biweekly">Quincenal</option><option value="monthly">Mensual</option></select></div></div><div class="row"><div><label>Día de descanso</label><select class="select" id="v2RenewRest"><option value="">Sin descanso</option><option value="0">Domingo</option><option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option><option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option></select></div><div><label>Vencimiento estimado</label><input class="input" id="v2RenewMaturity" type="date" readonly></div></div><div class="card"><b>Cuota adicional (opcional)</b><p class="metric">Se resta del total antes de repartir las cuotas normales. La deuda total no aumenta. Define el importe y la fecha de la adicional de esta renovación.</p><div id="v2RenewExtraRows"></div><button id="v2RenewAddExtra" type="button" class="btn">＋ Agregar cuota adicional</button></div><div class="grid"><div class="card metric">Total nuevo<b id="v2RenewTotal">S/ 0.00</b></div><div class="card metric">'+(mode==='INTEREST'?'Capital renovado':'Neto a desembolsar')+'<b id="v2RenewNet">S/ 0.00</b></div></div><div id="v2RenewSchedule" class="card"></div><button class="btn green" id="v2RenewReview" style="width:100%;min-height:58px">Revisar propuesta</button><p class="metric">Revisar propuesta NO registra la renovación. Podrás compartirla con el cliente antes de confirmar.</p></div></div>';
   const card=document.querySelector(`[data-credit-id="${c.id}"]`)||document.querySelector(`[data-id="${c.id}"]`)||document.querySelector(`[onclick*="${c.id}"]`)?.closest('.card');
   if(card)card.insertAdjacentElement('afterend',panel);else document.body.appendChild(panel);
-  const get=id=>panel.querySelector('#'+id),extraRows=[];
+  const get=id=>panel.querySelector('#'+id),extraRows=[];let automaticFirstDate=true;
   get('v2RenewFreq').value=String(c.freq||'weekly');get('v2RenewRest').value=String(c.restDay??'');
+  function syncFirstDate(){
+    const date=get('v2RenewDate').value,monthly=get('v2RenewFreq').value==='monthly',first=get('v2RenewFirstDate'),next=new Date(date+'T12:00:00Z');
+    if(Number.isNaN(next.getTime())){first.min='';return}
+    if(monthly){
+      const followingDay=new Date(next);followingDay.setUTCDate(followingDay.getUTCDate()+1);first.min=followingDay.toISOString().slice(0,10);
+      const day=next.getUTCDate();next.setUTCDate(1);next.setUTCMonth(next.getUTCMonth()+1);
+      const last=new Date(Date.UTC(next.getUTCFullYear(),next.getUTCMonth()+1,0)).getUTCDate();next.setUTCDate(Math.min(day,last));
+    }else first.min=date;
+    if(automaticFirstDate)first.value=monthly?next.toISOString().slice(0,10):date;
+  }
+  syncFirstDate();
   function plan(){
     const value={date:get('v2RenewDate').value,capital:money(get('v2RenewCapital').value),rate:Number(get('v2RenewRate').value||0),term:Number(get('v2RenewTerm').value),freq:get('v2RenewFreq').value,restDay:get('v2RenewRest').value,firstPaymentDate:get('v2RenewFirstDate').value};
     if(!(value.date&&value.capital>0&&value.term>0&&value.firstPaymentDate))throw new Error('Completa fecha, capital, cuotas y primera fecha de pago.');
     if(value.firstPaymentDate<value.date)throw new Error('La primera cuota no puede ser anterior a la fecha del crédito.');
+    if(value.freq==='monthly'&&value.firstPaymentDate===value.date)throw new Error('La primera cuota mensual debe ser posterior a la fecha del crédito.');
     value.extraPayments=extraRows.map(fields=>{
       const date=fields.date.value,amount=Number(fields.amount.value);
       if(!date||!Number.isFinite(amount)||money(amount)<=0)throw new Error('Completa la fecha y un importe mayor a S/ 0.00 de cada cuota adicional, o quítala.');
@@ -195,7 +207,7 @@ function renewalInput(c,mode){
     for(const field of [fields.date,fields.amount]){field.addEventListener('input',calc);field.addEventListener('change',calc)}
     row.querySelector('[data-v2-renew-extra-remove]').onclick=()=>{extraRows.splice(extraRows.indexOf(fields),1);row.remove();calc()};calc();
   };
-  ['v2RenewDate','v2RenewCapital','v2RenewRate','v2RenewTerm','v2RenewFirstDate','v2RenewFreq','v2RenewRest'].forEach(id=>{get(id)?.addEventListener('input',calc);get(id)?.addEventListener('change',calc)});calc();
+  ['v2RenewDate','v2RenewCapital','v2RenewRate','v2RenewTerm','v2RenewFirstDate','v2RenewFreq','v2RenewRest'].forEach(id=>{const update=()=>{if(id==='v2RenewFirstDate')automaticFirstDate=false;if(id==='v2RenewDate'||id==='v2RenewFreq')syncFirstDate();calc()};get(id)?.addEventListener('input',update);get(id)?.addEventListener('change',update)});calc();
   return new Promise(resolve=>{
     get('v2RenewCancel').onclick=()=>{root.MiCarteraV2ClientShare?.close?.();root.MiCarteraV2SharePreview?.close?.();panel.remove();resolve(null)};
     get('v2RenewReview').onclick=()=>{

@@ -68,11 +68,11 @@
     }
     const cashSignature = row => JSON.stringify([dateOf(row.date), cents(row.amount), row.type, row.ref,
       row.category, row.concept, row.partnerLoan, row.cashAccountId, removed(row)]);
-    const centralRows = (Array.isArray(snapshot.cashMovements) ? snapshot.cashMovements : []).filter(row => !row?.cashAccountId || row.cashAccountId === 'leader');
-    const identifiedCash = unique(centralRows, row => row.id, cashSignature, 'cash');
+    const identifiedCash = unique(snapshot.cashMovements, row => row.id, cashSignature, 'cash');
+    const centralRows = identifiedCash.filter(row => !row.cashAccountId || row.cashAccountId === 'leader');
     const receiptKey = row => row.type === 'INGRESO' && row.ref && (collectionRow(row) || paymentById.has(String(row.ref)))
       ? 'payment:' + (paymentById.get(String(row.ref))?.operationId || paymentById.get(String(row.ref))?.id || row.ref) : 'cash:' + row.id;
-    const cashRows = unique(identifiedCash, receiptKey, row => JSON.stringify([dateOf(row.date), cents(row.amount), row.type, removed(row)]), 'cash');
+    const cashRows = unique(centralRows, receiptKey, row => JSON.stringify([dateOf(row.date), cents(row.amount), row.type, removed(row)]), 'cash');
     const ledger = cashRows.flatMap(row => {
       const amount = cents(row.amount), date = dateOf(row.date);
       if (amount === null || !date || !['INGRESO', 'EGRESO'].includes(row.type)) { warn('Movimiento con fecha, tipo o importe inválido: ' + (row.id || 'sin ID'), 'cash'); return []; }
@@ -139,14 +139,20 @@
     const activeRecords = [];
     const credits = unique(snapshot.credits, row => row.id, row => JSON.stringify([row.capital, row.principalPaid, row.status, row.date, removed(row)]), 'portfolio');
     for (const credit of credits) {
-      if (dateOf(credit.date) > asOf) continue;
+      let creditDate = dateOf(credit.date);
+      if (!creditDate && !credit.date) {
+        const dates = new Set(identifiedCash.filter(row => row.type === 'EGRESO' && cashCategory(row) === 'DESEMBOLSO_CREDITO' &&
+          String(row.ref || '') === String(credit.id) && cents(row.amount) === cents(credit.capital)).map(row => dateOf(row.date)));
+        if (dates.size === 1 && !dates.has('')) creditDate = [...dates][0];
+      }
+      if (creditDate > asOf) continue;
       const futurePrincipal = payments.filter(payment => payment.creditId === credit.id && dateOf(payment.date) > asOf)
         .reduce((total, payment) => total + (cents(payment.capitalAmount ?? (payment.concept === 'CAPITAL' ? payment.amount : 0)) || 0), 0);
       const status = String(credit.status || '').toUpperCase();
       if (!['ACTIVO', 'ACTIVE'].includes(status) && !(futurePrincipal && ['PAGADO', 'PAID'].includes(status)) &&
         !(status === 'RENOVADO' && dateOf(credit.renewedAt) > asOf)) continue;
       const capital = cents(credit.capital), paid = cents(credit.principalPaid === undefined ? 0 : credit.principalPaid);
-      if (!dateOf(credit.date) || capital === null || paid === null || paid > capital || futurePrincipal > paid) { warn('Capital de crédito inválido: ' + credit.id, 'portfolio'); continue; }
+      if (!creditDate || capital === null || paid === null || paid > capital || futurePrincipal > paid) { warn('Capital de crédito inválido: ' + credit.id, 'portfolio'); continue; }
       portfolio += capital - paid + futurePrincipal; contractedCapital += capital; activeCredits++;
       activeRecords.push({credit, futurePrincipal});
     }
@@ -325,11 +331,14 @@
     if ($('cashHistoryPeriod')) return;
     const filters = document.createElement('div');
     filters.className = 'card v2-cash-filters';
-    filters.innerHTML = '<label>Periodo<select id="cashHistoryPeriod" class="input"><option value="TODAY">Hoy</option><option value="WEEK">Esta semana (lunes a domingo)</option><option value="MONTH">Este mes</option><option value="RANGE">Rango de fechas</option><option value="ALL">Todo</option></select></label><label>Desde<input id="cashHistoryFrom" class="input" type="date"></label><label>Hasta<input id="cashHistoryTo" class="input" type="date"></label><label>Movimiento<select id="cashHistoryType" class="input"><option value="ALL">Ingresos y egresos</option><option value="INGRESO">Ingresos</option><option value="EGRESO">Egresos</option></select></label><div class="metric">El periodo aplica al resumen, evolución y detalle. El tipo sólo filtra el detalle; los saldos siempre incluyen ambos tipos.</div>';
+    filters.innerHTML = '<label>Periodo<select id="cashHistoryPeriod" class="input"><option value="TODAY">Hoy</option><option value="WEEK">Esta semana</option><option value="MONTH">Este mes</option><option value="RANGE">Elegir fechas</option><option value="ALL">Todo</option></select></label><label hidden>Desde<input id="cashHistoryFrom" class="input" type="date"></label><label hidden>Hasta<input id="cashHistoryTo" class="input" type="date"></label><label>Movimientos<select id="cashHistoryType" class="input"><option value="ALL">Ingresos y egresos</option><option value="INGRESO">Ingresos</option><option value="EGRESO">Egresos</option></select></label>';
     $('cashHistory')?.insertAdjacentElement('beforebegin',filters);
     $('cashHistoryFrom').value = today().slice(0,7)+'-01';
     $('cashHistoryTo').value = today();
-    filters.querySelectorAll('input,select').forEach(input => input.addEventListener('change',()=>{renderSummary();renderHistory();}));
+    filters.querySelectorAll('input,select').forEach(input => input.addEventListener('change',()=>{
+      for(const id of ['cashHistoryFrom','cashHistoryTo'])$(id).closest('label').hidden=$('cashHistoryPeriod').value!=='RANGE';
+      renderSummary();renderHistory();
+    }));
   }
 
   function renderSummary(){
@@ -362,6 +371,8 @@
     if ($('cashMonthlyExpense')) $('cashMonthlyExpense').textContent = money(monthlyExpense);
     if ($('cashMonthlyResult')) $('cashMonthlyResult').textContent = money(monthlyIncome - monthlyExpense);
     renderOperations(result);
+    const notice=$('sparkCashLiquidity'),availability=$('cashAvailabilityDetails');
+    if(notice&&availability)availability.appendChild(notice);
     renderAnalysis(result);
     root.MiCarteraPartners?.renderBalance?.();
   }
@@ -392,39 +403,50 @@
       const anchor=$('cashBalance')?.closest('.card');if(anchor)anchor.insertAdjacentElement('afterend',panel);else $('cash').prepend(panel);}
     if(!panel.innerHTML){
       const metrics = fields=>'<div class="v2-cash-summary">'+fields.map(([id,label])=>'<div class="card metric">'+label+'<b id="'+id+'"></b></div>').join('')+'</div>';
-      panel.innerHTML='<h3>Control operativo de Caja</h3><p id="cashOperationalScope" class="metric"></p><p id="cashOperationsSync" class="metric" aria-live="polite"></p><h4>Hoy y posición actual</h4>'+metrics([
-        ['cashOpAvailable','Disponible para prestar hoy (puede ser negativo)'],['cashOpPhysical','Saldo real de caja central'],
-        ['cashTodayCollections','Cobranzas ingresadas hoy a caja central'],['cashTodayDisbursed','Desembolsos pagados hoy'],
-        ['cashTodayExpenses','Gastos operativos pagados hoy'],['cashTodayIncome','Ingresos totales de hoy'],['cashTodayOutflow','Egresos totales de hoy'],
-        ['cashOpPlaced','Capital pendiente colocado en créditos vigentes'],['cashPendingTotal','Cuotas pendientes según calendario (capital e interés)'],['cashPendingOverdue','Cuotas vencidas por cobrar']])+ 
-        '<h4>Actividad del periodo seleccionado</h4>'+metrics([
+      panel.innerHTML='<h3>Resumen de Caja</h3><p id="cashOperationalScope" class="metric"></p><p id="cashOperationsSync" class="metric" aria-live="polite"></p><p id="cashBalanceNotice" class="blocked" role="status" hidden></p>'+metrics([
+        ['cashOpAvailable','Disponible para prestar'],['cashOpPlaced','Capital en créditos'],
+        ['cashTodayCollections','Cobrado hoy'],['cashTodayDisbursed','Desembolsado hoy']])+
+        '<details id="cashAvailabilityDetails" class="v2-cash-section"><summary>Disponibilidad de caja</summary>'+metrics([
+          ['cashOpPhysical','Saldo de caja'],['cashOpCommitments','Pagos reservados']])+'<p class="metric">Disponible = saldo de caja menos pagos reservados.</p></details>'+
+        '<details class="v2-cash-section"><summary>Ingresos y gastos de hoy</summary>'+metrics([
+          ['cashTodayIncome','Ingresos de hoy'],['cashTodayOutflow','Egresos de hoy'],['cashTodayExpenses','Gastos operativos de hoy']])+'</details>'+
+        '<details class="v2-cash-section"><summary>Detalle del periodo</summary>'+metrics([
           ['cashPeriodCollections','Cobranzas efectivamente ingresadas'],['cashPeriodDisbursed','Capital desembolsado (incluye entrega neta de renovación)'],
           ['cashPeriodRecovered','Capital recuperado'],['cashPeriodInterest','Intereses cobrados'],['cashPeriodPenalty','Mora cobrada'],
-          ['cashPeriodOperating','Gastos operativos pagados'],['cashPeriodContributions','Aportes de capital'],['cashPeriodPartnerFunding','Financiamiento recibido de socios']])+
-        '<p id="cashOperationalQuality" class="blocked"></p><h4>Evolución de la liquidez real por día</h4><div id="cashLiquidityEvolution" class="v2-cash-table-wrap"></div>'+
-        '<details><summary>Cuotas pendientes de cobro</summary><p>No añade mora no registrada ni suma otra vez el capital pendiente. Son saldos actuales; no una reconstrucción histórica.</p><div id="cashReceivables" class="v2-cash-table-wrap"></div></details>';
+          ['cashPeriodOperating','Gastos operativos pagados'],['cashPeriodContributions','Aportes de capital'],['cashPeriodPartnerFunding','Financiamiento recibido de socios']])+'</details>'+
+        '<details id="cashQualityDetails" class="v2-cash-section" hidden><summary>Movimientos por revisar</summary><p id="cashOperationalQuality" class="blocked"></p></details>'+
+        '<details class="v2-cash-section"><summary>Evolución diaria</summary><div id="cashLiquidityEvolution" class="v2-cash-table-wrap"></div></details>'+
+        '<details class="v2-cash-section"><summary>Cuotas por cobrar</summary>'+metrics([['cashPendingTotal','Total pendiente'],['cashPendingOverdue','Vencido por cobrar']])+'<div id="cashReceivables" class="v2-cash-table-wrap"></div></details>';
     }
     panel.hidden=false;
     const filters=$('cashHistoryPeriod')?.closest('.card');if(filters)panel.before(filters);
     const actions=document.querySelector('[data-v2-cash-actions]');
     if(actions&&filters&&(actions.compareDocumentPosition(filters)&2))filters.before(actions);
     const sync=root.MiCarteraV2SyncBridge?.status?.()||{};
-    $('cashOperationsSync').textContent=(sync.online===false?'SIN INTERNET':sync.configured?'NUBE CONECTADA':'LOCAL AISLADO')+
-      ' · '+(Number(sync.pending)||0)+' pendiente(s) de sincronización. Lectura de la cartera actual de la sesión; los valores pueden cambiar al recibir datos.';
+    $('cashOperationsSync').textContent=(sync.online===false?'Sin conexión':sync.configured?'Conectado':'Datos de este dispositivo')+
+      (Number(sync.pending)>0?' · '+Number(sync.pending)+' pendiente(s) de sincronizar':'');
     const set=(id,value,valid=true)=>{$(id).textContent=!valid?'Revisar datos':value===null?'Revisar calendario':money(value);};
     const day=result.today.activity, activity=result.period.activity;
     for(const [id,value] of Object.entries({cashOpAvailable:result.cash.available,cashOpPhysical:result.cash.physical,
       cashTodayCollections:day.collections,cashTodayDisbursed:day.disbursed,cashTodayExpenses:day.operatingExpenses,
       cashTodayIncome:result.today.income,cashTodayOutflow:result.today.expense}))set(id,value,result.cash.valid);
     set('cashOpPlaced',result.portfolio.principal,result.portfolio.valid);
+    set('cashOpCommitments',result.cash.available===null?null:Math.round((result.cash.physical-result.cash.available)*100)/100,result.cash.valid);
     set('cashPendingTotal',result.receivables.total);set('cashPendingOverdue',result.receivables.overdue);
     const fields={cashPeriodCollections:'collections',cashPeriodDisbursed:'disbursed',cashPeriodRecovered:'principalRecovered',cashPeriodInterest:'interestCollected',
       cashPeriodPenalty:'penaltiesCollected',cashPeriodOperating:'operatingExpenses',cashPeriodContributions:'capitalContributions',cashPeriodPartnerFunding:'partnerFunding'};
     for(const [id,field] of Object.entries(fields)){
       if(!result.period.valid)$(id).textContent='Rango inválido';else set(id,activity[field],result.cash.valid);
     }
-    $('cashOperationalScope').textContent='Caja central de la sesión activa · Corte '+result.asOf+' · Periodo '+(result.period.from||'inicio')+' a '+(result.period.to||result.asOf)+'. Los cobros futuros no son ingresos reales; los egresos futuros quedan reservados. Déficit = saldo negativo.';
-    $('cashOperationalQuality').textContent=[...result.warnings,...result.receivables.warnings].join(' · ');
+    const displayDate=value=>value.split('-').reverse().join('/');
+    $('cashOperationalScope').textContent='Al '+displayDate(result.asOf);
+    const notice=$('cashBalanceNotice');
+    notice.hidden=result.cash.valid&&result.cash.physical>=0&&result.cash.available>=0;
+    notice.textContent=!result.cash.valid?'Revisa los movimientos indicados antes de usar el saldo disponible.':result.cash.physical<0?
+      'Las salidas registradas superan las entradas en '+money(-result.cash.physical)+'. Revisa ingresos y desembolsos en Movimientos.':
+      'La caja no cubre los pagos reservados. Faltan '+money(-result.cash.available)+'. Consulta el detalle de disponibilidad.';
+    const quality=[...result.warnings,...result.receivables.warnings];
+    $('cashOperationalQuality').textContent=quality.join(' · ');$('cashQualityDetails').hidden=quality.length===0;
     const amount=value=>value===null?'Revisar datos':money(value);
     $('cashLiquidityEvolution').innerHTML=!result.period.valid?'Rango inválido':!result.evolution.length?'Sin movimientos contabilizados en el periodo.':
       '<table class="v2-cash-table"><thead><tr><th>Fecha</th><th>Saldo inicial</th><th>Ingresos</th><th>Egresos</th><th>Saldo final</th></tr></thead><tbody>'+result.evolution.map(day=>
@@ -445,7 +467,7 @@
     if (!panel) { panel = document.createElement('details'); panel.id = 'cashProfitability'; panel.className = 'card'; $('cash').appendChild(panel); }
     if (panel.dataset.scope !== scope) {
       panel.dataset.scope = scope;
-      panel.innerHTML = '<summary>Análisis mensual y simulador interno de validación</summary><h3>Rentabilidad y punto de equilibrio</h3><p class="metric">REAL — lectura de la cartera local de la sesión activa. Caja central; no se crean ni modifican registros.</p><p id="cashDataStatus" class="metric"></p>'+
+      panel.innerHTML = '<summary>Análisis mensual</summary><h3>Rentabilidad y punto de equilibrio</h3><p class="metric">Resultado según los ingresos y gastos registrados.</p><p id="cashDataStatus" class="metric"></p>'+
         '<label>Mes del resultado real<input id="cashAnalysisMonth" class="input" type="month" value="'+result.month.label+'"></label>'+
         '<div class="v2-cash-summary">'+[
           ['cashAvailable','Disponible para prestar hoy'],['cashFutureReserved','Egresos futuros reservados'],
@@ -526,19 +548,19 @@
     const movements=result.movements.filter(row=>inRange(row,selectedRange)&&(type==='ALL'||row.type===type));
     if(!movements.length){element.textContent='Sin movimientos de caja V2 en este periodo.';return;}
     const cell=(label,value)=>'<td data-label="'+label+'">'+value+'</td>';
-    element.innerHTML='<h3>Movimientos y auditoría — sólo lectura</h3><p class="metric">El saldo incluye todo el historial contabilizado y ambos tipos, aunque filtres el detalle. Orden diario por hora auditada; si falta, por identificador. Los programados no cambian la caja real.</p>'+
+    element.innerHTML='<details class="v2-cash-section"><summary>Movimientos ('+movements.length+')</summary><p class="metric">Los saldos incluyen ingresos y egresos. Los pagos programados aún no cambian la caja.</p>'+
       '<div class="v2-cash-table-wrap"><table class="v2-cash-table"><thead><tr><th>Fecha</th><th>Cliente</th><th>Crédito / pago</th><th>Concepto</th><th>Tipo</th><th>Monto</th><th>Saldo resultante</th><th>Trazabilidad</th></tr></thead><tbody>'+
       movements.map(row=>'<tr data-movement-id="'+esc(row.id)+'" class="'+(row.type==='INGRESO'?'v2-cash-income':'v2-cash-expense')+'">'+
         cell('Fecha',esc(row.normalizedDate))+
         cell('Cliente',esc(row.clientName||(row.partnerLoan?.partner)||'No aplica / sin vínculo'))+
-        cell('Crédito / pago',esc(row.creditId||'No aplica')+(row.paymentId?'<small>Pago: '+esc(row.paymentId)+'</small>':''))+
+        cell('Crédito / pago','<details><summary>Ver crédito</summary>'+esc(row.creditId||'No aplica')+(row.paymentId?'<small>Pago: '+esc(row.paymentId)+'</small>':'')+'</details>')+
         cell('Concepto',esc(String(row.category||row.concept||'SIN_CATEGORIA').replaceAll('_',' '))+
           (row.category&&row.concept?'<small>'+esc(row.concept)+'</small>':'')+(row.observation?'<small>'+esc(row.observation)+'</small>':''))+
         cell('Tipo',esc(row.type)+(row.scheduled?'<small>PROGRAMADO — no contabilizado</small>':''))+
         cell('Monto',money(row.amount))+
         cell('Saldo resultante',row.scheduled?'No contabilizado':row.balanceAfter===null?'Revisar datos':money(row.balanceAfter))+
-        cell('Trazabilidad',esc(row.actorId||'Actor no registrado')+'<small>Operación: '+esc(row.operationId||'Sin vínculo')+'</small>'+
-          '<small>Movimiento: '+esc(row.id)+'</small>'+(row.auditId?'<small>Auditoría: '+esc(row.auditId)+'</small>':'')+(row.auditAt?'<small>'+esc(row.auditAt)+'</small>':''))+'</tr>').join('')+'</tbody></table></div>';
+        cell('Trazabilidad','<details><summary>Ver referencia</summary>'+esc(row.actorId||'Actor no registrado')+'<small>Operación: '+esc(row.operationId||'Sin vínculo')+'</small>'+
+          '<small>Movimiento: '+esc(row.id)+'</small>'+(row.auditId?'<small>Auditoría: '+esc(row.auditId)+'</small>':'')+(row.auditAt?'<small>'+esc(row.auditAt)+'</small>':'')+'</details>')+'</tr>').join('')+'</tbody></table></div></details>';
   }
 
 
@@ -554,7 +576,7 @@ root.addEventListener('v2-auth-cloud-state',invalidateDraft);
     const old=$('v2CashForm'); if(old) old.remove();
     const income=type==='INGRESO';
     const panel=document.createElement('div'); panel.id='v2CashForm'; panel.className='card v2-cash-form';
-    const cats=income?(capitalOnly?['APORTE_CAPITAL']:['APORTE_CAPITAL','OTRO_INGRESO']):['COLEGIO','SERVICIO_MOVIL','SERVICIOS','ALIMENTACION','TRANSPORTE','SALUD','GASTO_OPERATIVO','OTROS_GASTOS'];
+    const cats=income?(capitalOnly?['APORTE_CAPITAL']:['OTRO_INGRESO','APORTE_CAPITAL']):['COLEGIO','SERVICIO_MOVIL','SERVICIOS','ALIMENTACION','TRANSPORTE','SALUD','GASTO_OPERATIVO','OTROS_GASTOS'];
     panel.innerHTML='<div class="v2-form-head"><b>'+(income?'Registrar capital / ingreso':'Registrar egreso / gasto')+'</b><button type="button" class="btn" data-close>✕ Cerrar</button></div>'+
       '<label>Fecha<input id="v2CashDate" type="date"></label><label>Monto (S/)<input id="v2CashAmount" type="number" min="0.01" step="0.01" placeholder="0.00"></label>'+
       '<label>'+(income?'Tipo de ingreso':'Tipo de egreso')+'<select id="v2CashCategory">'+cats.map(x=>'<option value="'+x+'">'+x.replaceAll('_',' ')+'</option>').join('')+'</select></label>'+
@@ -587,6 +609,7 @@ root.addEventListener('v2-auth-cloud-state',invalidateDraft);
     style.textContent = `
       .v2-cash-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
       .v2-cash-summary .metric{margin:0}
+      #cash [hidden]{display:none!important}.v2-cash-section{margin-top:12px;padding-top:12px;border-top:1px solid #dce3e8}.v2-cash-section>summary{cursor:pointer;font-weight:700;padding:8px 0}.v2-cash-section[open]>summary{margin-bottom:10px}#cashOperations>h3{margin:0 0 8px}#cashOperations>.metric{margin:4px 0}#cashBalanceNotice{border-left:3px solid #c62828;padding:10px;background:#fff4f1}
       .v2-cash-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
       .v2-cash-actions>b,.v2-cash-actions>span{grid-column:1/-1}
       .v2-cash-actions .btn{width:100%;text-align:left}
@@ -598,11 +621,11 @@ root.addEventListener('v2-auth-cloud-state',invalidateDraft);
       .v2-cash-table-wrap{overflow-x:auto}.v2-cash-table{width:100%;border-collapse:collapse;text-align:left}.v2-cash-table th,.v2-cash-table td{padding:10px;border-bottom:1px solid #dce3e8;vertical-align:top;overflow-wrap:anywhere}.v2-cash-table th{font-weight:700}.v2-cash-table td small{display:block;max-width:240px}#cashProfitability>summary{cursor:pointer;font-weight:700}#cashOperations h4{margin-top:24px}
       .v2-cash-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
       .v2-cash-form .v2-form-head,.v2-cash-form>button{grid-column:1/-1}.v2-form-head{display:flex;justify-content:space-between;align-items:center}
-      .v2-cash-form label{display:flex;flex-direction:column;gap:5px;font-weight:600}.v2-cash-form input,.v2-cash-form select,.v2-cash-form textarea{padding:10px;border:1px solid #bbb;border-radius:8px;font:inherit}
+      .v2-cash-form label{display:flex;flex-direction:column;gap:5px;font-weight:600;min-width:0}.v2-cash-form input,.v2-cash-form select,.v2-cash-form textarea{width:100%;min-width:0;box-sizing:border-box;padding:10px;border:1px solid #bbb;border-radius:8px;font:inherit}.v2-form-head{gap:8px;flex-wrap:wrap}
       #more .v2-more-menu{display:flex;flex-direction:column;gap:10px}
       #more .v2-more-menu .btn{width:100%;min-height:52px;text-align:left;margin:0;white-space:normal;display:block;color:#163247!important;font-weight:700}.v2-cash-actions .btn.blue,.v2-cash-actions .btn.green{color:#163247!important;font-weight:700}
       @media(max-width:700px){.v2-month-summary{grid-template-columns:1fr}}
-      @media(max-width:480px){.v2-cash-summary,.v2-cash-actions,.v2-cash-form,.v2-cash-filters{grid-template-columns:1fr}}
+      @media(max-width:480px){.v2-cash-summary,.v2-cash-filters{gap:8px}.v2-cash-summary .card{padding:10px}.v2-cash-summary .metric{font-size:13px}.v2-cash-summary .metric b{font-size:19px;overflow-wrap:anywhere}.v2-cash-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.v2-cash-actions .btn{white-space:normal;min-height:48px;font-size:14px}.v2-cash-actions .btn:last-child{grid-column:1/-1}.v2-cash-form{grid-template-columns:1fr}.v2-cash-filters .input{font-size:14px}.v2-cash-table th,.v2-cash-table td{padding:8px}.v2-cash-table{min-width:620px}.v2-cash-form .v2-form-head .btn{min-width:auto}}
     `;
     document.head.appendChild(style);
   }
@@ -611,18 +634,20 @@ root.addEventListener('v2-auth-cloud-state',invalidateDraft);
     addStyles();
     const cash = $('cash');
     if (cash && !cash.querySelector('[data-v2-cash-actions]')) {
-      const summary = document.createElement('div');
-      summary.className = 'card v2-cash-summary';
-      summary.innerHTML = '<div class="card metric v2-cash-income">Ingresos del periodo<b id="cashIncomeTotal">S/ 0.00</b></div><div class="card metric v2-cash-expense">Egresos del periodo<b id="cashExpenseTotal">S/ 0.00</b></div><div class="card metric">Saldo inicial del periodo<b id="cashOpeningBalance">S/ 0.00</b></div><div class="card metric">Saldo al cierre del periodo<b id="cashClosingBalance">S/ 0.00</b></div>';
-      const monthly = document.createElement('div');
-      monthly.className = 'card v2-month-summary';
-      monthly.innerHTML = '<div class="metric">Ingresos del mes<b id="cashMonthlyIncome">S/ 0.00</b></div><div class="metric">Egresos del mes<b id="cashMonthlyExpense">S/ 0.00</b></div><div class="metric">Flujo neto del mes (no utilidad)<b id="cashMonthlyResult">S/ 0.00</b></div>';
+      const summary = document.createElement('details');
+      summary.className = 'card v2-cash-section';
+      summary.innerHTML = '<summary>Balance del periodo</summary><div class="v2-cash-summary"><div class="card metric v2-cash-income">Ingresos<b id="cashIncomeTotal">S/ 0.00</b></div><div class="card metric v2-cash-expense">Egresos<b id="cashExpenseTotal">S/ 0.00</b></div><div class="card metric">Saldo inicial<b id="cashOpeningBalance">S/ 0.00</b></div><div class="card metric">Saldo al cierre<b id="cashClosingBalance">S/ 0.00</b></div></div>';
+      const monthly = document.createElement('details');
+      monthly.className = 'card v2-cash-section';
+      monthly.innerHTML = '<summary>Resumen del mes</summary><div class="v2-month-summary"><div class="metric">Ingresos<b id="cashMonthlyIncome">S/ 0.00</b></div><div class="metric">Egresos<b id="cashMonthlyExpense">S/ 0.00</b></div><div class="metric">Diferencia de caja<b id="cashMonthlyResult">S/ 0.00</b></div></div>';
       const actions = document.createElement('div');
       actions.className = 'card v2-cash-actions';
       actions.dataset.v2CashActions = '1';
-      actions.innerHTML = '<b>Registrar movimiento</b><span>Se agrega un registro nuevo con su auditoría; no se alteran movimientos históricos.</span><button type="button" class="btn green" data-v2-cash-type="INGRESO" data-v2-cash-capital>＋ Ingresar capital</button><button type="button" class="btn" data-v2-cash-type="INGRESO">＋ Otros ingresos</button><button type="button" class="btn v2-cash-expense" data-v2-cash-type="EGRESO">− Registrar egreso / gasto</button>';
+      actions.innerHTML = '<b>Registrar movimiento</b><button type="button" class="btn green" data-v2-cash-type="INGRESO" data-v2-cash-capital>＋ Ingresar capital</button><button type="button" class="btn" data-v2-cash-type="INGRESO">＋ Otros ingresos</button><button type="button" class="btn v2-cash-expense" data-v2-cash-type="EGRESO">− Registrar egreso / gasto</button>';
       actions.querySelectorAll('[data-v2-cash-type]').forEach(button => button.addEventListener('click', () => invoke(button.dataset.v2CashType,button.hasAttribute('data-v2-cash-capital'))));
       const metric = cash.querySelector('#cashBalance')?.closest('.card');
+      const title=cash.querySelector('h2');if(title)title.textContent='Caja';
+      if(metric?.firstChild?.nodeType===3)metric.firstChild.textContent='Saldo de caja';
       if (metric) { metric.insertAdjacentElement('afterend', summary); summary.insertAdjacentElement('afterend', monthly); monthly.insertAdjacentElement('afterend', actions); }
       else { cash.insertBefore(summary, cash.firstChild); cash.insertBefore(monthly, summary.nextSibling); cash.insertBefore(actions, monthly.nextSibling); }
     }
