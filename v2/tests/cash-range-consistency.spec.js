@@ -6,45 +6,17 @@ const F = require('../app/core/financial-engine.js');
 const S = require('../app/core/schedule-engine.js');
 const A = require('../app/core/access-audit.js');
 const KEY = 'mi-cartera-v2-validation-state';
+const {Window} = require('happy-dom');
+const fixtureWindows = [];
 
 // Portable DOM boundary; financial/date/actions code runs unchanged. Cloud is
 // the only async dependency replaced here, and every fixture is fictional.
 function environment(submit) {
-  const nodes = new Map(), alerts = [], operations = [], events = {};
-  function element(tag = 'div') {
-    const el = {tagName:String(tag).toUpperCase(),style:{},dataset:{},children:[],
-      value:'',disabled:false,attributes:{},parentNode:null,handlers:{},
-      setAttribute(k,v) {this.attributes[k]=String(v);},
-      addEventListener(name,fn) {this.handlers[name]=fn;},
-      scrollIntoView() {},
-      appendChild(child) {child.parentNode=this;this.children.push(child);if(child.id)nodes.set(child.id,child);return child;},
-      insertBefore(child,next) {child.parentNode=this;const i=this.children.indexOf(next);this.children.splice(i<0?this.children.length:i,0,child);if(child.id)nodes.set(child.id,child);},
-      insertAdjacentElement(where,child) {const parent=this.parentNode;if(!parent)return;child.parentNode=parent;parent.children.splice(parent.children.indexOf(this)+1,0,child);if(child.id)nodes.set(child.id,child);},
-      closest(selector) {return selector==='.card'?(this.className||'').split(' ').includes('card')?this:this.parentNode?.closest(selector):null;},
-      querySelector(selector) {return this.querySelectorAll(selector)[0]||null;},
-      querySelectorAll(selector) {
-        const all=this.children.flatMap(child=>[child,...child.querySelectorAll('*')]);
-        return all.filter(child=>selector==='*'||(selector[0]==='#'?child.id===selector.slice(1):selector[0]==='.'?(child.className||'').split(' ').includes(selector.slice(1)):selector.startsWith('[data-')?Object.hasOwn(child.dataset,selector.slice(6,-1).replace(/-([a-z])/g,(_,c)=>c.toUpperCase())):false));
-      },
-      remove() {this.querySelectorAll('*').forEach(child=>nodes.delete(child.id));nodes.delete(this.id);if(this.parentNode)this.parentNode.children=this.parentNode.children.filter(child=>child!==this);},
-      set innerHTML(html) {
-        this.children.forEach(child=>child.remove());this.children=[];this.html=String(html);
-        for(const match of String(html).matchAll(/<(input|select|textarea|button|b|div)\b([^>]*)>/g)) {
-          const child=element(match[1]),attrs=match[2];child.id=attrs.match(/\bid="([^"]+)"/)?.[1];child.className=attrs.match(/\bclass="([^"]*)"/)?.[1]||'';child.value=attrs.match(/\bvalue="([^"]*)"/)?.[1]||'';
-          for(const attribute of attrs.matchAll(/\bdata-([a-z0-9-]+)(?:="([^"]*)")?/g))child.dataset[attribute[1].replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=attribute[2]||'';
-          if(match[1]==='select'){const options=String(html).slice(match.index).split('</select>')[0];child.value=options.match(/<option value="([^"]*)"[^>]*selected/)?.[1]||options.match(/<option value="([^"]*)"/)?.[1]||'';}
-          this.appendChild(child);
-        }
-      },
-      get innerHTML() {return this.html||'';},
-      set textContent(value) {this.text=String(value);this.children.forEach(child=>child.remove());this.children=[];},
-      get textContent() {return this.text||'';}};
-    return el;
-  }
-  const body=element('body'),head=element('head'),cash=element(),metric=element();
-  cash.id='cash';metric.className='card metric';const balance=element('b');balance.id='cashBalance';metric.appendChild(balance);cash.appendChild(metric);const history=element();history.id='cashHistory';cash.appendChild(history);body.appendChild(cash);
-  const document={head,body,createElement:element,getElementById:id=>nodes.get(id)||null,
-    addEventListener() {},querySelector:selector=>body.querySelector(selector),querySelectorAll:selector=>body.querySelectorAll(selector)};
+  const alerts = [], operations = [], events = {};
+  const dom = new Window({url:'https://cash-fixture.test',settings:{disableJavaScriptFileLoading:true,disableJavaScriptEvaluation:true}});
+  fixtureWindows.push(dom);
+  const document = dom.document;
+  document.body.innerHTML = '<section id="cash"><div class="card metric"><b id="cashBalance"></b></div><div id="cashHistory"></div></section>';
   const initial={clients:[{id:'fake-client',name:'Cliente ficticio'}],credits:[{id:'fake-credit',capital:600}],payments:[{id:'fake-payment',amount:240,date:'2026-10-01'}],
     cashMovements:[{id:'fake-capital',date:'2026-09-25',type:'INGRESO',amount:1000,category:'APORTE_CAPITAL',concept:'Aporte ficticio'},
       {id:'fake-loan',date:'2026-09-26',type:'EGRESO',amount:600,concept:'DESEMBOLSO_CREDITO'},
@@ -52,9 +24,9 @@ function environment(submit) {
       {id:'fake-expense',date:'2026-10-02',type:'EGRESO',amount:20,category:'SERVICIOS',concept:'Gasto ficticio',observation:'Detalle ficticio'}],audit:[],session:{role:'ADMIN',actorId:'fake-admin'}};
   let stored=JSON.stringify(initial),writes=0;
   const localStorage={getItem:key=>key===KEY?stored:null,setItem:(key,value)=>{assert.equal(key,KEY);stored=value;writes++;}};
-  const window={localStorage,MiCarteraV2Financial:F,MiCarteraV2Schedule:S,MiCarteraV2AccessAudit:A,
+  const window={localStorage,firebaseAuthV2:{auth:{currentUser:{uid:'fake-admin'}}},MiCarteraV2Financial:F,MiCarteraV2Schedule:S,MiCarteraV2AccessAudit:A,
     MiCarteraV2SyncBridge:{status:()=>({configured:true}),submit:async operation=>{operations.push(operation);return submit?submit(operation):{status:'COMMITTED'};}},
-    MiCarteraV2VersionGuard:{requireReady() {}},MiCarteraV2AuthCloudGate:{requireReady() {}},V2UI:{},
+    MiCarteraV2VersionGuard:{requireReady() {}},MiCarteraV2AuthCloudGate:{requireReady() {},state:()=>({uid:'fake-admin',role:'admin',ready:true})},V2UI:{},
     addEventListener:(name,fn)=>{const previous=events[name];events[name]=(...args)=>{previous?.(...args);fn(...args);};}};
   const sandbox={window,document,localStorage,console,alert:message=>alerts.push(message)};
   vm.createContext(sandbox);
@@ -117,19 +89,20 @@ async function durableCash() {
 async function formGuard() {
   let release;const pending=new Promise(resolve=>release=resolve),e=environment(async()=>{await pending;return {status:'COMMITTED'};});
   e.window.MiCarteraV2CashMenu.install();
-  const income=e.document.querySelectorAll('[data-v2-cash-type]').find(button=>button.dataset.v2CashType==='INGRESO');income.handlers.click();
+  const income=[...e.document.querySelectorAll('[data-v2-cash-type]')].find(button=>button.dataset.v2CashType==='INGRESO');income.click();
   e.get('v2CashAmount').value='100';e.get('v2CashConcept').value='Aporte UI ficticio';
   const form=e.get('v2CashForm'),save=form.querySelector('[data-save]');
   const first=save.onclick(),duplicate=save.onclick();
   try {assert.equal(e.operations.length,1,'a second save click must be ignored while pending');assert.equal(save.disabled,true);}
   catch(error) {release();await first;await duplicate;throw error;}
   release();await first;await duplicate;assert.equal(e.get('v2CashForm'),null);assert.equal(e.state().cashMovements.length,5);
-  const failure=environment(async()=>({status:'ERROR'}));failure.window.MiCarteraV2CashMenu.install();failure.document.querySelectorAll('[data-v2-cash-type]')[0].handlers.click();failure.get('v2CashAmount').value='50';failure.get('v2CashConcept').value='Conservar borrador';
+  const failure=environment(async()=>({status:'ERROR'}));failure.window.MiCarteraV2CashMenu.install();failure.document.querySelectorAll('[data-v2-cash-type]')[0].click();failure.get('v2CashAmount').value='50';failure.get('v2CashConcept').value='Conservar borrador';
   const retry=failure.get('v2CashForm').querySelector('[data-save]');await retry.onclick();
   assert.ok(failure.get('v2CashForm'),'a failed commit must preserve the form');assert.equal(failure.get('v2CashAmount').value,'50');assert.equal(retry.disabled,false);
 }
 
-Promise.allSettled([ranges(),durableCash(),formGuard()]).then(results=>{
+Promise.allSettled([ranges(),durableCash(),formGuard()]).then(async results=>{
   for(const [index,result] of results.entries())if(result.status==='rejected'){console.error(['range totals and filters','durable cash atomicity','cash form guard'][index],result.reason);process.exitCode=1;}
+  await Promise.all(fixtureWindows.map(dom=>dom.happyDOM.abort()));
   if(!process.exitCode)console.log('cash-range-consistency.spec.js PASS');
 });
