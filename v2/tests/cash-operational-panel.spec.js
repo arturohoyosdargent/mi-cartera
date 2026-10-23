@@ -199,7 +199,7 @@ test('operational synchronization status and new real-shaped receipts refresh wi
     harness.api.renderSummary();
     const document=harness.w.document, indicator=document.getElementById('cashOperationsSync');
     assert.ok(indicator,'Operational synchronization disclosure is missing');
-    assert.match(indicator.textContent,/SIN INTERNET.*1 pendiente/);
+    assert.match(indicator.textContent,/Sin conexión.*1 pendiente/);
     const actions=document.querySelector('[data-v2-cash-actions]');
     assert.ok(actions.compareDocumentPosition(document.getElementById('cashOperations'))&4,'Capital actions must precede the metrics');
     document.getElementById('cashHistoryPeriod').value='WEEK';
@@ -210,7 +210,8 @@ test('operational synchronization status and new real-shaped receipts refresh wi
     harness.set(next);const before=harness.w.localStorage.getItem(KEY);
     status={configured:true,online:true,pending:0};
     harness.w.dispatchEvent(new harness.w.Event('mi-cartera-v2-rehydrated'));
-    assert.match(indicator.textContent,/NUBE CONECTADA.*0 pendiente/);
+    assert.match(indicator.textContent,/^Conectado$/);
+    assert.doesNotMatch(indicator.textContent,/pendiente/);
     assert.match(document.getElementById('cashTodayCollections').textContent,/85\.00/);
     assert.match(document.getElementById('cashPeriodInterest').textContent,/115\.00/);
     assert.match(document.getElementById('cashPendingTotal').textContent,/795\.00/);
