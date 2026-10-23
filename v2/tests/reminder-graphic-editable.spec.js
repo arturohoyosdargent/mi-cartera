@@ -37,7 +37,9 @@ for(const width of [1280,390])test('Cobranza reminder shares the existing credit
     const {pending,modal,field,buttons}=await preview(h);
     a.equal(h.shares.length,0,'preview must never send before confirmation');
     a.equal(field.readOnly,false,'reminder text must actually be editable');
-    a.match(field.value,/Hola Manuel Coronado Cordova, te recordamos que tienes un pago pendiente de S\/ 25\.00 con vencimiento el 7\/10\/2026\./);
+    a.match(field.value,/^Hola Manuel, te recordamos tu pago pendiente\./);
+    a.ok(field.value.length<300,'the suggested text stays brief');
+    a.doesNotMatch(field.value,/Coronado|Cordova|S\/|Cronograma|Capital:|Total:|Saldo:|\d{1,2}\/\d{1,2}\/\d{4}/,'financial details stay in the graphic');
     a.ok(!field.value.includes('2026-10-07'));a.ok(!field.value.includes('\\n'));
     a.match(modal.querySelector('img')?.getAttribute('src')||'',/^blob:/,'preview must show the already generated credit graphic');
     a.ok(h.drawn.includes('DETALLE DEL CRÉDITO'),'must reuse the approved credit renderer');
