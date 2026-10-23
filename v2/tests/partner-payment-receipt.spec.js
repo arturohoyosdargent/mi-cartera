@@ -56,7 +56,19 @@ test('partner receipt reuses the exact client canvas layout and preserves the cl
  const h=await setup(t),frames=[];let frame;
  h.w.HTMLCanvasElement.prototype.getContext=function(){frame={width:this.width,height:this.height,geometry:[],drawing:[]};frames.push(frame);const record=frame;return new Proxy({measureText:value=>({width:String(value).length*8})},{get:(target,key)=>key in target?target[key]:(...args)=>{record.drawing.push([key,...args]);if(key!=='fillText')record.geometry.push([key,...args])},set:(target,key,value)=>{record.drawing.push(['set',key,value]);target[key]=value;return true}})};
  const renderer=h.w.MiCarteraV2ShareCard;await renderer.receipt({amount:100,date:'2026-10-01',concept:'CUOTA',installmentNumber:1,totalInstallments:1},{name:loan.partner},{total:1100,schedule:[{date:'2026-10-01',amount:1100,balance:1000}]});
- const client=frames[0],digest=require('node:crypto').createHash('sha256').update(JSON.stringify(client.drawing)).digest('hex');a.equal(digest,'b36541830df31ab53c9bc7f9132d3ae2cc526b4c4a082aa1a38467a307bb5953','the existing client receipt drawing stays unchanged');
+ const client=frames[0],hash=drawing=>require('node:crypto').createHash('sha256').update(JSON.stringify(drawing)).digest('hex');
+ a.equal(hash(client.drawing),'cfd7d9fd2a13d3cca2c5b507686be629a5cc84acde33488cba1a73a74033fb8e','the client drawing includes only the approved credit summary');
+ const summary=[['save'],['translate',0,0],...[
+  ['Resumen actual del crédito',58,680,'#17345f','700 14px Arial'],
+  ['Cuotas pagadas: 0 de 1',58,705,'#17345f','700 13px Arial'],
+  ['Total abonado',390,680,'#6b737b','400 13px Arial'],
+  ['S/ 100.00',390,710,'#187536','700 19px Arial']
+ ].flatMap(([text,x,y,color,font])=>[['set','fillStyle',color],['set','font',font],['set','textAlign','left'],['fillText',text,x,y]]),['restore']];
+ const baseDrawing=JSON.parse(JSON.stringify(client.drawing)),summaryIndex=baseDrawing.findIndex((row,i)=>row[0]==='save'&&baseDrawing[i+1]?.[0]==='translate');
+ a.ok(summaryIndex>=0);a.deepEqual(baseDrawing.slice(summaryIndex,summaryIndex+summary.length),summary,'paid count and full paid total remain in the client graphic');
+ baseDrawing.splice(summaryIndex,summary.length);a.deepEqual(baseDrawing[1],['fillRect',0,0,720,1160]);baseDrawing[1][4]-=80;
+ const footer=baseDrawing.find(row=>row[0]==='translate');a.deepEqual(footer,['translate',0,80]);footer[2]-=80;
+ a.equal(hash(baseDrawing),'b36541830df31ab53c9bc7f9132d3ae2cc526b4c4a082aa1a38467a307bb5953','all drawing outside the approved 80px summary stays unchanged');
  await renderer.partnerReceipt({partner:loan.partner,amount:100,date:'2026-10-01',kind:'INTERES_SOCIO',principal:loan.principal,deliveryDate:loan.date,due:'2026-10-01'});
- const partner=frames[1];a.equal(partner.width,client.width);a.equal(partner.height,client.height);a.deepEqual(partner.geometry,client.geometry,'both receipt types use the same card, icons, blocks and footer geometry');
+ const partner=frames[1];a.equal(partner.width,client.width);a.equal(client.height,1160);a.equal(partner.height,1080);a.deepEqual(partner.geometry,baseDrawing.filter(row=>!['set','fillText'].includes(row[0])),'both receipt types keep the same card, icons, blocks and footer outside the client credit summary');
 });
