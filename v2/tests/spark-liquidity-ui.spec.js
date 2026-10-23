@@ -6,5 +6,5 @@ test('Spark no duplica un movimiento y no muestra disponible ante importe corrup
  const h=await boot();try{const today=h.w.MiCarteraV2Dates.today(),one={id:'one',date:today,type:'INGRESO',amount:10};const good=h.w.MiCarteraV2CashMenu.calculateLiquidity([one,one],today);assert.equal(good.available,10);const bad=h.w.MiCarteraV2CashMenu.calculateLiquidity([one,{id:'bad',date:today,type:'INGRESO',amount:'999'}],today);assert.equal(bad.valid,false);assert.equal(bad.available,null)}finally{await h.close()}
 });
 test('Configuración anterior conserva su saldo y no muestra aviso Spark',async()=>{
- const h=await boot();try{const d=h.get();d.cashMovements=[{id:'one',date:'2099-01-01',type:'INGRESO',amount:10}];h.set(d);h.w.MiCarteraV2CashMenu.renderSummary();assert.match(h.w.document.getElementById('cashBalance').textContent,/10/);assert.equal(h.w.document.getElementById('sparkCashLiquidity'),null)}finally{await h.close()}
+ const h=await boot();try{const d=h.get();d.cashMovements=[{id:'one',date:h.w.MiCarteraV2Dates.today(),type:'INGRESO',amount:10}];h.set(d);h.w.MiCarteraV2CashMenu.renderSummary();assert.match(h.w.document.getElementById('cashBalance').textContent,/10/);assert.equal(h.w.document.getElementById('sparkCashLiquidity'),null)}finally{await h.close()}
 });
