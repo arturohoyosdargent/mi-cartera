@@ -2,7 +2,7 @@ const fs=require('fs'),path=require('path'),vm=require('vm');
 const {Window}=require('happy-dom');
 const ROOT=path.resolve(process.env.SOURCE||'v2');
 const KEY='mi-cartera-v2-validation-state';
-async function boot({fullShell=false,state,projectId='demo-mi-cartera-v2',legacyFixture=false}={}){const html=fs.readFileSync(path.join(ROOT,'app/operational-shell.html'),'utf8');const w=new Window({url:'https://local.test/app/operational-shell.html',settings:{disableJavaScriptFileLoading:true,disableJavaScriptEvaluation:true}});w.document.write(html.replace(/<script[\s\S]*?<\/script>/g,''));
+async function boot({fullShell=false,state,projectId='demo-mi-cartera-v2',legacyFixture=false,today}={}){const html=fs.readFileSync(path.join(ROOT,'app/operational-shell.html'),'utf8');const w=new Window({url:'https://local.test/app/operational-shell.html',settings:{disableJavaScriptFileLoading:true,disableJavaScriptEvaluation:true}});w.document.write(html.replace(/<script[\s\S]*?<\/script>/g,''));
 const alerts=[],commits=[],remote=new Map(),drawn=[];w.alert=x=>alerts.push(String(x));w.confirm=()=>true;w.prompt=()=>null;w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=function(){};
 if(fullShell){
   // Happy DOM has no graphics backend. Keep the real renderer and replace only
@@ -10,7 +10,12 @@ if(fullShell){
   w.HTMLCanvasElement.prototype.getContext=function(){return new Proxy({fillText:text=>drawn.push(String(text)),measureText:text=>({width:String(text).length*8})},{get:(target,key)=>key in target?target[key]:(()=>{})});};
   w.HTMLCanvasElement.prototype.toBlob=function(callback){callback(new w.Blob(['fictional-png-boundary'],{type:'image/png'}));};
 }
-const c=vm.createContext(w);const load=f=>vm.runInContext(fs.readFileSync(path.join(ROOT,f),'utf8'),c,{filename:f});
+const c=vm.createContext(w);
+const load=f=>{
+  const result=vm.runInContext(fs.readFileSync(path.join(ROOT,f),'utf8'),c,{filename:f});
+  if(today&&f==='app/date-utils-v2.js')w.MiCarteraV2Dates.today=today;
+  return result;
+};
 for(const f of ['core/financial-engine.js','core/schedule-engine.js','core/access-audit.js','app/date-utils-v2.js'])load(f);
 w.MiCarteraV2VersionGuard={requireReady(){},ensureReady:async()=>true,state:()=>({ready:true})};
 let fixtureAuth={uid:'test-admin',role:'admin',ready:true,authenticated:true,member:true,routeIds:[]};w.MiCarteraV2AuthCloudGate={ORG:'v2-mi-cartera-pilot',requireReady:()=>({...fixtureAuth}),state:()=>({...fixtureAuth})};

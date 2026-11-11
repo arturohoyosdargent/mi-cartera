@@ -30,9 +30,8 @@ function fixture() {
 }
 
 async function environment(state=fixture()) {
-  const harness = await boot({state});
+  const harness = await boot({state,today:()=> '2026-10-21'});
   harness.load('core/partner-loans.js');
-  harness.w.MiCarteraV2Dates.today = () => '2026-10-21';
   const api = harness.w.MiCarteraV2CashMenu;
   const analyze = (options={}) => {
     assert.equal(typeof api.analyze, 'function', 'Balance must expose a read-only reconciled analysis');
@@ -178,6 +177,7 @@ test('the actual Balance screen separates realized results from projections and 
     const document=harness.w.document;
     assert.equal(document.getElementById('cashBalance').textContent,'S/ 1,850.00');
     assert.ok(document.getElementById('cashProfitability'));
+    assert.equal(document.getElementById('cashAnalysisMonth').value,'2026-10');
     assert.match(document.getElementById('cashRealizedProfit').textContent,/-50\.00/);
     assert.match(document.getElementById('cashProfitability').textContent,/Proyecci[oó]n|SIMULACI[OÓ]N/i);
     const fields={cashSimOperating:300,cashSimPartner:100,cashSimTicket:500,cashSimRate:10,cashSimCollection:80,cashSimLoss:1,cashSimVariable:5,cashSimTarget:200};

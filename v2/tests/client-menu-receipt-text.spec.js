@@ -22,8 +22,11 @@ function card(h,id){return h.w.document.querySelector('#clientsList [data-client
 test('client actions move the original Maps, Waze, WhatsApp, edit, delete and duplicate nodes into an accessible panel',async()=>{
   const h=await boot({fullShell:true,state:clientState()});try{
     h.w.MiCarteraV2Cards.renderClients();h.w.MiCarteraV2ClientEditor.decorate();
-    const selected=card(h,'c1'),original=[...selected.querySelectorAll('button')].filter(b=>!b.matches('.v2-client-evaluation-button,[data-client-actions-toggle]')),before=h.get();
+    const selected=card(h,'c1'),before=h.get();
+    const statement=selected.querySelector('[data-account-statement]');
+    const original=[...selected.querySelectorAll('button')].filter(b=>!b.matches('.v2-client-evaluation-button,[data-client-actions-toggle],[data-account-statement]'));
     a.equal(original.length,6);
+    a.equal(statement?.textContent,'Estado de cuenta');
     const map=original.find(b=>b.textContent.includes('Maps')),inline=map.getAttribute('onclick');
     menu(h);
     const toggle=selected.querySelector('[data-client-actions-toggle]'),panel=selected.querySelector('[data-client-actions-panel]');
@@ -31,6 +34,7 @@ test('client actions move the original Maps, Waze, WhatsApp, edit, delete and du
     a.equal(toggle.tagName,'BUTTON');a.equal(toggle.type,'button');a.equal(toggle.getAttribute('aria-expanded'),'false');
     a.equal(toggle.getAttribute('aria-controls'),panel.id);a.equal(panel.getAttribute('role'),'region');a.equal(panel.hidden,true);
     for(const button of original)a.equal(panel.contains(button),true,'original action must retain its node and listeners');
+    a.equal(panel.contains(statement),false,'statement remains directly available on the client card');
     a.equal(map.getAttribute('onclick'),inline);a.equal(selected.querySelectorAll('[data-client-actions-toggle]').length,1);
     toggle.click();a.equal(panel.hidden,false);a.equal(toggle.getAttribute('aria-expanded'),'true');
     original.find(b=>b.classList.contains('v2-edit-client-button')).click();
