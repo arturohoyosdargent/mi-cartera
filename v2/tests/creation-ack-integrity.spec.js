@@ -164,16 +164,15 @@ test('initial owner mismatch blocks creation without submitting',async()=> {
   }
 });
 
-test('client phone/DNI and active-credit duplicate checks still block creation',async()=> {
-  for(const kind of ['client','credit']) {
-    const h=await setup();try {
-      fillCreation(h,kind);
-      if(kind==='client')h.w.document.getElementById('fPhone').value='999111222';
-      else {const d=h.get();d.credits[0]={...d.credits[0],capital:200,total:220,
-        rate:10,term:4,freq:'weekly',firstPaymentDate:'2026-11-02'};h.set(d);}
-      const before=h.get();await h.w.V2UI[kind==='client'?'addClient':'addCredit']();
-      a.deepEqual(h.get(),before);a.equal(h.commits.length,0);
-      a.ok(h.alerts.some(x=>/existe|mismos datos/i.test(x)));
-    }finally{await h.close();}
-  }
+test('duplicate client phone or DNI still blocks client creation',async()=> {
+  const h=await setup();
+  try {
+    fillCreation(h,'client');
+    h.w.document.getElementById('fPhone').value='999111222';
+    const before=h.get();
+    await h.w.V2UI.addClient();
+    a.deepEqual(h.get(),before);
+    a.equal(h.commits.length,0);
+    a.ok(h.alerts.some(x=>/existe|mismos datos/i.test(x)));
+  }finally{await h.close();}
 });

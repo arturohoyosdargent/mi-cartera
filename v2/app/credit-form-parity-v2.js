@@ -12,6 +12,21 @@
   function formatLocalDate(date){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');return `${y}-${m}-${d}`}
   function addDays(value,n){const date=parseLocalDate(value);if(!date)return '';date.setDate(date.getDate()+Number(n||0));return formatLocalDate(date)}
   function addMonths(value,n){const date=parseLocalDate(value);if(!date)return '';const day=date.getDate();date.setDate(1);date.setMonth(date.getMonth()+Number(n||0));const last=new Date(date.getFullYear(),date.getMonth()+1,0).getDate();date.setDate(Math.min(day,last));return formatLocalDate(date)}
+  const creditDate=()=>$('cDate')?.value||root.MiCarteraV2Dates?.today?.()||formatLocalDate(new Date());
+  let suggestedFirst='',manualFirst=false;
+  function syncMonthlyFirstDate(){
+    const first=$('cFirst');
+    if(!first)return;
+    if($('cFreq')?.value!=='monthly'){
+      first.min='';
+      if(!manualFirst&&suggestedFirst&&first.value===suggestedFirst)first.value='';
+      suggestedFirst='';
+      return;
+    }
+    const date=creditDate();
+    first.min=addDays(date,1);
+    if(!manualFirst&&(!first.value||first.value===suggestedFirst))first.value=suggestedFirst=addMonths(date,1);
+  }
   function maturity(first,term,freq){term=Number(term);if(!parseLocalDate(first)||!(term>0))return '';const periods=Math.max(0,term-1);if(freq==='monthly')return addMonths(first,periods);const step={daily:1,weekly:7,biweekly:14}[freq]||1;return addDays(first,periods*step)}
   function clients(){try{return JSON.parse(localStorage.getItem(K)||'{}').clients||[]}catch{return []}}
   function resolveClient(query,list=clients()){const q=String(query??'').trim();if(!q)return null;const all=Array.isArray(list)?list:[],byId=all.find(c=>String(c.id??'')===q);if(byId)return byId;const nq=norm(q),byName=all.find(c=>norm(c.name)===nq);if(byName)return byName;if(nq.length<2)return null;const hits=all.filter(c=>[c.name,c.phone,c.dni,c.reference].some(v=>norm(v).includes(nq)));return hits.length===1?hits[0]:null}
@@ -37,16 +52,19 @@
     return addDays(last,{daily:1,weekly:7,biweekly:14}[freq]||1);
   }
   function plan(input={}){
-    const capital=Number(input.capital??($('cCapital')?.value||0)),rate=Number(input.rate??($('cRate')?.value||0)),term=Number(input.term??($('cTerm')?.value||0)),freq=input.freq??($('cFreq')?.value||''),first=input.firstPaymentDate??($('cFirst')?.value||''),restDay=input.restDay??($('cRestDay')?.value||'');
+    const freq=input.freq??($('cFreq')?.value||''),monthly=freq==='monthly',date=input.date??creditDate();
+    const rawCapital=input.capital??($('cCapital')?.value||0),capital=monthly?roundMoney(rawCapital):Number(rawCapital);
+    const rate=Number(input.rate??($('cRate')?.value||0)),term=Number(input.term??($('cTerm')?.value||0)),first=input.firstPaymentDate??($('cFirst')?.value||''),restDay=input.restDay??($('cRestDay')?.value||'');
     const total=roundMoney(capital*(1+rate/100));
     const extraPayments=(input.extraPayments??readExtraPayments()).map(x=>({date:String(x.date||''),amount:roundMoney(x.amount)})).filter(x=>x.date&&x.amount>0);
     const extraTotal=roundMoney(extraPayments.reduce((sum,x)=>sum+x.amount,0));
     const regularTotal=roundMoney(total-extraTotal);
-    let schedule=[],error='';
-    try{if(total>0&&Number.isInteger(term)&&term>0&&first){const S=root.MiCarteraV2Schedule;if(extraPayments.length&&S?.generateWithExtras)schedule=S.generateWithExtras({total,term,freq,firstPaymentDate:first,restDay,extraPayments});else if(S?.generate)schedule=S.generate({total,term,freq,firstPaymentDate:first,restDay});}}catch(e){error=String(e?.message||e||'SCHEDULE_ERROR')}
-    const regularInstallment=term>0?regularTotal/term:0;
-    const last=schedule.length?schedule[schedule.length-1].date:maturity(first,term,freq);
-    return {capital,rate,term,freq,first,restDay,total,extraPayments,extraTotal,regularTotal,installment:regularInstallment,regularInstallment,schedule,maturity:last,error};
+    let schedule=[],error=monthly&&first?(root.MiCarteraV2Dates?.monthlyCreditDateError?.(date,first)||''):'';
+    try{if(!error&&total>0&&Number.isInteger(term)&&term>0&&first){const S=root.MiCarteraV2Schedule;if(extraPayments.length&&S?.generateWithExtras)schedule=S.generateWithExtras({total,term,freq,firstPaymentDate:first,restDay,extraPayments});else if(S?.generate)schedule=S.generate({total,term,freq,firstPaymentDate:first,restDay});}}catch(e){error=String(e?.message||e||'SCHEDULE_ERROR')}
+    const regularFirst=schedule.find(q=>!q.extra);
+    const regularInstallment=regularFirst?.amount??(term>0?regularTotal/term:0);
+    const last=error?'':(schedule.at(-1)?.date||maturity(first,term,freq));
+    return {capital,rate,term,freq,date,first:monthly?(regularFirst?.date||first):first,restDay,total,extraPayments,extraTotal,regularTotal,installment:regularInstallment,regularInstallment,schedule,maturity:last,error};
   }
   function extraSummary(p){
     if(!p.extraPayments.length)return 'Sin cuota adicional. El sistema dividirá el total entre las cuotas normales.';
@@ -65,7 +83,7 @@
     const p=plan();
     if($('cTotalPreview'))$('cTotalPreview').textContent='S/ '+money(p.total);
     if($('cInstallmentPreview'))$('cInstallmentPreview').textContent='S/ '+money(p.regularInstallment);
-    if($('cMaturity'))$('cMaturity').value=p.maturity||maturity(p.first,p.term,p.freq);
+    if($('cMaturity'))$('cMaturity').value=p.maturity;
     if($('v2ExtraSummary'))$('v2ExtraSummary').textContent=extraSummary(p);
     renderSchedulePreview();
   }
@@ -119,7 +137,15 @@
   function filter(status){document.querySelectorAll('[data-credit-card]').forEach(el=>{const s=el.dataset.status||'';el.style.display=!status||s===status?'':'none'});document.querySelectorAll('[data-credit-filter]').forEach(b=>b.classList.toggle('blue',b.dataset.creditFilter===status))}
   function install(){
     renderClientTools();mountScheduleEditor();bindNewCredit();
-    ['cCapital','cRate','cTerm','cFreq','cFirst','cRestDay'].forEach(id=>{const el=$(id);el?.addEventListener('input',calc);el?.addEventListener('change',calc)});
+    ['cCapital','cRate','cTerm','cDate','cFreq','cFirst','cRestDay'].forEach(id=>{
+      const update=()=>{
+        if(id==='cFirst')manualFirst=Boolean(el.value);
+        if(id==='cDate'||id==='cFreq')syncMonthlyFirstDate();
+        calc();
+      };
+      const el=$(id);el?.addEventListener('input',update);el?.addEventListener('change',update);
+    });
+    syncMonthlyFirstDate();
     $('cClient')?.addEventListener('input',updateClientTools);$('cClient')?.addEventListener('change',updateClientTools);calc();updateClientTools();
     setTimeout(()=>{if(!installDurableScheduleOverride())setTimeout(installDurableScheduleOverride,100)},0);
   }

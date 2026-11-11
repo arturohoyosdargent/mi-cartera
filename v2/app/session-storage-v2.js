@@ -33,11 +33,19 @@ function assertCurrent(token){if(status!=='ACTIVE'||!projectionMatches())fail('V
 async function confirm(token){assertCurrent(token);const finalize=()=>{assertCurrent(token);const data=validData(store.getItem(KEY));if(data.session?.actorId!==active.uid||String(data.session?.role||'').toLowerCase()!==String(root.MiCarteraV2AuthCloudGate.state().role||'').toLowerCase())fail('V2_SESSION_HYDRATION_MISMATCH');const beforeOwner=store.getItem(OWNER);if(beforeOwner!==null&&beforeOwner!==active.uid)fail('V2_SESSION_OWNER_MISMATCH');writeEnvelope(active,store.getItem(KEY),true);store.setItem(OWNER,active.uid);active.confirmed=true;store.setItem(ACTIVE,JSON.stringify({version:1,projectId:active.projectId,orgId:active.orgId,uid:active.uid,generation:active.generation,confirmed:true}));return state();};if(active.confirmed)return finalize();const locks=root.navigator?.locks;if(typeof locks?.request!=='function')fail('V2_SESSION_EXCLUSIVE_LOCK_REQUIRED');return locks.request('mi-cartera-v2-session-custody',{mode:'exclusive'},finalize);}
 function state(){try{const current=live(),data=validData(store.getItem(KEY));const ready=status==='ACTIVE'&&projectionMatches()&&same(active,current)&&active.confirmed&&store.getItem(OWNER)===active.uid&&data.session?.actorId===active.uid;return Object.freeze({ready:!!ready,status,reason,...(active?{projectId:active.projectId,orgId:active.orgId,uid:active.uid,role:root.MiCarteraV2AuthCloudGate.state().role,epoch:active.epoch}:{})});}catch{return Object.freeze({ready:false,status,reason:reason||'V2_SESSION_AUTH_REQUIRED'});}}
 function readScope(value){const target=normalize(value);if(!same(live(),target)||!same(active,target))fail('V2_SESSION_SCOPE_MISMATCH');if(state().ready!==true)fail('V2_SESSION_NOT_CONFIRMED');const envelope=readEnvelope(target);return envelope?Object.freeze({scope:clone(envelope.scope),owner:envelope.owner,state:validData(envelope.raw),confirmed:envelope.confirmed===true}):null;}
+// A saved client can be newer than the archived custody envelope.
+function readCurrentClients(token){
+  assertCurrent(token);
+  const data=validData(store.getItem(KEY));
+  if(!active.confirmed||store.getItem(OWNER)!==token.uid||data.session?.actorId!==token.uid)fail('V2_SESSION_NOT_CONFIRMED');
+  assertCurrent(token);
+  return data.clients||[];
+}
 function deactivate(){archiveActive();clearProjection();}
 function onAuth(event){try{const a=event?.detail;if(a?.ready===true)activate({projectId:root.MI_CARTERA_V2_FIREBASE_TEMPLATE?.projectId,orgId:root.MiCarteraV2AuthCloudGate?.ORG,uid:a.uid});else deactivate();root.dispatchEvent(new root.CustomEvent('mi-cartera-v2-sync',{detail:{ok:true,source:'session-projection'}}));}catch(error){status='BLOCKED';reason=error.code||error.message;try{if(active){archiveActive();}clearProjection();status='BLOCKED';reason=error.code||error.message;}catch{}root.dispatchEvent(new root.CustomEvent('v2-session-storage-state',{detail:{ready:false,status,reason}}));}}
 // Recover custody after a browser close before ever rendering business data.
 try{const prior=store.getItem(ACTIVE);if(prior!==null){const value=JSON.parse(prior);active={...normalize(value),generation:value.generation,confirmed:value.confirmed===true};archiveActive();}else preserveLegacy();clearProjection();}catch(error){status='BLOCKED';reason=error.code||error.message;}
-root.MiCarteraV2SessionStorage=Object.freeze({activate,archiveActive,clearProjection,scope,readScope,capture,assertCurrent,confirm,pending,canTransition,state,deactivate,queueKey,queueKeys,terminal,KEY,OWNER});
+root.MiCarteraV2SessionStorage=Object.freeze({activate,archiveActive,clearProjection,scope,readScope,readCurrentClients,capture,assertCurrent,confirm,pending,canTransition,state,deactivate,queueKey,queueKeys,terminal,KEY,OWNER});
 root.addEventListener('v2-auth-cloud-state',onAuth);
 root.addEventListener('storage',event=>{if(!event.key||event.key===ACTIVE||event.key===KEY||event.key===OWNER){epoch++;if(active)active.epoch=epoch;status='BLOCKED';reason='V2_SESSION_OTHER_TAB_CHANGED';}});
 })(window);

@@ -220,6 +220,42 @@
     if(r.future===true||r.date>root.MiCarteraV2Dates.today())throw Error('Este registro tiene una fecha futura. El comprobante estará disponible desde la fecha del pago.');
     return receipt({amount:r.amount,date:r.date,concept:r.kind==='INTERES_SOCIO'?'INTERESES':'DEVOLUCIÓN DE CAPITAL'},{name:r.partner},null,r);
   }
+  function accountStatement(report){
+    const cv=document.createElement('canvas'),firstY=332,rowHeight=105;
+    cv.width=720;cv.height=firstY+Math.max(1,report.rows.length)*rowHeight+52;
+    const x=cv.getContext('2d');
+    const amount=value=>value===null?'Por revisar':money(value);
+    x.fillStyle='#f8fcff';x.fillRect(0,0,720,cv.height);
+    x.fillStyle='#1197dc';round(x,18,18,684,105,18);
+    txt(x,'PRÉSTAMO YA',42,62,29,true,'#fff');
+    txt(x,'ESTADO DE CUENTA',42,99,18,true,'#fff');
+    receiptLine(x,report.client?.name||'Cliente',42,166,636,23);
+    txt(x,'Al '+fmt(report.asOf)+' · '+report.activeCount+' créditos activos',42,194,16);
+    x.fillStyle='#e8f5fb';round(x,36,213,648,79,16);
+    txt(x,'Deuda total acumulada',54,239,15,true);
+    txt(x,amount(report.totalDebt),54,273,24,true,'#087bd1');
+    txt(x,'Exigible a la fecha',375,239,15,true);
+    txt(x,amount(report.amountDue),375,273,24,true,'#b83232');
+    const title=report.filter==='upcoming'?'Próximas cuotas · hasta '+fmt(report.through):'Todos los créditos activos';
+    txt(x,title,42,319,16,true);
+    if(!report.rows.length)txt(x,report.filter==='upcoming'?'Sin cuotas pendientes en este período.':'Sin créditos activos.',52,384,18);
+    report.rows.forEach((row,index)=>{
+      const top=firstY+rowHeight*index;
+      x.fillStyle=index%2?'#f2f8fc':'#eaf5fc';round(x,36,top,648,95,13);
+      receiptLine(x,'Crédito '+row.id,52,top+25,616,17);
+      txt(x,'Vencimiento',52,top+48,13,true);
+      txt(x,row.maturity?fmt(row.maturity):'Por revisar',52,top+73,15);
+      txt(x,'Cuota pendiente',180,top+48,13,true);
+      txt(x,amount(row.installmentAmount),180,top+73,15);
+      if(row.installmentDate)txt(x,fmt(row.installmentDate),180,top+89,11);
+      txt(x,'Saldo',356,top+48,13,true);
+      txt(x,amount(row.balance),356,top+73,15,true);
+      txt(x,'Mora',513,top+48,13,true);
+      txt(x,amount(row.arrears),513,top+73,15,true,row.arrears>0?'#b83232':'#17345f');
+    });
+    txt(x,'Mora: saldo de cuotas vencidas incluido en el exigible.',42,cv.height-24,13,false,'#49637d');
+    return blob(cv);
+  }
   function blob(cv){
     return new Promise((resolve,reject)=>{
       try{
@@ -233,7 +269,7 @@
       }catch(e){reject(e)}
     })
   }
-  root.MiCarteraV2ShareCard={proposal,credit,receipt,partnerReceipt,reminder,evaluation,money,fmt,installmentStatus,creditTotals,receiptTotals,receiptInstallmentLabel,receiptInstallmentDate,receiptInstallmentApplications,receiptInstallmentDetails};
+  root.MiCarteraV2ShareCard={proposal,credit,receipt,partnerReceipt,reminder,evaluation,accountStatement,money,fmt,installmentStatus,creditTotals,receiptTotals,receiptInstallmentLabel,receiptInstallmentDate,receiptInstallmentApplications,receiptInstallmentDetails};
 })(window);
 
 

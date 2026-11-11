@@ -56,6 +56,7 @@ try{
     setDoc:fsSdk.setDoc,
     collection:fsSdk.collection,
     getDocs:fsSdk.getDocs,
+    getDocsFromServer:fsSdk.getDocsFromServer,
     query:fsSdk.query,
     where:fsSdk.where,
     runTransaction:fsSdk.runTransaction,

@@ -1,10 +1,17 @@
 // Mi Cartera PRO V2 — self-updating release freshness guard.
 (function(root){'use strict';
-const EMBEDDED_BUILD='v2-pilot-20261023-android-caja-renovaciones-1';
+const EMBEDDED_BUILD='v2-pilot-20261110-estado-cuenta-1';
 const state={ready:false,publishedBuild:EMBEDDED_BUILD,workerBuild:null,reason:'VERSION_NOT_VERIFIED'};
 let verifyPromise=null;
 const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
-async function published(){const r=await fetch('./release.json?ts='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('RELEASE_UNAVAILABLE');const j=await r.json();if(!j?.build)throw new Error('RELEASE_INVALID');return j.build}
+async function checkPublished(){
+ const response=await fetch('./release.json?ts='+Date.now(),{cache:'no-store'});
+ if(!response.ok)throw new Error('RELEASE_UNAVAILABLE');
+ const {build}=await response.json()||{};
+ if(typeof build!=='string'||!build.trim())throw new Error('RELEASE_INVALID');
+ const publishedBuild=build.trim();
+ return {publishedBuild,updateAvailable:publishedBuild!==EMBEDDED_BUILD};
+}
 async function askBuild(sw){return new Promise((resolve,reject)=>{const done=e=>{if(e.data?.type==='V2_BUILD'){navigator.serviceWorker.removeEventListener('message',done);resolve(e.data.build)}};navigator.serviceWorker.addEventListener('message',done);sw.postMessage({type:'GET_BUILD'});setTimeout(()=>{navigator.serviceWorker.removeEventListener('message',done);reject(new Error('SERVICE_WORKER_BUILD_TIMEOUT'))},3000)})}
 async function worker(expected){
  if(!('serviceWorker' in navigator))return expected;
@@ -37,6 +44,6 @@ async function verify(){
  return {...state};
 }
 function requireReady(){if(!state.ready){const e=new Error('V2_VERSION_NOT_READY');e.code='V2_VERSION_NOT_READY';e.detail={...state};throw e}return true}
-root.MiCarteraV2VersionGuard={state:()=>({...state}),verify,requireReady};
+root.MiCarteraV2VersionGuard={state:()=>({...state}),verify,requireReady,checkPublished};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',verify);else verify();
 })(window);

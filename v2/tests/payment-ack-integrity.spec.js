@@ -193,6 +193,42 @@ test('already rehydrated accepted payment entities are idempotent and preserve c
   }finally{await h.close();}
 });
 
+test('a B2 payment ACK accepts the versioned audit after cloud hydration exactly once',async()=> {
+  const h=await setup();
+  try {
+    const {createStore}=require('../app/core/transaction-store.js');
+    const {createOperationalSync}=require('../app/cloud/operational-sync.js');
+    const {release,pending}=await pendingPayment(h),op=h.commits[0],d=h.get();
+    const documents=new Map([[`credits/${d.credits[0].id}`,d.credits[0]]]);
+    const store=createStore({runAtomic:run=>run({
+      get:async path=>clone(documents.get(path)??null),
+      set:async (path,value)=>documents.set(path,clone(value))
+    })});
+    const sync=createOperationalSync({store,actorId:h.auth.uid});
+    const ack=await sync.submit(op);
+    a.equal(ack.status,'APPLIED');
+    const row=(collection,id)=>documents.get(collection+'/'+id);
+    d.credits=[row('credits',op.entities[0].data.id)];
+    d.payments=[row('payments',op.entities[1].data.id)];
+    d.cashMovements=[row('entries',op.entities[2].data.id)];
+    d.audit=[row('audit',op.audit.id)];
+    a.equal(d.audit[0].version,1);
+    a.equal(d.audit[0].actorId,h.auth.uid);
+    a.equal(d.audit[0].operationId,ack.operation.id);
+    h.set(d);
+    let recorded=0;
+    h.w.addEventListener('mi-cartera-v2-payment-recorded',()=>recorded++);
+    release('fictional-credit',ack);
+    await pending;
+    a.equal(recorded,1);
+    a.deepEqual(h.get(),d,'a matching Firestore payment and audit already exist locally');
+    a.deepEqual(h.previews,[d.payments[0].id],h.alerts.join(' | '));
+    a.equal(d.cashMovements[0].ref,d.payments[0].id);
+    a.equal(d.credits[0].schedule[0].balance,0);
+    a.equal(h.w.MiCarteraV2CashMenu.analyze(h.get(),{asOf:'2026-10-11'}).cash.physical,40);
+  } finally { await h.close(); }
+});
+
 test('a newer local credit revision or conflicting accepted entity is never overwritten by payment ACK',async()=> {
   for(const kind of ['credit','payment','cash','audit']) {
     const h=await setup();try {

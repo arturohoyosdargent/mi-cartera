@@ -102,9 +102,59 @@ function configure(cfg){
   }catch(error){throw Object.assign(error&&typeof error==='object'?error:new Error(String(error)),{noQueue:true})}
  }
  async function serverReview(operation){try{const expectedScope=actor(operation),review=operation.writes?.find(w=>w.data?.recordType==='CREDIT_ADMIN_REVIEW'),endpoint=root.firebaseFunctionsV2?.requestCreditReview;if(typeof endpoint!=='function')throw Error('V2_REVIEW_ENDPOINT_NOT_CONFIGURED');if(typeof root.MiCarteraV2CreditAdminReview?.assertSession!=='function')throw Error('V2_REVIEW_AUTH_GUARD_REQUIRED');root.MiCarteraV2CreditAdminReview.assertSession(operation);if(!review||review.kind!=='create')throw Error('INVALID_REVIEW_OPERATION');const input={operationId:operation.id,creditId:review.data.creditId,expectedCreditVersion:review.data.creditVersion,reason:review.data.reason},response=await endpoint(input);if(actor(operation)!==expectedScope)throw Error('V2_REVIEW_SESSION_CHANGED');root.MiCarteraV2CreditAdminReview.assertSession(operation);const result=response?.result;if(!['APPLIED','ALREADY_APPLIED'].includes(response?.status)||response.operation?.id!==operation.id||response.operation.type!==operation.type||result?.review?.id!==review.data.id||result.review.creditId!==input.creditId||result.review.status!=='PENDING'||result.audit?.actorId!==auth.uid||result.audit.operationId!==operation.id||result.audit.action!==operation.type)throw Error('V2_REVIEW_ACK_INVALID');return response}catch(error){throw Object.assign(error&&typeof error==='object'?error:new Error(String(error)),{noQueue:true})}}
+ async function readClientCollection(){
+  const fs=root.firestoreV2;
+  if(!fs?.getDocsFromServer||!fs?.collection)throw Error('No se pudo verificar la cartera actual.');
+  const snapshot=await fs.getDocsFromServer(fs.collection(safeCfg.db,'orgs',safeCfg.orgId,'clients'));
+  return snapshot.docs.map(doc=>({...doc.data(),id:doc.id}));
+ }
+ let manualClientStore;
+ function executeB2(operation){
+  if(!['admin','supervisor'].includes(String(auth.role).toLowerCase())||
+    !['CLIENT_CREATE','CLIENT_UPDATE'].includes(operation?.type))return onlineSubmit(genericStore,operation);
+  const locks=root.MiCarteraV2ClientImportStore;
+  if(!locks?.retryClientLockConflicts)throw Error('No se pudo verificar la identidad del cliente.');
+  manualClientStore ||= T.createStore(locks.retryClientLockConflicts(adapter), {
+   validateSession:actor,prepareCommit:guardManualClient
+  });
+  return onlineSubmit(manualClientStore,operation);
+ }
+ async function guardManualClient(tx,operation,prepared,now){
+  const locks=root.MiCarteraV2ClientImportStore,core=root.MiCarteraV2ClientImportCore;
+  const rows=prepared.filter(({w})=>/^clients\/[^/]+$/.test(w.path));
+  if(!sessionToken||!locks?.readClientLock||!locks?.writeClientLock||!core?.manualIdentityChanges||
+    !core?.assertManualIdentity||rows.length!==1)throw Error('No se pudo verificar la identidad del cliente.');
+  const {w,current}=rows[0],create=operation.type==='CLIENT_CREATE';
+  if((create?w.kind!=='create'||current!=null:!['set','update'].includes(w.kind)||!current||current.tombstone||current.deletedAt)||
+    w.path!=='clients/'+w.data?.id)throw Error('No se pudo verificar el alta o la edición del cliente.');
+  const changes=core.manualIdentityChanges(create?null:current,w.data);
+  if(!create&&!changes.some(Boolean))return;
+  const lock=await locks.readClientLock(tx);
+  const clients=await readClientCollection();
+  actor(operation);
+  core.assertManualIdentity(w.data,changes,clients);
+  return ()=>locks.writeClientLock(tx,lock,now);
+ }
+ function submitClientImport(operation){
+  const modules=root.MiCarteraV2ClientImportStore,core=root.MiCarteraV2ClientImportCore;
+  const fs=root.firestoreV2;
+  if(backendMode!=='b2-compatible'||root.MI_CARTERA_V2_PILOT_CONFIG?.allowClientImport===false||
+    !sessionToken||!modules?.createStore||!core?.assertNewClients||
+    !fs?.getDocsFromServer||!fs?.collection){
+   throw Error('La importación no está disponible en esta sesión.');
+  }
+  version.requireReady();
+  if(root.navigator.onLine===false)throw Error('Conéctate a internet y vuelve a confirmar la importación.');
+  return modules.createStore({
+   adapter,
+   validateSession(op){actor(op);return authGate.requireReady()},
+   assertNewClients:core.assertNewClients,
+   readClients:readClientCollection
+  }).execute(operation);
+ }
  // Capture one immutable session generation for both submission and its acknowledgement.
  // Never consume or rewrite earlier UID-only/unscoped custody queues.
- const store={async execute(operation){actor(operation);const result=await (backendMode==='b2-compatible'?onlineSubmit(genericStore,operation):nativePayment&&Object.prototype.hasOwnProperty.call(financialActions,operation?.type)?(['CREDIT_CREATE','INTEREST_RENEWAL','REFINANCE'].includes(operation.type)&&nativeCredit?onlineSubmit(nativeCredit,operation):operation.type.startsWith('PARTNER_')&&nativePartners?onlineSubmit(nativePartners,operation):nativePending()):externalFinancial&&Object.prototype.hasOwnProperty.call(financialActions,operation?.type)?serverFinancial(operation):operation?.type==='PAYMENT'?(nativePayment?onlineSubmit(nativePayment,operation):serverPayment(operation)):['COMMISSION_TERMS_SAVED','COMMISSION_PAID'].includes(operation?.type)?(nativePayment?nativePending():serverCommission(operation)):operation?.type==='CREDIT_ADMIN_REVIEW_REQUESTED'?(nativePayment?nativePending():serverReview(operation)):genericOperation(operation));actor(operation);return result}},queueKey=(backendMode==='b2-compatible'?'mi-cartera-v2-cloud-operations:'+auth.uid:session?.queueKey?.({projectId,orgId:safeCfg.orgId,uid:auth.uid}))||(projectId?'mi-cartera-v2-cloud-operations-scoped:'+encodeURIComponent(JSON.stringify([projectId,safeCfg.orgId,auth.uid])):'mi-cartera-v2-cloud-operations:'+auth.uid),queue=Q.createQueue(root.localStorage,queueKey),sync=S.createOperationalSync({store,queue,actorId:auth.uid,validateSession:actor});B.configure(sync);
+ const store={async execute(operation){actor(operation);if(operation?.type==='CLIENT_IMPORT')return submitClientImport(operation);const result=await (backendMode==='b2-compatible'?executeB2(operation):nativePayment&&Object.prototype.hasOwnProperty.call(financialActions,operation?.type)?(['CREDIT_CREATE','INTEREST_RENEWAL','REFINANCE'].includes(operation.type)&&nativeCredit?onlineSubmit(nativeCredit,operation):operation.type.startsWith('PARTNER_')&&nativePartners?onlineSubmit(nativePartners,operation):nativePending()):externalFinancial&&Object.prototype.hasOwnProperty.call(financialActions,operation?.type)?serverFinancial(operation):operation?.type==='PAYMENT'?(nativePayment?onlineSubmit(nativePayment,operation):serverPayment(operation)):['COMMISSION_TERMS_SAVED','COMMISSION_PAID'].includes(operation?.type)?(nativePayment?nativePending():serverCommission(operation)):operation?.type==='CREDIT_ADMIN_REVIEW_REQUESTED'?(nativePayment?nativePending():serverReview(operation)):genericOperation(operation));actor(operation);return result}},queueKey=(backendMode==='b2-compatible'?'mi-cartera-v2-cloud-operations:'+auth.uid:session?.queueKey?.({projectId,orgId:safeCfg.orgId,uid:auth.uid}))||(projectId?'mi-cartera-v2-cloud-operations-scoped:'+encodeURIComponent(JSON.stringify([projectId,safeCfg.orgId,auth.uid])):'mi-cartera-v2-cloud-operations:'+auth.uid),queue=Q.createQueue(root.localStorage,queueKey),sync=S.createOperationalSync({store,queue,actorId:auth.uid,validateSession:actor});B.configure(sync);
  let flushing=false;
  async function flush(){version.requireReady();actor();if(flushing||!root.navigator.onLine)return {status:'SKIPPED'};flushing=true;try{return await queue.flush(op=>store.execute(op))}finally{flushing=false}}
  root.addEventListener('online',()=>{try{actor()}catch{return {status:'SKIPPED_SCOPE'}}return flush()});
