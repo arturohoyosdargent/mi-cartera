@@ -26,3 +26,22 @@ test('terms changed by another client invalidate a prepared settlement version',
 test('late accepted response after role/session change never installs commission expense into the next local session',async()=>{const h=await setup();try{await terms(h);const A=api(h);let release;h.w.MiCarteraV2SyncBridge.submit=()=>new Promise(resolve=>release=resolve);const pending=A.settle({workerId:'w1',amount:12});await Promise.resolve();a.equal(typeof release,'function');const before=clone(h.get()),changed={...before,session:{actorId:'other-user',role:'COBRADOR'}};h.set(changed);h.w.firebaseAuthV2.auth.currentUser={uid:'other-user'};h.w.MiCarteraV2AuthCloudGate={state:()=>({ready:true,uid:'other-user',role:'cobrador'}),requireReady:()=>({ready:true,uid:'other-user',role:'cobrador'})};h.w.dispatchEvent(new h.w.CustomEvent('v2-auth-cloud-state',{detail:{ready:true,uid:'other-user',role:'cobrador'}}));release({status:'COMMITTED'});await a.rejects(()=>pending,/sesión|permisos|scope|SCOPE/i);a.ok(!h.get().cashMovements.some(x=>x.category==='COMISION_GESTOR'));}finally{await h.close();}});
 test('offline or queued commission response does not register an expense locally',async()=>{const h=await setup();try{await terms(h);const before=clone(h.get());h.w.MiCarteraV2SyncBridge.submit=async()=>({status:'QUEUED'});await a.rejects(()=>api(h).settle({workerId:'w1',amount:12}));a.deepEqual(h.get(),before);}finally{await h.close();}});
 test('inactive worker retains earned commission consultation and settlement without new conditions',async()=>{const h=await setup();try{await terms(h);const d=h.get();d.commercial.find(x=>x.id==='w1').active=false;h.set(d);a.equal(api(h).preview('w1').pending,12);await a.rejects(()=>api(h).terms({workerId:'w1',effectiveDate:'2026-10-14',mode:'PERCENT',basis:'TOTAL',rate:5}));await api(h).settle({workerId:'w1',amount:12});a.equal(api(h).preview('w1').pending,0)}finally{await h.close()}});
+
+test('a linked manual mora keeps one fixed commission per collection',async()=>{
+ const h=await setup();
+ try{
+  const d=h.get(),normal=d.payments.find(p=>p.id==='new');
+  Object.assign(normal,{concept:'CUOTA',agreedMoraAmount:3.25,moraPaymentId:'linked-mora'});
+  const mora={id:'linked-mora',creditId:normal.creditId,workerId:normal.workerId,routeId:normal.routeId,date:normal.date,
+   concept:'MORA',amount:3.25,capitalAmount:0,interestAmount:0,penaltyAmount:3.25,normalPaymentId:normal.id};
+  const previousMora={...mora,id:'standalone-mora'};
+  delete previousMora.normalPaymentId;
+  d.payments.push(mora,previousMora);
+  h.set(d);
+
+  const A=api(h);
+  await A.terms({workerId:'w1',effectiveDate:'2026-10-13',mode:'PER_COLLECTION',amount:3.50});
+  a.equal(A.preview('w1').generated,7);
+  a.deepEqual(h.get().payments,d.payments);
+ }finally{await h.close();}
+});

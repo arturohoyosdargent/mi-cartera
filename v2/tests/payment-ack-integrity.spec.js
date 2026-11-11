@@ -278,3 +278,88 @@ test('double taps create one pending payment and rejection releases the retry gu
     a.equal(h.commits.length,2);
   }finally{await h.close();}
 });
+
+function startManualMora(h, value) {
+  h.w.MI_CARTERA_V2_PILOT_CONFIG.backendMode='b2-compatible';
+  const pending=h.w.V2UI.collect('fictional-credit');
+  const document=h.w.document;
+  const field=document.getElementById('v2CollectionMora');
+  a.ok(field);
+  a.equal(field.value,'0.00');
+  field.value=value;
+  document.getElementById('v2CollectionReview').click();
+  return {pending,document};
+}
+
+test('manual mora posts two linked payments and cash movements exactly once without changing regular allocation',async()=>{
+  const h=await setup();
+  try {
+    h.w.MiCarteraV2Dates.today=()=> '2026-11-11';
+    const {createStore}=require('../app/core/transaction-store.js');
+    const {createOperationalSync}=require('../app/cloud/operational-sync.js');
+    const documents=new Map([['credits/fictional-credit',h.get().credits[0]]]);
+    const store=createStore({runAtomic:run=>run({
+      get:async path=>clone(documents.get(path)??null),
+      set:async (path,value)=>documents.set(path,clone(value))
+    })});
+    const sync=createOperationalSync({store,actorId:h.auth.uid});
+    h.w.MiCarteraV2SyncBridge.submit=op=>{h.commits.push(clone(op));return sync.submit(op)};
+    const {pending,document}=startManualMora(h,'0.75');
+    const review=document.getElementById('v2CollectionReviewPanel');
+    a.match(review.textContent,/Mora acordada.*0\.75/);
+    a.match(review.textContent,/Total a recibir.*40\.75/);
+    a.equal(h.get().payments.length,0);
+    document.getElementById('v2CollectionConfirm').click();
+    await pending;
+    const d=h.get(),[normal,mora]=d.payments,[entry,moraEntry]=d.cashMovements;
+    a.equal(h.commits.length,1,h.alerts.join(' | '));
+    a.equal(d.payments.length,2);a.equal(d.cashMovements.length,2);a.equal(d.audit.length,1);
+    a.equal(normal.amount,40);a.equal(normal.agreedMoraAmount,.75);
+    a.equal(normal.moraPaymentId,mora.id);a.equal(mora.normalPaymentId,normal.id);
+    a.equal(mora.concept,'MORA');a.equal(mora.amount,.75);a.equal(mora.penaltyAmount,.75);
+    a.equal(mora.capitalAmount,0);a.equal(mora.interestAmount,0);
+    a.notEqual(mora.operationId,normal.operationId);
+    a.deepEqual([entry.ref,entry.amount,entry.concept],[normal.id,40,'COBRO_CUOTA']);
+    a.deepEqual([moraEntry.ref,moraEntry.amount,moraEntry.concept],[mora.id,.75,'COBRO_MORA']);
+    a.equal(d.audit[0].detail.moraPaymentId,mora.id);
+    a.equal(d.audit[0].detail.moraWithinAgreement,true);
+    a.equal(d.credits[0].principalPaid,33.33);a.equal(d.credits[0].interestPaid,6.67);
+    a.equal(d.credits[0].penaltyPaid,0);a.deepEqual(d.credits[0].schedule.map(q=>q.balance),[0,40,40]);
+    const cash=h.w.MiCarteraV2CashMenu.analyze(d,{asOf:'2026-11-11'});
+    a.equal(cash.cash.physical,40.75);a.equal(cash.month.penaltiesCollected,.75);
+    a.equal(cash.month.interestCollected,6.67);a.equal(cash.month.netProfit,7.42);
+    a.deepEqual(h.previews,[normal.id]);
+    a.equal((await sync.submit(h.commits[0])).status,'ALREADY_APPLIED');
+    a.equal([...documents.keys()].filter(p=>p.startsWith('entries/')).length,2);
+  }finally{await h.close();}
+});
+
+test('manual mora refuses invalid amounts and credits without an overdue installment',async()=>{
+  for (const [today,value] of [['2026-11-11','-1'],['2026-11-11','0.751'],['2026-10-11','0.75']]) {
+    const h=await setup();
+    try {
+      h.w.MiCarteraV2Dates.today=()=>today;
+      const before=h.get(),{pending,document}=startManualMora(h,value);
+      a.equal(document.getElementById('v2CollectionConfirm'),null);
+      a.match(document.getElementById('v2CollectionError').textContent,/mora/i);
+      document.getElementById('v2CollectionCancel').click();
+      await pending;
+      unchanged(h,before);a.equal(h.commits.length,0);
+    }finally{await h.close();}
+  }
+});
+
+test('manual mora stays optional and an unconfirmed mixed payment leaves no local writes',async()=>{
+  const h=await setup();
+  try {
+    const first=startManualMora(h,'');
+    first.document.getElementById('v2CollectionConfirm').click();await first.pending;
+    a.equal(h.get().payments.length,1);a.equal(h.get().cashMovements.length,1);
+    a.equal(h.get().payments[0].agreedMoraAmount,undefined);
+    h.w.MiCarteraV2Dates.today=()=> '2026-11-11';
+    const before=h.get(),second=startManualMora(h,'0.75');
+    h.w.MiCarteraV2SyncBridge.submit=async op=>{h.commits.push(clone(op));return {status:'QUEUED',operationId:op.operationId};};
+    second.document.getElementById('v2CollectionConfirm').click();await second.pending;
+    a.deepEqual(h.get(),before);a.equal(h.previews.length,1);
+  }finally{await h.close();}
+});

@@ -81,3 +81,48 @@ test('WhatsApp contenido: selected old-payment preview and shared PNG retain its
     message.value='Gracias por tu pago, te envío el comprobante.';await modal.querySelectorAll('.v2-share-preview-actions button')[2].onclick();a.equal(await pending,'file-share');a.equal(outgoing.text,message.value);a.equal(outgoing.files[0].type,'image/png');a.ok(outgoing.files[0].size>0);a.equal(h.drawn[h.drawn.lastIndexOf('Monto recibido')+1],'S/ 60.00');a.deepEqual(h.get(),state);a.equal(h.commits.length,2);
   }finally{await h.close()}
 });
+
+test('manual mora receipts separate the paid installment and mora in preview and PNG',async()=>{
+  const h=await setup(40);
+  try{
+    const state=h.get(),client=state.clients[0],credit=state.credits[0],date='2026-10-07';
+    const payment={id:'fictional-quota',clientId:client.id,creditId:credit.id,date,concept:'CUOTA',amount:40,totalInstallments:24,balanceAfterPayment:760,installmentApplications:[application(5,40,40,0)],agreedMoraAmount:3.25,moraPaymentId:'fictional-mora'};
+    const mora={id:payment.moraPaymentId,clientId:client.id,creditId:credit.id,date,concept:'MORA',amount:3.25,penaltyAmount:3.25,normalPaymentId:payment.id,balanceAfterPayment:760};
+    state.payments=[payment,mora];
+    h.set(state);
+
+    const receipt=async record=>{
+      h.drawn.length=0;
+      const preview=h.w.MiCarteraV2SharePreview.previewPayment(record.id);
+      await new Promise(resolve=>setImmediate(resolve));
+      const modal=h.w.document.getElementById('v2SharePreview');
+      const summary=modal.querySelector('.v2-share-preview-summary').innerHTML;
+      modal.querySelector('.v2-share-preview-close').click();
+      a.equal(await preview,'cancelled');
+      return summary;
+    };
+    const drawnAmount=label=>{
+      const index=h.drawn.lastIndexOf(label);
+      a.ok(index>=0,'missing PNG label '+label);
+      return h.drawn[index+1];
+    };
+
+    const summary=await receipt(payment);
+    a.match(summary,/<b>Pago normal:<\/b> S\/ 40\.00/);
+    a.match(summary,/<b>Mora cobrada:<\/b> S\/ 3\.25/);
+    a.match(summary,/<b>Total recibido:<\/b> S\/ 43\.25/);
+    a.match(summary,/Cuota 5: S\/ 40\.00 · COMPLETADA/);
+    a.equal(drawnAmount('Monto recibido'),'S/ 43.25');
+    a.equal(drawnAmount('Pago normal'),'S/ 40.00');
+    a.equal(drawnAmount('Mora cobrada'),'S/ 3.25');
+    a.ok(h.drawn.includes('Cuota 5: S/ 40.00 · COMPLETADA'));
+
+    const moraSummary=await receipt(mora);
+    a.match(moraSummary,/<b>Mora cobrada:<\/b> S\/ 3\.25/);
+    a.doesNotMatch(moraSummary,/Pago normal|Cuota correspondiente|Aplicación real/);
+    a.equal(drawnAmount('Mora cobrada'),'S/ 3.25');
+    a.ok(!h.drawn.includes('Cuota correspondiente a'));
+    a.deepEqual(h.get(),state);
+    a.equal(h.commits.length,0);
+  }finally{await h.close();}
+});

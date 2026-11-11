@@ -33,6 +33,9 @@ test('statement UI opens in Clientes and Cobranza and refreshes filtered balance
     assert.ok(panel);
     assert.match(panel.querySelector('[data-debt]').textContent,/110\.00/);
     assert.match(panel.querySelector('[data-due]').textContent,/40\.00/);
+    assert.match(panel.textContent,/Cuotas vencidas/);
+    assert.match(panel.textContent,/Mora cobrada/);
+    assert.match(panel.querySelector('[data-mora-collected]').textContent,/0\.00/);
     assert.match(panel.querySelector('[data-whatsapp]').href,/wa\.me\/51999111222/);
     const filter=panel.querySelector('[data-filter]');
     filter.value='upcoming';filter.dispatchEvent(new h.w.Event('change'));
@@ -41,13 +44,18 @@ test('statement UI opens in Clientes and Cobranza and refreshes filtered balance
     assert.match(panel.querySelector('[data-debt]').textContent,/110\.00/);
     const next=h.get();
     next.credits[0].schedule[0]={...next.credits[0].schedule[0],paid:15,balance:25,status:'PARCIAL'};
-    next.payments.push({id:'p1',creditId:'cobro-hoy',amount:15,date:today});
+    next.payments.push(
+      {id:'p1',creditId:'cobro-hoy',amount:15,date:today},
+      {id:'mora-1',creditId:'cobro-hoy',amount:4.50,penaltyAmount:4.50,date:today,concept:'MORA'}
+    );
     next.clients[0].phone='999111333';
     h.set(next);h.w.MiCarteraV2Cards.render();
     h.w.dispatchEvent(new h.w.Event('mi-cartera-v2-payment-recorded'));
     await new Promise(resolve=>setImmediate(resolve));
     assert.match(panel.querySelector('[data-debt]').textContent,/95\.00/);
     assert.match(panel.querySelector('[data-due]').textContent,/25\.00/);
+    assert.match(panel.querySelector('[data-overdue]').textContent,/0\.00/);
+    assert.match(panel.querySelector('[data-mora-collected]').textContent,/4\.50/);
     assert.match(panel.querySelector('[data-whatsapp]').href,/wa\.me\/51999111333/);
     assert.match(panel.querySelector('[data-download]').href,/^blob:/);
     panel.querySelector('[data-close]').click();

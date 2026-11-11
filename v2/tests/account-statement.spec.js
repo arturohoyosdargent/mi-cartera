@@ -93,6 +93,29 @@ test('estado de cuenta: un pago confirmado baja el saldo del crédito correspond
   assert.equal(otherCredit.arrears,20);
 });
 
+test('estado de cuenta: separa las cuotas vencidas de los cobros de mora confirmados al corte', () => {
+  const {statement} = setup();
+  const credits = [credit('cre-a',duplicateTerms()),credit('cre-b',duplicateTerms()),
+    credit('cre-liquidado',[],{status:'PAGADO'})];
+  const mora = {id:'mora-a',operationId:'op-mora-a',creditId:'cre-a',date:asOf,amount:2.35,penaltyAmount:2.35,concept:'MORA'};
+  const payments = [
+    {id:'normal',creditId:'cre-a',date:asOf,amount:20,penaltyAmount:0,moraPaymentId:mora.id},
+    mora,{...mora},{...mora,id:'copia-sincronizada'},
+    {id:'mora-b',creditId:'cre-b',date:'2026-11-01',amount:'1.65',concept:'MORA'},
+    {id:'mora-futura',creditId:'cre-a',date:'2026-11-11',amount:30,concept:'MORA'},
+    {id:'mora-anulada',creditId:'cre-a',date:asOf,amount:40,concept:'MORA',version:1},
+    {id:'mora-anulada',creditId:'cre-a',tombstone:true,version:2},
+    {id:'mora-ajena',creditId:'otro',date:asOf,amount:50,concept:'MORA'},
+    {id:'mora-liquidado',creditId:'cre-liquidado',date:asOf,amount:1.10,concept:'MORA'}
+  ];
+  const result = statement.build({client,credits,payments,asOf});
+  assert.equal(result.totalDebt,200);
+  assert.equal(result.amountDue,100);
+  assert.equal(result.totalArrears,40);
+  assert.equal(result.moraCollected,5.1);
+  assert.deepEqual(Array.from(result.rows,row=>[row.arrears,row.moraCollected]),[[20,2.35],[20,1.65]]);
+});
+
 test('estado de cuenta: los datos históricos incompletos no se convierten en exigible cero', () => {
   const {statement} = setup();
   const credits = [
@@ -119,5 +142,6 @@ test('estado de cuenta: genera una sola imagen con totales y todos los créditos
   for (const item of credits) assert.ok(calls.some(text=>text.includes(item.id)),item.id);
   assert.ok(calls.includes('Deuda total acumulada'));
   assert.ok(calls.includes('Exigible a la fecha'));
-  assert.ok(calls.includes('Mora'));
+  assert.ok(calls.includes('Cuotas vencidas'));
+  assert.ok(calls.includes('Mora cobrada'));
 });

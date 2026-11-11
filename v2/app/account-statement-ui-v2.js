@@ -73,9 +73,11 @@
     field('[data-as-of]').textContent = 'Fecha de corte: ' + dateLabel(statement.asOf);
     field('[data-debt]').textContent = money(statement.totalDebt);
     field('[data-due]').textContent = money(statement.amountDue);
+    field('[data-overdue]').textContent = money(statement.totalArrears);
+    field('[data-mora-collected]').textContent = money(statement.moraCollected);
     field('[data-count]').textContent = statement.rows.length + ' de ' + statement.activeCount + ' créditos activos';
     const status = field('[data-status]');
-    if (!statement.rows.length) {
+    if (!statement.rows.length && (context.filter === 'upcoming' || !statement.moraCollected)) {
       status.textContent = context.filter === 'upcoming' ? 'No hay vencimientos en los próximos 7 días.' : 'El cliente no tiene créditos activos.';
       context.pending = null;
       return;
@@ -138,7 +140,12 @@
       panel.innerHTML = `
         <div class="statement-heading"><h2 id="v2AccountStatementTitle">Estado de cuenta</h2><button type="button" class="btn" data-close>Cerrar</button></div>
         <b data-client></b><p class="metric" data-as-of></p>
-        <div class="statement-totals"><div class="card">Deuda total acumulada<br><strong data-debt></strong></div><div class="card">Exigible a la fecha<br><strong data-due></strong></div></div>
+        <div class="statement-totals">
+          <div class="card">Deuda total acumulada<br><strong data-debt></strong></div>
+          <div class="card">Exigible a la fecha<br><strong data-due></strong></div>
+          <div class="card">Cuotas vencidas<br><strong data-overdue></strong></div>
+          <div class="card">Mora cobrada al corte<br><strong data-mora-collected></strong></div>
+        </div>
         <label for="v2StatementFilter">Créditos a mostrar</label><select class="input" id="v2StatementFilter" data-filter><option value="all">Todos los créditos activos</option><option value="upcoming">Próximos vencimientos (7 días)</option></select>
         <p class="metric" data-count></p><p class="metric" role="status" data-status></p>
         <img alt="Estado de cuenta consolidado con detalle de créditos y cuotas" data-image hidden>

@@ -9,6 +9,7 @@ function commissionItems(d,workerId,asOf){
   const items=[],terms=records(d,'TERM').filter(t=>String(t.workerId)===String(workerId)).sort((a,b)=>String(a.effectiveDate||'').localeCompare(String(b.effectiveDate||''))||String(a.id).localeCompare(String(b.id)));
   for(const p of payments(d).filter(p=>String(p.workerId||'')===String(workerId)&&day(p.date)<=asOf)){
     const t=terms.filter(t=>t.effectiveDate<=day(p.date)).at(-1);if(!t||t.mode==='FIXED_PERIOD')continue;
+    if(t.mode==='PER_COLLECTION'&&p.concept==='MORA'&&p.normalPaymentId)continue;
     const base=Number({TOTAL:p.amount,PRINCIPAL:p.capitalAmount,INTEREST:p.interestAmount,PENALTY:p.penaltyAmount}[t.basis]||0);
     items.push({id:t.id+':'+p.id,workerId,routeId:p.routeId||t.routeId||'',paymentId:p.id,termId:t.id,date:day(p.date),mode:t.mode,basis:t.basis,basisAmount:base,rate:Number(t.rate||0),amount:t.mode==='PER_COLLECTION'?money(t.amount):money(base*Number(t.rate)/100)});
   }

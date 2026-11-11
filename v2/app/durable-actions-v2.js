@@ -162,9 +162,10 @@ function collectionCredit(d,prior,next){
  if(matches.length!==1||key!==collectionEntityKey(prior)&&(!next||key!==collectionEntityKey(next)))throw Error('La revisión local del crédito cambió. Sincroniza la cartera antes de volver a cobrar.');
  return matches[0];
 }
-function mergeCollectionResult(expected,prior,next,payment,movement,audit){
+function mergeCollectionResult(expected,prior,next,payment,movement,audit,moraPayment,moraEntry){
  const current=load();assertCollectionScope(current,expected);
  const credit=collectionCredit(current,prior,next),entities=[[current.payments,payment],[current.cashMovements,movement],[current.audit,audit]];
+ if(moraPayment)entities.push([current.payments,moraPayment],[current.cashMovements,moraEntry]);
  for(const [rows,value] of entities){
   const matches=rows.filter(row=>row.id===value.id);
   const expected=rows===current.audit&&value.version===undefined&&matches[0]?.version===1?{...value,version:1}:value;
@@ -195,24 +196,40 @@ function collectionAllocation(c,amount,paymentId,date){
  next.schedule=schedule;Object.assign(r.payment,{version:1,creditId:c.id,installmentNumber:firstTouched,installmentNo:firstTouched,installmentFrom:firstTouched,installmentTo:lastTouched,totalInstallments:schedule.length,installmentApplications,balanceAfterPayment:money(schedule.reduce((sum,q)=>sum+money(q.balance??q.amount??0),0))});
  return {payment:r.payment,next,scheduleBalance};
 }
+function allowsManualMora(d){
+ return root.MI_CARTERA_V2_PILOT_CONFIG?.backendMode==='b2-compatible'&&[A.ROLES.ADMIN,A.ROLES.SUPERVISOR].includes(String(d.session?.role||'').toUpperCase());
+}
 let collectionForm=null;
-function collectionInput(c,client,expected){
+function collectionInput(c,client,expected,allowMora){
  const schedule=c.schedule||[],balance=money(schedule.reduce((sum,q)=>sum+money(q.balance??q.amount??0),0)),first=schedule.find(q=>money(q.balance??q.amount)>0),firstAmount=money(first?.balance??first?.amount??0);
  if(!(balance>0))throw Error('SCHEDULE_BALANCE_EMPTY');
  if(collectionForm){collectionForm.focus();throw Error('Termina o cancela el cobro abierto antes de preparar otro.');}
  const panel=document.createElement('section'),previousFocus=document.activeElement,esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
  panel.id='v2CollectionForm';panel.className='card';panel.tabIndex=-1;panel.setAttribute('role','region');panel.setAttribute('aria-labelledby','v2CollectionTitle');
  Object.assign(panel.style,{position:'relative',overflowY:'auto',background:'#f5f8fa',padding:'18px',boxSizing:'border-box',margin:'10px 0',borderRadius:'16px'});
- panel.innerHTML='<div style="max-width:720px;margin:0 auto"><button type="button" class="btn" id="v2CollectionCancel">← Cancelar cobro</button><h2 id="v2CollectionTitle">Cobrar cuota</h2><div class="card"><b>'+esc(client.name||'Cliente')+'</b><div class="metric">Saldo pendiente: S/ '+balance.toFixed(2)+'</div></div><p id="v2CollectionError" role="alert" tabindex="-1" style="color:#b42318"></p><form id="v2CollectionEntry" novalidate><label for="v2CollectionAmount">Importe a cobrar S/</label><input class="input" id="v2CollectionAmount" name="amount" type="number" inputmode="decimal" min="0.01" max="'+balance.toFixed(2)+'" step="0.01" required aria-describedby="v2CollectionHelp v2CollectionError" value="'+(firstAmount||Math.min(balance,F.principalBalance(c))).toFixed(2)+'"><p class="metric" id="v2CollectionHelp">Revisa la aplicación del importe antes de confirmar. El cobro se registra únicamente después de confirmar y recibir la aceptación de guardado.</p><button type="submit" class="btn green" id="v2CollectionReview" style="width:100%;min-height:58px">Revisar cobro</button></form><div id="v2CollectionReviewHost"></div></div>';
+ const moraField=allowMora?'<label for="v2CollectionMora">Mora acordada S/</label><input class="input" id="v2CollectionMora" name="mora" type="number" inputmode="decimal" min="0" step="0.01" aria-describedby="v2CollectionError" value="0.00">':'';
+ panel.innerHTML='<div style="max-width:720px;margin:0 auto"><button type="button" class="btn" id="v2CollectionCancel">← Cancelar cobro</button><h2 id="v2CollectionTitle">Cobrar cuota</h2><div class="card"><b>'+esc(client.name||'Cliente')+'</b><div class="metric">Saldo pendiente: S/ '+balance.toFixed(2)+'</div></div><p id="v2CollectionError" role="alert" tabindex="-1" style="color:#b42318"></p><form id="v2CollectionEntry" novalidate><label for="v2CollectionAmount">Importe a cobrar S/</label><input class="input" id="v2CollectionAmount" name="amount" type="number" inputmode="decimal" min="0.01" max="'+balance.toFixed(2)+'" step="0.01" required aria-describedby="v2CollectionHelp v2CollectionError" value="'+(firstAmount||Math.min(balance,F.principalBalance(c))).toFixed(2)+'">'+moraField+'<p class="metric" id="v2CollectionHelp">Revisa la aplicación del importe antes de confirmar. El cobro se registra únicamente después de confirmar y recibir la aceptación de guardado.</p><button type="submit" class="btn green" id="v2CollectionReview" style="width:100%;min-height:58px">Revisar cobro</button></form><div id="v2CollectionReviewHost"></div></div>';
  const activePage=document.querySelector('.page.active'),focusedCard=previousFocus?.closest?.('[data-credit-id], [data-id]'),matches=row=>row&&(String(row.dataset.creditId)===String(c.id)||String(row.dataset.id)===String(c.id));
  const card=matches(focusedCard)?focusedCard:[...(activePage||document).querySelectorAll('[data-credit-id], [data-id]')].find(matches);
  if(card)card.insertAdjacentElement('afterend',panel);else (activePage||document.body).appendChild(panel);collectionForm=panel;
- const get=id=>panel.querySelector('#'+id),input=get('v2CollectionAmount'),entry=get('v2CollectionEntry'),error=get('v2CollectionError');
- function clearError(){error.textContent='';input.removeAttribute('aria-invalid')}
- function fail(e,amountError=false){error.textContent=e.message;if(amountError)input.setAttribute('aria-invalid','true');error.focus()}
+ const get=id=>panel.querySelector('#'+id),input=get('v2CollectionAmount'),moraInput=get('v2CollectionMora'),entry=get('v2CollectionEntry'),error=get('v2CollectionError');
+ function clearError(){error.textContent='';input.removeAttribute('aria-invalid');moraInput?.removeAttribute('aria-invalid')}
+ function fail(e,field){error.textContent=e.message;field?.setAttribute('aria-invalid','true');error.focus()}
  function currentAmount(){const raw=String(input.value||'').trim(),number=Number(raw),amount=money(number);if(!raw||!Number.isFinite(number)||!(number>0)||!(amount>0))throw Error('Escribe un importe válido mayor a S/ 0.00.');if(number>balance)throw Error('El importe no puede superar el saldo pendiente de S/ '+balance.toFixed(2)+'.');if(Math.abs(number-amount)>0.0000001)throw Error('Escribe el importe con un máximo de dos decimales.');return amount}
+ function currentMora(amountToCollect){
+  const raw=String(moraInput?.value||'').trim();
+  if(moraInput?.validity?.badInput||raw&&!/^(?:[0-9]+(?:\.[0-9]{1,2})?|\.[0-9]{1,2})$/.test(raw))throw Error('Escribe una mora acordada igual o mayor a cero, con un máximo de dos decimales.');
+  const amount=Number(raw);
+  if(!Number.isSafeInteger(Math.round(amount*100)))throw Error('El importe de mora acordada es demasiado alto.');
+  if(amount>0){
+   const dates=root.MiCarteraV2Dates,date=today(),hasOverdue=schedule.some(q=>dates?.isOverdue(q,date));
+   if(!hasOverdue)throw Error('Para registrar mora acordada debe haber al menos una cuota vencida pendiente.');
+   if(!Number.isSafeInteger(Math.round((amount+amountToCollect)*100)))throw Error('El total con la mora acordada es demasiado alto.');
+  }
+  return amount;
+ }
  function assertCurrent(){const current=load();assertCollectionScope(current,expected);permit(current,'PAYMENT_WRITE');collectionCredit(current,c)}
- input.addEventListener('input',clearError);
+ input.addEventListener('input',clearError);moraInput?.addEventListener('input',clearError);
  return new Promise(resolve=>{
   let finished=false,removalObserver=null;
   const scopeEvents=['v2-auth-cloud-state','v2-session-storage-state','storage'];
@@ -228,17 +245,20 @@ function collectionInput(c,client,expected){
   get('v2CollectionCancel').onclick=()=>finish(null);panel.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();finish(null)}});
   entry.onsubmit=event=>{
    event.preventDefault();if(finished||get('v2CollectionReviewPanel'))return;
-   let amount,allocation;clearError();try{amount=currentAmount()}catch(e){return fail(e,true)}
+   let amount,mora,allocation;clearError();try{amount=currentAmount()}catch(e){return fail(e,input)}
+   try{mora=currentMora(amount)}catch(e){return fail(e,moraInput)}
    try{assertCurrent();allocation=collectionAllocation(c,amount,'collection-review',today())}catch(e){return fail(e)}
    const payment=allocation.payment,review=document.createElement('div');review.id='v2CollectionReviewPanel';review.setAttribute('aria-labelledby','v2CollectionReviewTitle');
-   review.innerHTML='<button type="button" class="btn" id="v2CollectionBack">← Volver y editar</button><h3 id="v2CollectionReviewTitle" tabindex="-1">Revisar cobro</h3><div class="card"><b>'+esc(client.name||'Cliente')+'</b><div>Importe a registrar: <b>S/ '+amount.toFixed(2)+'</b></div><div>Saldo antes del pago: <b>S/ '+balance.toFixed(2)+'</b></div><div>Saldo después del pago: <b>S/ '+payment.balanceAfterPayment.toFixed(2)+'</b></div><div>Aplicado a capital: <b>S/ '+payment.capitalAmount.toFixed(2)+'</b></div><div>Aplicado a interés: <b>S/ '+payment.interestAmount.toFixed(2)+'</b></div>'+(Math.abs(amount-firstAmount)>0.005?'<p class="metric">Atención: el importe es diferente a la cuota pendiente de S/ '+firstAmount.toFixed(2)+'.</p>':'')+'<div style="overflow:auto"><table style="width:100%;font-size:13px"><caption>Aplicación a las cuotas pendientes</caption><thead><tr><th scope="col">Cuota</th><th scope="col">Saldo anterior</th><th scope="col">Importe aplicado</th><th scope="col">Saldo después</th></tr></thead><tbody>'+payment.installmentApplications.map(row=>'<tr><th scope="row">'+row.number+'</th><td>S/ '+row.balanceBefore.toFixed(2)+'</td><td>S/ '+row.amount.toFixed(2)+'</td><td>S/ '+row.balanceAfter.toFixed(2)+'</td></tr>').join('')+'</tbody></table></div></div><button type="button" class="btn green" id="v2CollectionConfirm" style="width:100%;min-height:58px">Confirmar y registrar cobro</button><p class="metric">Al confirmar autorizas registrar este importe. Hasta entonces, los registros permanecen sin cambios.</p>';
+   const moraReview=mora>0?'<div>Mora acordada: <b>S/ '+mora.toFixed(2)+'</b></div><div>Total a recibir: <b>S/ '+money(amount+mora).toFixed(2)+'</b></div><p class="metric">Al confirmar declaras que la mora fue acordada con el cliente y que verificaste el límite legal aplicable.</p>':'';
+   review.innerHTML='<button type="button" class="btn" id="v2CollectionBack">← Volver y editar</button><h3 id="v2CollectionReviewTitle" tabindex="-1">Revisar cobro</h3><div class="card"><b>'+esc(client.name||'Cliente')+'</b><div>Importe a registrar: <b>S/ '+amount.toFixed(2)+'</b></div>'+moraReview+'<div>Saldo antes del pago: <b>S/ '+balance.toFixed(2)+'</b></div><div>Saldo después del pago: <b>S/ '+payment.balanceAfterPayment.toFixed(2)+'</b></div><div>Aplicado a capital: <b>S/ '+payment.capitalAmount.toFixed(2)+'</b></div><div>Aplicado a interés: <b>S/ '+payment.interestAmount.toFixed(2)+'</b></div>'+(Math.abs(amount-firstAmount)>0.005?'<p class="metric">Atención: el importe es diferente a la cuota pendiente de S/ '+firstAmount.toFixed(2)+'.</p>':'')+'<div style="overflow:auto"><table style="width:100%;font-size:13px"><caption>Aplicación a las cuotas pendientes</caption><thead><tr><th scope="col">Cuota</th><th scope="col">Saldo anterior</th><th scope="col">Importe aplicado</th><th scope="col">Saldo después</th></tr></thead><tbody>'+payment.installmentApplications.map(row=>'<tr><th scope="row">'+row.number+'</th><td>S/ '+row.balanceBefore.toFixed(2)+'</td><td>S/ '+row.amount.toFixed(2)+'</td><td>S/ '+row.balanceAfter.toFixed(2)+'</td></tr>').join('')+'</tbody></table></div></div><button type="button" class="btn green" id="v2CollectionConfirm" style="width:100%;min-height:58px">Confirmar y registrar cobro</button><p class="metric">Al confirmar autorizas registrar este importe. Hasta entonces, los registros permanecen sin cambios.</p>';
    entry.hidden=true;get('v2CollectionReviewHost').appendChild(review);get('v2CollectionReviewTitle').focus();
    get('v2CollectionBack').onclick=()=>{review.remove();entry.hidden=false;clearError();input.focus()};
    get('v2CollectionConfirm').onclick=()=>{
-    if(finished)return;clearError();let checked;try{checked=currentAmount()}catch(e){return fail(e,true)}
-    if(checked!==amount)return fail(Error('El importe cambió. Vuelve a editar y revisar el cobro.'));
+    if(finished)return;clearError();let checked,checkedMora;try{checked=currentAmount()}catch(e){return fail(e,input)}
+    try{checkedMora=currentMora(checked)}catch(e){return fail(e,moraInput)}
+    if(checked!==amount||checkedMora!==mora)return fail(Error('El importe cambió. Vuelve a editar y revisar el cobro.'));
     try{assertCurrent()}catch(e){return fail(e)}
-    get('v2CollectionConfirm').disabled=true;finish(amount);
+    get('v2CollectionConfirm').disabled=true;finish({amount,mora});
    };
   };
   input.focus();panel.scrollIntoView?.({block:'nearest'});
@@ -250,13 +270,27 @@ async function collect(creditId){
  collecting.add(String(creditId));
  try{
   const d=load();permit(d,'PAYMENT_WRITE');const expectedCollectionScope=collectionScope(d),c=active(d,creditId),client=d.clients.find(x=>x.id===c.clientId)||{};
-  const amount=await collectionInput(c,client,expectedCollectionScope);if(amount===null)return;
-  const {payment,next}=collectionAllocation(c,amount,id('pay'),today());payment.routeId=c.routeId||'';payment.userId=d.session.actorId;payment.workerId=String(c.workerId||'').trim();payment.workerAttribution={source:'CREDIT_ASSIGNMENT_AT_PAYMENT'};
-  const m={id:id('cash'),date:today(),type:'INGRESO',amount,concept:'COBRO_CUOTA',ref:payment.id,routeId:payment.routeId,version:1},op=id('op'),audit=ae(d,'PAYMENT_RECORDED','PAYMENT',payment.id,op,{creditId,amount,capitalAmount:payment.capitalAmount,interestAmount:payment.interestAmount,routeId:payment.routeId});
+  const input=await collectionInput(c,client,expectedCollectionScope,allowsManualMora(d));if(input===null)return;
+  const {amount,mora}=input,date=today(),op=id('op');
+  const {payment,next}=collectionAllocation(c,amount,id('pay'),date);payment.routeId=c.routeId||'';payment.userId=d.session.actorId;payment.workerId=String(c.workerId||'').trim();payment.workerAttribution={source:'CREDIT_ASSIGNMENT_AT_PAYMENT'};
+  const m={id:id('cash'),date,type:'INGRESO',amount,concept:'COBRO_CUOTA',ref:payment.id,routeId:payment.routeId,version:1};
+  const entities=[{collection:'credits',kind:'set',data:next},{collection:'payments',kind:'create',data:payment},cashEntity(m)];
+  const detail={creditId,amount,capitalAmount:payment.capitalAmount,interestAmount:payment.interestAmount,routeId:payment.routeId};
+  let moraPayment,moraEntry;
+  if(mora>0){
+   moraPayment={id:id('pay'),operationId:op+'-mora',normalPaymentId:payment.id,creditId:c.id,clientId:c.clientId,date,amount:mora,capitalAmount:0,interestAmount:0,penaltyAmount:mora,concept:'MORA',routeId:payment.routeId,userId:payment.userId,workerId:payment.workerId,workerAttribution:payment.workerAttribution,balanceAfterPayment:payment.balanceAfterPayment,version:1};
+   moraEntry={id:id('cash'),date,type:'INGRESO',amount:mora,concept:'COBRO_MORA',ref:moraPayment.id,routeId:payment.routeId,version:1};
+   Object.assign(payment,{operationId:op,agreedMoraAmount:mora,moraPaymentId:moraPayment.id});
+   entities.push({collection:'payments',kind:'create',data:moraPayment},cashEntity(moraEntry));
+   Object.assign(detail,{moraAmount:mora,moraPaymentId:moraPayment.id,totalReceived:money(amount+mora),moraWithinAgreement:true});
+  }
+  const audit=ae(d,'PAYMENT_RECORDED','PAYMENT',payment.id,op,detail);
   const beforeSubmit=load();assertCollectionScope(beforeSubmit,expectedCollectionScope);collectionCredit(beforeSubmit,c);
-  const acknowledgement=await commit('PAYMENT',[{collection:'credits',kind:'set',data:next},{collection:'payments',kind:'create',data:payment},cashEntity(m)],audit,op);
+  if(moraPayment&&!allowsManualMora(beforeSubmit))throw Error('La mora acordada ya no está disponible para esta sesión.');
+  const acknowledgement=await commit('PAYMENT',entities,audit,op);
+  if(moraPayment&&acknowledgement?.result)throw Error('La confirmación recibida no corresponde al cobro de cuota y mora. Sincroniza la cartera antes de continuar.');
   for(const acknowledgedId of [acknowledgement?.operationId,acknowledgement?.operation?.id])if(acknowledgedId&&String(acknowledgedId)!==op)throw Error('La confirmación del cobro corresponde a otra operación. Sincroniza la cartera antes de continuar.');
-  const accepted=acceptedCollection(acknowledgement,c,next,payment,m,audit,op),committed=mergeCollectionResult(expectedCollectionScope,c,accepted.credit,accepted.payment,accepted.entry,accepted.audit),committedCredit=committed.credits.find(x=>x.id===creditId);
+  const accepted=acceptedCollection(acknowledgement,c,next,payment,m,audit,op),committed=mergeCollectionResult(expectedCollectionScope,c,accepted.credit,accepted.payment,accepted.entry,accepted.audit,moraPayment,moraEntry),committedCredit=committed.credits.find(x=>x.id===creditId);
   root.dispatchEvent(new root.Event('mi-cartera-v2-payment-recorded'));
   root.MiCarteraV2SharePreview?.previewPayment?root.MiCarteraV2SharePreview.previewPayment(payment.id):root.MiCarteraV2PaymentReceipt?.share?.(payment,committed.clients.find(x=>x.id===committedCredit.clientId)||{},committedCredit);
  }catch(e){alert(e.message)}finally{collecting.delete(String(creditId))}
