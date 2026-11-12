@@ -58,18 +58,20 @@ async function evaluateUser(user,revision=++authRevision){
   userBase(user);
   if(!versionReady())return block('VERSION_NOT_VERIFIED');
   const fs=root.firestoreV2;
-  if(!fs?.db||!fs.doc||!fs.getDoc)return block('V2_FIRESTORE_NOT_READY');
+  const readMembership=fs?.getDocFromServer||fs?.getDoc;
+  if(!fs?.db||!fs.doc||typeof readMembership!=='function')return block('V2_FIRESTORE_NOT_READY');
   const requestedScope={uid:user.uid,orgId:activeOrg(),projectId:projectId()};
   let snap;
   try{
     const orgId=activeOrg();
     const ref=fs.doc(fs.db,'orgs',orgId,'members',user.uid);
-    snap=await fs.getDoc(ref);
+    snap=await readMembership(ref);
   }catch(error){if(revision!==authRevision)return {...state};return block('V2_MEMBERSHIP_READ_FAILED:'+String(error?.code||error?.message||error));}
   // Membership reads can outlive logout, another login, tenant changes or a blocked release.
   if(revision!==authRevision)return {...state};
   if(!versionReady())return block('VERSION_NOT_VERIFIED');
   if(root.firebaseAuthV2?.auth?.currentUser?.uid!==requestedScope.uid||activeOrg()!==requestedScope.orgId||projectId()!==requestedScope.projectId)return block('V2_AUTH_SCOPE_CHANGED');
+  if(snap?.metadata?.fromCache===true)return block('V2_MEMBERSHIP_UNVERIFIED');
   if(!snap?.exists?.())return block('V2_MEMBERSHIP_REQUIRED');
   const member=snap.data()||{};
   if(member.active!==true)return block('V2_MEMBERSHIP_INACTIVE');

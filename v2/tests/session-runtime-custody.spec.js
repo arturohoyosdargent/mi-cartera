@@ -3,17 +3,17 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const {Window}=require('happy-dom'),Q=require('../core/offline-operation-queue'),S=require('../cloud/operational-sync');
 const APP=path.join(__dirname,'../app'),ORG='v2-mi-cartera-pilot',UID='fixture-runtime-admin';
 const deferred=()=>{let resolve;return {promise:new Promise(done=>resolve=done),resolve}};
-async function fixture(source,{projectId='demo-mi-cartera-v2',barrier=null,reject=false}={}){
+async function fixture(source,{projectId='demo-mi-cartera-v2',barrier=null,reject=false,backendMode='functions',orgId=ORG}={}){
  const w=new Window({url:'https://fixture.invalid/',settings:{disableJavaScriptFileLoading:true,disableJavaScriptEvaluation:true}}),calls=[];
  let auth={uid:UID,role:'admin',ready:true,authenticated:true,member:true,routeIds:[]};
- w.MI_CARTERA_V2_FIREBASE_TEMPLATE={projectId};w.MI_CARTERA_V2_PILOT_CONFIG={orgId:ORG};w.firebaseAuthV2={auth:{currentUser:{uid:UID}}};
- w.MiCarteraV2AuthCloudGate={ORG,requireReady:()=>({...auth}),state:()=>({...auth})};
+ w.MI_CARTERA_V2_FIREBASE_TEMPLATE={projectId};w.MI_CARTERA_V2_PILOT_CONFIG={orgId,backendMode};w.firebaseAuthV2={auth:{currentUser:{uid:UID}}};
+ w.MiCarteraV2AuthCloudGate={ORG:orgId,requireReady:()=>({...auth}),state:()=>({...auth})};
  Object.defineProperty(w.navigator,'locks',{configurable:true,value:{request:async(_name,_options,callback)=>callback()}});
  const c=vm.createContext(w),load=file=>vm.runInContext(fs.readFileSync(file,'utf8'),c,{filename:file});load(path.join(APP,'session-storage-v2.js'));
- async function activate(){w.MiCarteraV2SessionStorage.activate({projectId:w.MI_CARTERA_V2_FIREBASE_TEMPLATE.projectId,orgId:ORG,uid:auth.uid});const raw=JSON.parse(w.localStorage.getItem(w.MiCarteraV2SessionStorage.KEY));raw.session={actorId:auth.uid,role:auth.role};w.localStorage.setItem(w.MiCarteraV2SessionStorage.KEY,JSON.stringify(raw));await w.MiCarteraV2SessionStorage.confirm(w.MiCarteraV2SessionStorage.capture())}await activate();
+ async function activate(){w.MiCarteraV2SessionStorage.activate({projectId:w.MI_CARTERA_V2_FIREBASE_TEMPLATE.projectId,orgId,uid:auth.uid});const raw=JSON.parse(w.localStorage.getItem(w.MiCarteraV2SessionStorage.KEY));raw.session={actorId:auth.uid,role:auth.role};w.localStorage.setItem(w.MiCarteraV2SessionStorage.KEY,JSON.stringify(raw));await w.MiCarteraV2SessionStorage.confirm(w.MiCarteraV2SessionStorage.capture())}await activate();
  w.MiCarteraV2VersionGuard={requireReady(){}};w.MiCarteraV2PilotConfig={evaluate:()=>({ready:true})};w.MiCarteraV2FirestoreAdapter={createFirestoreAtomicAdapter:()=>({})};
  w.MiCarteraV2Store={createStore:()=>({execute:async op=>{calls.push(op);if(barrier)await barrier.promise;if(reject)throw Error('NETWORK_UNAVAILABLE');return {status:'COMMITTED',operationId:op.id}}})};w.MiCarteraV2OfflineQueue=Q;w.MiCarteraV2OperationalSync=S;w.MiCarteraV2SyncBridge={configure(sync){this.sync=sync},status:()=>({pending:0})};
- load(path.join(__dirname,source));const runtime=w.MiCarteraV2CloudRuntime.configure({orgId:ORG,db:{},doc(){},runTransaction(){}});
+ load(path.join(__dirname,source));const runtime=w.MiCarteraV2CloudRuntime.configure({orgId,db:{},doc(){},runTransaction(){}});
  const input={operationId:'fixture-runtime-operation',type:'CASH_MOVEMENT',entities:[{collection:'entries',kind:'create',data:{id:'fixture-runtime-cash',amount:5,version:1}}]};
  return {w,runtime,input,calls,activate,change:uid=>{auth={...auth,uid};w.firebaseAuthV2.auth.currentUser={uid};w.dispatchEvent(new w.CustomEvent('v2-auth-cloud-state',{detail:auth}))},close:()=>w.happyDOM.abort()};
 }
@@ -23,3 +23,26 @@ for(const source of ['../cloud/runtime-cloud.js','../app/cloud/runtime-cloud.js'
  test(source+' a runtime cannot write after another tab invalidates its projection',async()=>{const h=await fixture(source);try{h.w.dispatchEvent(new h.w.StorageEvent('storage',{key:h.w.MiCarteraV2SessionStorage.KEY}));await assert.rejects(h.w.MiCarteraV2SyncBridge.sync.submit(h.input),/V2_SESSION_OTHER_TAB_CHANGED/);assert.equal(h.calls.length,0)}finally{await h.close()}});
  test(source+' a runtime cannot write after the Firebase project changes for the same UID',async()=>{const h=await fixture(source);try{h.w.MI_CARTERA_V2_FIREBASE_TEMPLATE={projectId:'demo-other-project'};await assert.rejects(h.w.MiCarteraV2SyncBridge.sync.submit(h.input),/V2_.*(PROJECT|SCOPE|SESSION)/);assert.equal(h.calls.length,0)}finally{await h.close()}});
 }
+
+test('B2 keeps a pending financial operation in its project and organization for the same UID',async()=>{
+ const first=await fixture('../app/cloud/runtime-cloud.js',{backendMode:'b2-compatible',reject:true});
+ const second=await fixture('../app/cloud/runtime-cloud.js',{backendMode:'b2-compatible',projectId:'demo-mi-cartera-second-project'});
+ try{
+  const legacyKey='mi-cartera-v2-cloud-operations:'+UID;
+  const legacy='[{"id":"legacy-pending","status":"PENDIENTE","operation":{"id":"legacy-pending","type":"CASH_MOVEMENT","actorId":"'+UID+'"}}]';
+  first.w.localStorage.setItem(legacyKey,legacy);
+  assert.equal((await first.w.MiCarteraV2SyncBridge.sync.submit(first.input)).status,'QUEUED');
+  const key=first.w.MiCarteraV2SessionStorage.queueKey({projectId:'demo-mi-cartera-v2',orgId:ORG,uid:UID});
+  const scoped=first.w.localStorage.getItem(key);
+  assert.ok(scoped,'B2 must use the existing scoped key');
+  assert.equal(first.w.localStorage.getItem(legacyKey),legacy);
+  second.w.localStorage.setItem(key,scoped);
+  second.w.localStorage.setItem(legacyKey,legacy);
+  assert.equal(second.w.MiCarteraV2SessionStorage.pending(),false);
+  assert.equal(second.runtime.inspect().length,0);
+  assert.equal((await second.runtime.flush()).applied,0);
+  assert.equal(second.calls.length,0);
+  assert.equal(second.w.localStorage.getItem(key),scoped);
+  assert.equal(second.w.localStorage.getItem(legacyKey),legacy);
+ }finally{await first.close();await second.close();}
+});

@@ -4,7 +4,7 @@ const {Window}=require('happy-dom');
 const APP=path.join(__dirname,'../app'),PROJECT='demo-mi-cartera-session',ORG='v2-mi-cartera-pilot',UID='fixture-integration-A',KEY='mi-cartera-v2-validation-state';
 const clone=value=>JSON.parse(JSON.stringify(value));
 function deferred(){let resolve;const promise=new Promise(done=>resolve=done);return {promise,resolve}}
-async function fixture({readBarrier=null,membershipBarrier=null,locks=true,seed=null,pending=null,member={active:true,role:'admin',routeIds:[]}}={}){
+async function fixture({readBarrier=null,membershipBarrier=null,locks=true,seed=null,pending=null,serverMembership=null,member={active:true,role:'admin',routeIds:[]}}={}){
  const w=new Window({url:'https://fixture.invalid/app/operational-shell.html',settings:{disableJavaScriptFileLoading:true,disableJavaScriptEvaluation:true}}),context=vm.createContext(w),remote=new Map();
  let versionReady=false,authCallback,reads=0,writes=0,currentBarrier=readBarrier,currentMember=member;const authEvents=[];
  w.addEventListener('v2-auth-cloud-state',event=>authEvents.push(clone(event.detail)));
@@ -20,6 +20,7 @@ async function fixture({readBarrier=null,membershipBarrier=null,locks=true,seed=
  w.firestoreV2={db:{},doc:(_db,...parts)=>({path:parts.join('/')}),getDoc:async ref=>{const captured=clone(currentMember);if(membershipBarrier)await membershipBarrier.promise;return snapshot(ref,captured)},collection:(_db,...parts)=>({path:parts.join('/')}),where:(field,op,value)=>({field,op,value}),query:(base,clause)=>({...base,clause}),getDocs:async ref=>{reads++;if(currentBarrier)await currentBarrier.promise;const rows=[...remote].filter(([key,value])=>key.startsWith(ref.path+'/')&&(!ref.clause||value[ref.clause.field]===ref.clause.value));return {forEach:callback=>rows.forEach(([key,value])=>callback(snapshot({path:key},value)))}} ,runTransaction:async(_db,callback)=>{
   const staged=new Map();const result=await callback({get:async ref=>snapshot(ref,remote.get(ref.path)),set:(ref,value)=>staged.set(ref.path,clone(value))});for(const [key,value] of staged){remote.set(key,value);writes++}return result;
  }};
+ if(serverMembership)w.firestoreV2.getDocFromServer=async ref=>snapshot(ref,await serverMembership(ref));
  const load=file=>vm.runInContext(fs.readFileSync(path.join(APP,file),'utf8'),context,{filename:file});
  for(const file of ['core/sync-errors.js','core/offline-operation-queue.js','core/transaction-store.js','cloud/firestore-atomic-adapter.js','cloud/operational-sync.js','cloud/runtime-cloud.js','operation-sync-bridge.js','operation-commit-gate.js','pilot-config.js','session-storage-v2.js','auth-cloud-gate.js','local-ownership-bootstrap-v2.js','cloud-rehydration-v2.js'])load(file);
  const drain=async()=>{for(let i=0;i<6;i++)await new Promise(resolve=>setImmediate(resolve))};
@@ -58,4 +59,14 @@ test('late membership for A cannot publish a ready grant after the native Auth u
 });
 for(const change of ['organization','project'])test('late membership cannot authorize a different '+change+' scope',async()=>{
  const membership=deferred(),h=await fixture({membershipBarrier:membership});try{const login=h.auth();await h.drain();if(change==='organization')h.w.MiCarteraV2PilotConfig.setTenant('v2-fictional-other');else h.w.MI_CARTERA_V2_FIREBASE_TEMPLATE={projectId:'demo-fictional-other'};membership.resolve();await login;await h.drain();assert.equal(h.w.MiCarteraV2AuthCloudGate.state().ready,false);assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,false);assert.equal(h.reads(),0);assert.equal(h.authEvents.some(state=>state.ready),false);assert.equal(h.writes(),0)}finally{membership.resolve();await h.close()}
+});
+
+test('a cached membership cannot authorize a session when Firebase reports the user inactive',async()=>{
+ const h=await fixture({serverMembership:async()=>({active:false,role:'admin',routeIds:[]})});
+ try{
+  await h.auth();await h.drain();
+  assert.equal(h.w.MiCarteraV2AuthCloudGate.state().reason,'V2_MEMBERSHIP_INACTIVE');
+  assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,false);
+  assert.equal(h.reads(),0);assert.equal(h.writes(),0);
+ }finally{await h.close();}
 });

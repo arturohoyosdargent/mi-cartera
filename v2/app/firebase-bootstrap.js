@@ -53,6 +53,7 @@ try{
     db,
     doc:fsSdk.doc,
     getDoc:fsSdk.getDoc,
+    getDocFromServer:fsSdk.getDocFromServer,
     setDoc:fsSdk.setDoc,
     collection:fsSdk.collection,
     getDocs:fsSdk.getDocs,

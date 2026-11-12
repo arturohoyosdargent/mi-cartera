@@ -10,7 +10,12 @@ function normalize(value){const scope={projectId:String(value?.projectId||''),or
 function same(a,b){return !!a&&!!b&&a.projectId===b.projectId&&a.orgId===b.orgId&&a.uid===b.uid;}
 function keyFor(scope){return PREFIX+encodeURIComponent(JSON.stringify([scope.projectId,scope.orgId,scope.uid]));}
 function queueKey(value){const target=normalize(value);return 'mi-cartera-v2-cloud-operations-scoped:'+encodeURIComponent(JSON.stringify([target.projectId,target.orgId,target.uid]));}
-function queueKeys(value){const target=normalize(value);return [queueKey(target),'mi-cartera-v2-cloud-operations:'+target.uid,'mi-cartera-v2-cloud-operations'];}
+function queueKeys(value){
+ const target=normalize(value),scoped=queueKey(target);
+ // Preserve ambiguous legacy B2 work as a stop for the original pilot only.
+ if(root.MI_CARTERA_V2_PILOT_CONFIG?.backendMode==='b2-compatible'&&(target.projectId!==LEGACY_PROJECT||target.orgId!==LEGACY_ORG))return [scoped];
+ return [scoped,'mi-cartera-v2-cloud-operations:'+target.uid,'mi-cartera-v2-cloud-operations'];
+}
 function terminal(row){return !!row&&typeof row==='object'&&(['SINCRONIZADO','BLOQUEADO','CONFLICTO','CERRADO_ADMIN'].includes(row.status)||row.noReplay===true||row.administrativeClosure?.noReplay===true||row.operation?.noReplay===true||row.operation?.administrativeClosure?.noReplay===true||row.operation?.status==='CERRADO_ADMIN');}
 function validData(raw){const data=raw===null?empty():JSON.parse(raw);if(!data||typeof data!=='object'||Array.isArray(data))fail('V2_SESSION_DATA_INVALID');for(const name of DATA)if(data[name]!==undefined&&!Array.isArray(data[name]))fail('V2_SESSION_DATA_INVALID');return data;}
 function live(){const gate=root.MiCarteraV2AuthCloudGate,a=gate?.state?.(),verified=gate?.requireReady?.();if(a?.ready!==true||a.authenticated!==true||a.member!==true||verified?.uid!==a.uid||verified?.role!==a.role||root.firebaseAuthV2?.auth?.currentUser?.uid!==a.uid)fail('V2_SESSION_AUTH_REQUIRED');return normalize({projectId:root.MI_CARTERA_V2_FIREBASE_TEMPLATE?.projectId,orgId:gate.ORG,uid:a.uid});}
