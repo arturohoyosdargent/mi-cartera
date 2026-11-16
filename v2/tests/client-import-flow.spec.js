@@ -5,6 +5,7 @@ const path=require('node:path');
 const vm=require('node:vm');
 const {webcrypto}=require('node:crypto');
 const {parseCsv,validate}=require('../app/import-preview-core-v2.js');
+const {workbook,zip,workbookDOMParser}=require('./import-xlsx-fixtures.cjs');
 
 const app=path.join(__dirname,'../app');
 const ledgerKey='mi-cartera-v2-validation-state';
@@ -105,7 +106,12 @@ function setup({cloud=false,rows=fixtureRows,allowClientImport}={}){
     },
     run:()=>window.MiCarteraV2DurableActions.importClients(draft),
     submit:op=>window.MiCarteraV2SyncBridge.submit(op),
-    attachPreview(document){context.document=document;loadScript('import-preview-ui-v2.js')},
+    attachPreview(document){
+      context.document=document;
+      Object.assign(context,{DOMParser:workbookDOMParser(document.defaultView),ArrayBuffer,Blob,DecompressionStream});
+      loadScript('import-xlsx-v2.js');
+      loadScript('import-preview-ui-v2.js');
+    },
     remote,collections,runtime,failServerRead:value=>{failServerRead=value}
   };
 }
@@ -356,4 +362,48 @@ test('bulk CSV rejects all 100 clients when the final identity appears in cloud 
   assert.deepEqual([...x.remote],[[key,existing]]);
   assert.deepEqual(x.read(),before);
   assert.equal(x.runtime.inspect().length,0);
+});
+
+test('Clientes confirms an Excel workbook and prevents a second import of its identity from CSV',async()=>{
+  const {Window}=await import('happy-dom'),dom=new Window();
+  const document=dom.document;
+  try{
+    const shell=fs.readFileSync(path.join(app,'operational-shell.html'),'utf8');
+    document.body.innerHTML=shell.match(/<section id="clients"[^>]*>[\s\S]*?<\/section>/)[0];
+    const x=setup({cloud:true,allowClientImport:true});
+    x.attachPreview(document);
+    if(document.readyState==='loading')document.dispatchEvent(new dom.Event('DOMContentLoaded'));
+    const picker=document.getElementById('importPreviewFile'),result=document.getElementById('importPreviewResult');
+    const row=(number,cells)=>'<row r="'+number+'">'+cells.map((value,index)=>{
+      const cell=String.fromCharCode(65+index)+number;
+      return '<c r="'+cell+'" t="inlineStr"><is><t>'+value+'</t></is></c>';
+    }).join('')+'</row>';
+    const excel=zip(workbook(row(1,fixtureRows[0].cells)+row(2,fixtureRows[1].cells)));
+    async function select(name,buffer,ready){
+      Object.defineProperty(picker,'files',{configurable:true,value:[{name,size:buffer.byteLength,arrayBuffer:async()=>buffer}]});
+      picker.dispatchEvent(new dom.Event('change'));
+      const until=Date.now()+3000;
+      while(!ready()&&Date.now()<until)await new Promise(resolve=>setTimeout(resolve,5));
+      assert.ok(ready(),document.getElementById('importPreviewStatus').textContent);
+    }
+    const button=()=>document.getElementById('importClientsButton');
+    const before=x.read();
+    await select('clientes.xlsx',excel,()=>Boolean(button()));
+    assert.match(result.textContent,/Hoja revisada: Clientes/);
+    assert.match(result.textContent,/00123456/);
+    assert.equal(x.remote.size,0);
+    x.accept();
+    await button().onclick();
+    assert.equal(x.confirmations.length,1);
+    assert.equal(x.read().clients[0].dni,'00123456');
+    assert.equal(x.read().clients[0].routeId,'');
+    assert.equal(x.read().audit.length,1);
+    const persisted=JSON.stringify([...x.remote]);
+    const csv=new TextEncoder().encode('Nombre,DNI,Teléfono\nAna de Prueba,00123456,987654321').buffer;
+    await select('clientes.csv',csv,()=>/1 duplicada/i.test(document.getElementById('importPreviewStatus').textContent));
+    assert.equal(button(),null);
+    assert.equal(JSON.stringify([...x.remote]),persisted);
+    assert.equal(x.confirmations.length,1);
+    for(const collection of ['credits','payments','cashMovements'])assert.deepEqual(x.read()[collection],before[collection]);
+  }finally{await dom.happyDOM.abort();}
 });
