@@ -70,6 +70,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      id-token: write
     needs: qa
     if: ${{ needs.qa.result == 'success' }}
     environment:
@@ -107,12 +108,16 @@ jobs:
           git -C candidate diff --exit-code
       - name: Install pinned Firebase CLI
         run: npm install -g firebase-tools@15.30.1 --ignore-scripts --no-audit --no-fund
+      - name: Authenticate to Google Cloud with Workload Identity Federation
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          project_id: mi-cartera-d0d8c
+          workload_identity_provider: projects/718623808251/locations/global/workloadIdentityPools/mi-cartera-gh-v2/providers/github-hosting
+          service_account: github-v2-hosting@mi-cartera-d0d8c.iam.gserviceaccount.com
       - name: Publish only approved isolated V2 Hosting
         working-directory: candidate
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$FIREBASE_TOKEN" || { echo 'Production credential is not provisioned; publication blocked'; exit 1; }
-          firebase deploy --only hosting:v2 --project mi-cartera-d0d8c --config firebase.v2.json --token "$FIREBASE_TOKEN" --non-interactive
+          test -f "${GOOGLE_APPLICATION_CREDENTIALS:-}" || { echo 'Federated credentials are unavailable; publication blocked'; exit 1; }
+          firebase deploy --only hosting:v2 --project mi-cartera-d0d8c --config firebase.v2.json --non-interactive
