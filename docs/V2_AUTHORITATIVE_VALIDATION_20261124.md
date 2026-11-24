@@ -1,19 +1,19 @@
-# Validación de cobro autoritativo V2 — 24/11/2026
+# Cierre de implementación V2 — 24/11/2026
 
-Rama: development/v2-authoritative-payments-20261120. Base: cb171236c53618705984c5601e540fde9287554a. Candidato de desarrollo; sin despliegue ni acceso a datos financieros reales.
+Rama existente: development/v2-authoritative-payments-20261120. Continuación de f141f73cde6f5ec953e308b18779ceafd800aa9c, sin despliegue ni cambios de datos reales.
 
-- Regresión recuperada: 138 archivos, 964 pruebas PASS, 0 FAIL/skip/cancel; hashes de las 14 fuentes financieras/reglas coinciden.
-- Firestore Emulator: 248 casos de reglas y 2 flujos de integración ya aprobados se conservan. El flujo de cuota+mora se corrigió a fecha de negocio posterior al vencimiento y pasa por administrador, supervisor y cobrador (sin mora para cobrador). Pasan además renovación solo interés y créditos múltiples de un cliente con vencimiento idéntico: 253 casos distintos aprobados en total.
-- Renovación: backend recalcula con motores existentes, valida conciliación/centavos/cronograma/versiones/permisos, crea cadena+pago INTERES+caja+auditoría en una transacción y verifica reintentos. UI integra exclusivamente el resultado canónico en B2; transportes existentes preservados.
-- Cobros: cliente envía intención mínima, backend decide asignación y reparto, prohíbe duplicados y mora subcentavo; reglas cierran pagos, caja y comprobantes financieros directos. La cola recupera IDs originales y respeta cierres administrativos/cambios de usuario.
-- Mora: registro separado con capital/interés cero, asiento COBRO_MORA y enlace al pago normal; no recalcula capital, intereses ni cronogramas. Caja, Balance, historial, estado de cuenta y comprobantes/PNG aprobados en regresión.
+## Finalizado
 
-## Reproducir únicamente integraciones pendientes
+Cobro autoritativo, mora separada con precisión de centavos, recuperación de operaciones y renovación solo interés se conservan del commit anterior. Los motores financieros y de cronogramas y las reglas b0991f922eca2d9ad5d0e2cd1e478c2892b0e78987a13d7de4f92677dc74f947 permanecen iguales.
 
-Emulador local de Firestore, proyecto ficticio demo-mi-cartera-v2, puerto 18086. Para evitar el error de recursos de traducción del emulador en es_PE, iniciar Java con -Duser.language=en -Duser.country=US. El runner restringe host a loopback, puerto a 18085/18086 y no hace deploy. Usar V2_EMULATOR_PORT=18086 y V2_REPOSITORY_ROOT apuntando al checkout.
+Se cierra el error de contacto entre rutas: una asignación individual conserva la ruta canónica del cliente; para cambiar de ruta se usa el traslado existente de cliente con toda su cartera. Otro gestor de la misma ruta sigue permitido. La edición simple del cliente con créditos tampoco puede moverlo de ruta. Ambos stores transaccionales comprueban la ruta canónica antes de aplicar una asignación individual con datos desactualizados; los reintentos aceptados conservan su idempotencia. No se amplían permisos ni se mueven datos reales. Esta corrección previene nuevas asignaciones inconsistentes; no regulariza registros productivos existentes.
 
-    node --test --test-name-pattern="Admin transaction service|interest-only backend|multiple active credits for one" v2/tests/authoritative-payment-firestore-emulator.cjs
+## Verificación limitada al cambio
 
-## Límites para publicación
+42 pruebas distintas afectadas aprobadas: gestión/asignación y sincronización de metadatos, protección del contacto, edición de clientes y confirmaciones de creación. RED reproducido y GREEN posterior. Siete archivos JavaScript modificados pasan sintaxis. La regresión anterior de 964 PASS y los 253 casos de Firestore Emulator se conservan como evidencia del commit anterior; no se repiten. Los otros 13 archivos críticos registrados en aquella regresión mantienen sus hashes. No se afirma una nueva regresión integral.
 
-NO LISTO PARA PUBLICAR: falta validación física PC/Android/PWA, queda el caso conocido de contacto de cliente con créditos asignados a rutas distintas y falta procedimiento autorizado de despliegue coordinado de Functions+Rules+Hosting (el workflow protegido actual publica Hosting). No se amplían permisos ni se aplica una corrección parcial que quite acceso a otra ruta. Requiere resolver estos límites antes de comercialización; no habilitar Hosting aislado con el nuevo cliente.
+La única adaptación de fixtures sitúa cliente y créditos en la misma ruta antes de comprobar la asignación individual; el nuevo test cubre explícitamente el rechazo entre rutas, incluso con creditId más includeCredits. También se comprueba el traslado completo existente sin alterar capital, intereses, cuotas, cronograma, pagos ni Caja.
+
+## Pendiente
+
+NO LISTA PARA PUBLICAR: faltan validación física en PC/Android/PWA y procedimiento autorizado para desplegar conjuntamente Functions, Rules y Hosting (el workflow protegido actual sólo publica Hosting). No se despliega, no se amplían permisos y no se inicia ninguna funcionalidad adicional.
