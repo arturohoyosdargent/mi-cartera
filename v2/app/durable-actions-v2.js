@@ -176,10 +176,26 @@ function mergeCollectionResult(expected,prior,next,payment,movement,audit,moraPa
  save(current);return current;
 }
 
-function acceptedCollection(ack,prior,next,payment,movement,audit,operationId){
- if(!ack?.result)return {credit:next,payment,entry:movement,audit};
+function acceptedCollection(ack,prior,next,payment,movement,audit,operationId,moraPayment,moraEntry){
+ if(!ack?.result){if(root.MI_CARTERA_V2_PILOT_CONFIG?.backendMode==='b2-compatible')throw Error('La confirmación del servidor no contiene el cobro canónico. Sincroniza la cartera antes de continuar.');return {credit:next,payment,entry:movement,audit,moraPayment,moraEntry};}
  const result=ack.result,c=result.credit,p=result.payment,m=result.entry,a=result.audit;
  if(!c||c.id!==prior.id||c.version!==Number(prior.version||1)+1||!p||p.id!==payment.id||p.creditId!==prior.id||p.userId!==payment.userId||p.amount!==payment.amount||p.operationId!==operationId||p.routeId!==c.routeId||p.workerId!==String(c.workerId||'').trim()||p.workerAttribution?.source!=='CREDIT_ASSIGNMENT_AT_PAYMENT'||!m||m.ref!==p.id||m.amount!==p.amount||m.date!==p.date||!a||a.entityId!==p.id||a.actorId!==p.userId||a.operationId!==operationId)throw Error('La confirmación del servidor contiene un cobro distinto. Sincroniza la cartera antes de continuar.');
+ if(root.MI_CARTERA_V2_PILOT_CONFIG?.backendMode==='spark-native')return JSON.parse(JSON.stringify(result));
+ const input={creditId:prior.id,paymentId:payment.id,operationId,amount:payment.amount,expectedVersion:Number(prior.version||1),...(moraPayment?{moraAmount:moraPayment.amount,moraPaymentId:moraPayment.id}:{})};
+ if(root.MiCarteraV2CloudRuntime?.assertPaymentAcknowledgement)root.MiCarteraV2CloudRuntime.assertPaymentAcknowledgement(ack,input);
+ // The UI remains closed to incomplete or malformed confirmations even if its
+ // bridge was replaced/reconfigured while a form was open.
+ const amount=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0&&Number.isSafeInteger(Math.round(value*100))&&Math.abs(value*100-Math.round(value*100))<1e-6,cents=value=>Math.round(value*100),fail=()=>{throw Error('La confirmación del servidor contiene un cobro distinto. Sincroniza la cartera antes de continuar.');};
+ if(!['APPLIED','ALREADY_APPLIED'].includes(ack.status)||ack.operation?.id!==operationId||ack.operation.type!=='PAYMENT'||ack.operation.actorId!==p.userId||ack.operation.status!=='APPLIED'||ack.operation.source!=='V2_PAYMENT_ENDPOINT'||ack.operation.writeCount!==(moraPayment?6:4)||collectionEntityKey(ack.operation.result)!==collectionEntityKey(result)||p.version!==1||p.clientId!==c.clientId||p.concept!=='CUOTA'||p.method!=='V2_SERVER'||!/^\d{4}-\d{2}-\d{2}$/.test(p.date)||!['amount','capitalAmount','interestAmount','penaltyAmount','balanceAfterPayment'].every(key=>amount(p[key]))||p.penaltyAmount!==0||cents(p.capitalAmount)+cents(p.interestAmount)!==cents(p.amount)||!['capital','total','principalPaid','interestPaid','penaltyPaid'].every(key=>amount(c[key]))||p.capitalAmount>c.principalPaid||p.interestAmount>c.interestPaid||c.principalPaid>c.capital||!Array.isArray(c.schedule)||!c.schedule.length||!Array.isArray(p.installmentApplications)||!p.installmentApplications.length||p.totalInstallments!==c.schedule.length)fail();
+ let balance=0,total=0,applied=0,previous=0;
+ for(const q of c.schedule){if(!['amount','paid','balance'].every(key=>amount(q[key]))||cents(q.paid)+cents(q.balance)!==cents(q.amount))fail();balance+=cents(q.balance);total+=cents(q.amount);}
+ for(const row of p.installmentApplications){const q=c.schedule[row.number-1];if(!q||!Number.isInteger(row.number)||row.number<=previous||!['amount','balanceBefore','balanceAfter'].every(key=>amount(row[key]))||row.amount<=0||cents(row.balanceBefore)-cents(row.balanceAfter)!==cents(row.amount)||row.balanceAfter!==q.balance||row.status!==(row.balanceAfter===0?'PAGADA':'PARCIAL')||q.status!==row.status)fail();previous=row.number;applied+=cents(row.amount);}
+ if(total!==cents(c.total)||balance!==cents(p.balanceAfterPayment)||applied!==cents(p.amount)||c.status!==(balance===0?'PAGADO':'ACTIVO')||p.installmentNumber!==p.installmentNo||p.installmentNumber!==p.installmentFrom||p.installmentFrom!==p.installmentApplications[0].number||p.installmentTo!==p.installmentApplications.at(-1).number)fail();
+ function entry(value,reference,concept,op){if(!value||value.id!=='entry-'+reference.id||value.ref!==reference.id||value.version!==1||value.type!=='INGRESO'||value.concept!==concept||value.amount!==reference.amount||value.date!==p.date||value.routeId!==c.routeId||value.userId!==p.userId||value.operationId!==op)fail();}
+ entry(m,p,'COBRO_CUOTA',operationId);
+ if(a.id!=='audit-'+operationId||a.version!==1||a.action!=='PAYMENT_RECORDED'||a.entityType!=='PAYMENT'||String(a.role).toLowerCase()!==String(H?.state?.().role||'').toLowerCase()||a.detail?.creditId!==c.id||a.detail.amount!==p.amount||a.detail.capitalAmount!==p.capitalAmount||a.detail.interestAmount!==p.interestAmount||a.detail.routeId!==c.routeId||a.detail.workerId!==p.workerId)fail();
+ if(moraPayment){const mp=result.moraPayment;if(!mp||mp.id!==moraPayment.id||mp.creditId!==c.id||mp.clientId!==c.clientId||mp.normalPaymentId!==p.id||mp.operationId!==operationId+'-mora'||mp.amount!==moraPayment.amount||mp.penaltyAmount!==mp.amount||mp.capitalAmount!==0||mp.interestAmount!==0||mp.concept!=='MORA'||mp.version!==1||mp.date!==p.date||mp.userId!==p.userId||mp.routeId!==p.routeId||mp.workerId!==p.workerId||collectionEntityKey(mp.workerAttribution)!==collectionEntityKey(p.workerAttribution)||mp.balanceAfterPayment!==p.balanceAfterPayment||p.agreedMoraAmount!==mp.amount||p.moraPaymentId!==mp.id||a.detail.moraAmount!==mp.amount||a.detail.moraPaymentId!==mp.id||!amount(a.detail.totalReceived)||cents(a.detail.totalReceived)!==cents(p.amount)+cents(mp.amount)||a.detail.moraWithinAgreement!==true)fail();entry(result.moraEntry,mp,'COBRO_MORA',operationId+'-mora');}
+ else if(result.moraPayment||result.moraEntry||p.agreedMoraAmount||p.moraPaymentId)fail();
  return JSON.parse(JSON.stringify(result));
 }
 
@@ -200,19 +216,20 @@ function allowsManualMora(d){
  return root.MI_CARTERA_V2_PILOT_CONFIG?.backendMode==='b2-compatible'&&[A.ROLES.ADMIN,A.ROLES.SUPERVISOR].includes(String(d.session?.role||'').toUpperCase());
 }
 let collectionForm=null;
-function collectionInput(c,client,expected,allowMora){
+function collectionInput(c,client,expected,allowMora,pendingIntent){
  const schedule=c.schedule||[],balance=money(schedule.reduce((sum,q)=>sum+money(q.balance??q.amount??0),0)),first=schedule.find(q=>money(q.balance??q.amount)>0),firstAmount=money(first?.balance??first?.amount??0);
  if(!(balance>0))throw Error('SCHEDULE_BALANCE_EMPTY');
  if(collectionForm){collectionForm.focus();throw Error('Termina o cancela el cobro abierto antes de preparar otro.');}
  const panel=document.createElement('section'),previousFocus=document.activeElement,esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
  panel.id='v2CollectionForm';panel.className='card';panel.tabIndex=-1;panel.setAttribute('role','region');panel.setAttribute('aria-labelledby','v2CollectionTitle');
  Object.assign(panel.style,{position:'relative',overflowY:'auto',background:'#f5f8fa',padding:'18px',boxSizing:'border-box',margin:'10px 0',borderRadius:'16px'});
- const moraField=allowMora?'<label for="v2CollectionMora">Mora acordada S/</label><input class="input" id="v2CollectionMora" name="mora" type="number" inputmode="decimal" min="0" step="0.01" aria-describedby="v2CollectionError" value="0.00">':'';
+ const moraField=allowMora?'<label for="v2CollectionMora">Mora acordada S/</label><input class="input" id="v2CollectionMora" name="mora" type="number" inputmode="decimal" min="0" step="0.01" aria-describedby="v2CollectionError" value="'+Number(pendingIntent?.moraAmount||0).toFixed(2)+'">':'';
  panel.innerHTML='<div style="max-width:720px;margin:0 auto"><button type="button" class="btn" id="v2CollectionCancel">← Cancelar cobro</button><h2 id="v2CollectionTitle">Cobrar cuota</h2><div class="card"><b>'+esc(client.name||'Cliente')+'</b><div class="metric">Saldo pendiente: S/ '+balance.toFixed(2)+'</div></div><p id="v2CollectionError" role="alert" tabindex="-1" style="color:#b42318"></p><form id="v2CollectionEntry" novalidate><label for="v2CollectionAmount">Importe a cobrar S/</label><input class="input" id="v2CollectionAmount" name="amount" type="number" inputmode="decimal" min="0.01" max="'+balance.toFixed(2)+'" step="0.01" required aria-describedby="v2CollectionHelp v2CollectionError" value="'+(firstAmount||Math.min(balance,F.principalBalance(c))).toFixed(2)+'">'+moraField+'<p class="metric" id="v2CollectionHelp">Revisa la aplicación del importe antes de confirmar. El cobro se registra únicamente después de confirmar y recibir la aceptación de guardado.</p><button type="submit" class="btn green" id="v2CollectionReview" style="width:100%;min-height:58px">Revisar cobro</button></form><div id="v2CollectionReviewHost"></div></div>';
  const activePage=document.querySelector('.page.active'),focusedCard=previousFocus?.closest?.('[data-credit-id], [data-id]'),matches=row=>row&&(String(row.dataset.creditId)===String(c.id)||String(row.dataset.id)===String(c.id));
  const card=matches(focusedCard)?focusedCard:[...(activePage||document).querySelectorAll('[data-credit-id], [data-id]')].find(matches);
  if(card)card.insertAdjacentElement('afterend',panel);else (activePage||document.body).appendChild(panel);collectionForm=panel;
  const get=id=>panel.querySelector('#'+id),input=get('v2CollectionAmount'),moraInput=get('v2CollectionMora'),entry=get('v2CollectionEntry'),error=get('v2CollectionError');
+ if(pendingIntent)input.value=Number(pendingIntent.amount).toFixed(2);
  function clearError(){error.textContent='';input.removeAttribute('aria-invalid');moraInput?.removeAttribute('aria-invalid')}
  function fail(e,field){error.textContent=e.message;field?.setAttribute('aria-invalid','true');error.focus()}
  function currentAmount(){const raw=String(input.value||'').trim(),number=Number(raw),amount=money(number);if(!raw||!Number.isFinite(number)||!(number>0)||!(amount>0))throw Error('Escribe un importe válido mayor a S/ 0.00.');if(number>balance)throw Error('El importe no puede superar el saldo pendiente de S/ '+balance.toFixed(2)+'.');if(Math.abs(number-amount)>0.0000001)throw Error('Escribe el importe con un máximo de dos decimales.');return amount}
@@ -264,21 +281,28 @@ function collectionInput(c,client,expected,allowMora){
   input.focus();panel.scrollIntoView?.({block:'nearest'});
  });
 }
-let collecting=new Set();
+let collecting=new Set();const collectionAttempts=new Map();
 async function collect(creditId){
  if(collecting.has(String(creditId)))return alert('Este cobro ya se está procesando. Espera un momento.');
  collecting.add(String(creditId));
  try{
   const d=load();permit(d,'PAYMENT_WRITE');const expectedCollectionScope=collectionScope(d),c=active(d,creditId),client=d.clients.find(x=>x.id===c.clientId)||{};
-  const input=await collectionInput(c,client,expectedCollectionScope,allowsManualMora(d));if(input===null)return;
-  const {amount,mora}=input,date=today(),op=id('op');
-  const {payment,next}=collectionAllocation(c,amount,id('pay'),date);payment.routeId=c.routeId||'';payment.userId=d.session.actorId;payment.workerId=String(c.workerId||'').trim();payment.workerAttribution={source:'CREDIT_ASSIGNMENT_AT_PAYMENT'};
+  const priorKey=collectionEntityKey(c),recovered=root.MiCarteraV2CloudRuntime?.pendingPayment?.(c.id,Number(c.version||1));
+  let attempt=collectionAttempts.get(String(creditId));
+  if(attempt&&(attempt.scope!==expectedCollectionScope||attempt.priorKey!==priorKey)){collectionAttempts.delete(String(creditId));attempt=null;}
+  if(attempt?.blocked)throw Error('El cobro anterior requiere revisión. Sincroniza la cartera antes de continuar.');
+  const input=await collectionInput(c,client,expectedCollectionScope,allowsManualMora(d),recovered||attempt);if(input===null)return;
+  const {amount,mora}=input,date=today();
+  if(recovered&&(recovered.amount!==amount||(recovered.moraAmount||0)!==mora)||attempt&&(attempt.amount!==amount||attempt.moraAmount!==mora))throw Error('Hay un cobro pendiente con otro importe. Sincroniza y revisa su confirmación antes de registrar otro.');
+  if(!attempt){attempt={scope:expectedCollectionScope,priorKey,amount,moraAmount:mora,operationId:recovered?.operationId||id('op'),paymentId:recovered?.paymentId||id('pay'),moraPaymentId:mora?(recovered?.moraPaymentId||id('pay')):null};collectionAttempts.set(String(creditId),attempt);}
+  const op=attempt.operationId;
+  const {payment,next}=collectionAllocation(c,amount,attempt.paymentId,date);payment.operationId=op;payment.routeId=c.routeId||'';payment.userId=d.session.actorId;payment.workerId=String(c.workerId||'').trim();payment.workerAttribution={source:'CREDIT_ASSIGNMENT_AT_PAYMENT'};
   const m={id:id('cash'),date,type:'INGRESO',amount,concept:'COBRO_CUOTA',ref:payment.id,routeId:payment.routeId,version:1};
   const entities=[{collection:'credits',kind:'set',data:next},{collection:'payments',kind:'create',data:payment},cashEntity(m)];
   const detail={creditId,amount,capitalAmount:payment.capitalAmount,interestAmount:payment.interestAmount,routeId:payment.routeId};
   let moraPayment,moraEntry;
   if(mora>0){
-   moraPayment={id:id('pay'),operationId:op+'-mora',normalPaymentId:payment.id,creditId:c.id,clientId:c.clientId,date,amount:mora,capitalAmount:0,interestAmount:0,penaltyAmount:mora,concept:'MORA',routeId:payment.routeId,userId:payment.userId,workerId:payment.workerId,workerAttribution:payment.workerAttribution,balanceAfterPayment:payment.balanceAfterPayment,version:1};
+   moraPayment={id:attempt.moraPaymentId,operationId:op+'-mora',normalPaymentId:payment.id,creditId:c.id,clientId:c.clientId,date,amount:mora,capitalAmount:0,interestAmount:0,penaltyAmount:mora,concept:'MORA',routeId:payment.routeId,userId:payment.userId,workerId:payment.workerId,workerAttribution:payment.workerAttribution,balanceAfterPayment:payment.balanceAfterPayment,version:1};
    moraEntry={id:id('cash'),date,type:'INGRESO',amount:mora,concept:'COBRO_MORA',ref:moraPayment.id,routeId:payment.routeId,version:1};
    Object.assign(payment,{operationId:op,agreedMoraAmount:mora,moraPaymentId:moraPayment.id});
    entities.push({collection:'payments',kind:'create',data:moraPayment},cashEntity(moraEntry));
@@ -287,12 +311,13 @@ async function collect(creditId){
   const audit=ae(d,'PAYMENT_RECORDED','PAYMENT',payment.id,op,detail);
   const beforeSubmit=load();assertCollectionScope(beforeSubmit,expectedCollectionScope);collectionCredit(beforeSubmit,c);
   if(moraPayment&&!allowsManualMora(beforeSubmit))throw Error('La mora acordada ya no está disponible para esta sesión.');
-  const acknowledgement=await commit('PAYMENT',entities,audit,op);
-  if(moraPayment&&acknowledgement?.result)throw Error('La confirmación recibida no corresponde al cobro de cuota y mora. Sincroniza la cartera antes de continuar.');
+  let acknowledgement;
+  try{acknowledgement=await commit('PAYMENT',entities,audit,op);}catch(error){if(/PERMISSION_DENIED|UNAUTHENTICATED|FAILED_PRECONDITION|VERSION_CONFLICT|OPERATION_ID_COLLISION|ALREADY_EXISTS|INVALID_ARGUMENT|NOT_FOUND/.test((String(error?.code||'')+' '+String(error?.message||'')).toUpperCase().replace(/-/g,'_')))attempt.blocked=true;throw error;}
   for(const acknowledgedId of [acknowledgement?.operationId,acknowledgement?.operation?.id])if(acknowledgedId&&String(acknowledgedId)!==op)throw Error('La confirmación del cobro corresponde a otra operación. Sincroniza la cartera antes de continuar.');
-  const accepted=acceptedCollection(acknowledgement,c,next,payment,m,audit,op),committed=mergeCollectionResult(expectedCollectionScope,c,accepted.credit,accepted.payment,accepted.entry,accepted.audit,moraPayment,moraEntry),committedCredit=committed.credits.find(x=>x.id===creditId);
+  const accepted=acceptedCollection(acknowledgement,c,next,payment,m,audit,op,moraPayment,moraEntry),committed=mergeCollectionResult(expectedCollectionScope,c,accepted.credit,accepted.payment,accepted.entry,accepted.audit,accepted.moraPayment,accepted.moraEntry),committedCredit=committed.credits.find(x=>x.id===creditId);
+  collectionAttempts.delete(String(creditId));
   root.dispatchEvent(new root.Event('mi-cartera-v2-payment-recorded'));
-  root.MiCarteraV2SharePreview?.previewPayment?root.MiCarteraV2SharePreview.previewPayment(payment.id):root.MiCarteraV2PaymentReceipt?.share?.(payment,committed.clients.find(x=>x.id===committedCredit.clientId)||{},committedCredit);
+  root.MiCarteraV2SharePreview?.previewPayment?root.MiCarteraV2SharePreview.previewPayment(accepted.payment.id):root.MiCarteraV2PaymentReceipt?.share?.(accepted.payment,committed.clients.find(x=>x.id===committedCredit.clientId)||{},committedCredit);
  }catch(e){alert(e.message)}finally{collecting.delete(String(creditId))}
 }
 function renewalDebt(c){const schedule=Array.isArray(c?.schedule)?c.schedule:[];if(schedule.length)return money(schedule.reduce((sum,q)=>sum+money(q.balance??Math.max(0,Number(q.amount||0)-Number(q.paid||0))),0));return money(Math.max(0,Number(c.total||0)-Number(c.principalPaid||0)-Number(c.interestPaid||0)-Number(c.penaltyPaid||0)))}function closeRenewalHub(){document.getElementById('v2RenewalHub')?.remove()}function openRenewal(creditId){try{const d=load(),c=active(d,creditId),client=d.clients.find(x=>x.id===c.clientId)||{},debt=renewalDebt(c);closeRenewalHub();const panel=document.createElement('div');panel.id='v2RenewalHub';panel.className='card';Object.assign(panel.style,{position:'fixed',inset:'0',zIndex:'9999',margin:'0',borderRadius:'0',overflowY:'auto',background:'#f5f8fa',padding:'18px',boxSizing:'border-box'});panel.innerHTML='<div style="max-width:560px;margin:0 auto"><button class="btn" id="v2RenewBack">← Volver</button><div class="card"><h2 style="margin-top:0">Renovar crédito</h2><b>'+String(client.name||'Cliente').replace(/[&<>"]/g,'')+'</b><div class="metric">Capital original: S/ '+money(c.capital).toFixed(2)+' · Saldo actual: S/ '+debt.toFixed(2)+'</div><div class="metric">Elige cómo deseas preparar la renovación. La operación no se registra hasta confirmar.</div></div><button class="btn blue" id="v2ChooseInterest" style="width:100%;min-height:74px;margin:8px 0;font-size:18px">🔄 Renovar solo interés / saldo</button><button class="btn green" id="v2ChooseCapital" style="width:100%;min-height:74px;margin:8px 0;font-size:18px">♻ Renovar capital</button><div class="metric" style="padding:12px">Después podrás revisar las condiciones y la ficha antes de compartirla con el cliente.</div></div>';document.body.appendChild(panel);panel.querySelector('#v2RenewBack').onclick=closeRenewalHub;panel.querySelector('#v2ChooseInterest').onclick=()=>{closeRenewalHub();renewInterest(creditId)};panel.querySelector('#v2ChooseCapital').onclick=()=>{closeRenewalHub();refinance(creditId)};return true}catch(e){alert(e.message);return false}}
@@ -411,6 +436,16 @@ function renewalCredit(d,prior,next){
 }
 function mergeRenewalResult(expected,prior,result,payment,cash,audit,acknowledgement,operationId){
  for(const acknowledgedId of [acknowledgement?.operationId,acknowledgement?.operation?.id])if(acknowledgedId&&String(acknowledgedId)!==operationId)throw Error('La confirmación recibida corresponde a otra operación. Sincroniza la cartera antes de continuar.');
+ if(payment&&(acknowledgement?.operation?.source==='V2_INTEREST_RENEWAL_ENDPOINT'||root.MI_CARTERA_V2_PILOT_CONFIG?.backendMode==='b2-compatible')){
+  const ack=acknowledgement,accepted=ack?.result,op=ack?.operation,o=accepted?.oldCredit,n=accepted?.newCredit,p=accepted?.payment,m=accepted?.entry,a=accepted?.audit;
+  const same=(x,y)=>collectionEntityKey(x)===collectionEntityKey(y),fail=()=>{throw Error('La confirmación del servidor contiene una renovación distinta. Sincroniza la cartera antes de continuar.');};
+  if(!accepted||!['APPLIED','ALREADY_APPLIED'].includes(ack.status)||op?.id!==operationId||op.type!=='INTEREST_RENEWAL'||op.source!=='V2_INTEREST_RENEWAL_ENDPOINT'||op.status!=='APPLIED'||op.actorId!==payment.userId||op.writeCount!==5||!same(op.result,accepted))fail();
+  if(!o||o.id!==prior.id||o.version!==Number(prior.version||1)+1||o.status!=='RENOVADO'||o.renewedTo!==result.newCredit.id||!same(o.schedule,prior.schedule)||o.principalPaid!==result.oldCredit.principalPaid||o.interestPaid!==result.oldCredit.interestPaid||!n||n.id!==result.newCredit.id||n.version!==1||n.renewedFrom!==prior.id||n.clientId!==prior.clientId||n.status!=='ACTIVO')fail();
+  for(const key of ['capital','total','rate','term','freq','date','principalPaid','interestPaid','penaltyPaid','previousBalance','netDisbursement','requestedFirstPaymentDate','firstPaymentDate','maturity','restDay','renewalMode','schedule'])if(!same(n[key],result.newCredit[key]))fail();
+  if(!p||p.id!==payment.id||p.version!==1||p.creditId!==prior.id||p.clientId!==prior.clientId||p.operationId!==operationId||p.userId!==payment.userId||p.date!==payment.date||p.amount!==payment.amount||p.interestAmount!==p.amount||p.capitalAmount!==0||p.penaltyAmount!==0||p.concept!=='INTERES'||p.method!=='V2_SERVER'||p.routeId!==n.routeId||p.workerId!==String(n.workerId||'').trim()||p.workerAttribution?.source!=='CREDIT_ASSIGNMENT_AT_RENEWAL')fail();
+  if(!m||m.id!==cash[0]?.id||m.version!==1||m.ref!==p.id||m.type!=='INGRESO'||m.concept!=='COBRO_INTERES'||m.amount!==p.amount||m.date!==p.date||m.routeId!==p.routeId||m.userId!==p.userId||m.operationId!==operationId||!a||a.id!=='audit-'+operationId||a.version!==1||a.actorId!==p.userId||String(a.role).toLowerCase()!==String(H?.state?.().role||'').toLowerCase()||a.action!=='INTEREST_RENEWAL'||a.entityType!=='CREDIT'||a.entityId!==n.id||a.operationId!==operationId||a.detail?.from!==prior.id||a.detail.interest!==p.amount||a.detail.term!==n.term||a.detail.freq!==n.freq)fail();
+  result=JSON.parse(JSON.stringify(accepted));payment=result.payment;cash=[result.entry];audit=result.audit;
+ }
  const current=load();assertRenewalScope(current,expected);
  const predecessor=renewalCredit(current,prior,result.oldCredit),entities=[[current.credits,result.newCredit],[current.audit,audit]];
  if(current.credits.some(row=>row.renewedFrom===prior.id&&row.id!==result.newCredit.id))throw Error('Este crédito ya tiene otra renovación. Sincroniza la cartera antes de continuar.');

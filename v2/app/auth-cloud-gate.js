@@ -6,7 +6,7 @@ const FALLBACK_ORG=ORG;
 function activeOrg(){return root.MiCarteraV2PilotConfig?.requestedOrg?.()||root.MiCarteraV2PilotConfig?.state?.config?.orgId||FALLBACK_ORG}
 const ROLES=['admin','supervisor','cobrador'];
 const state={ready:false,authenticated:false,member:false,uid:null,email:null,role:null,routeIds:[],reason:'WAITING_VERSION',mode:'CLOUD_AUTH',preserveLocal:true};
-let started=false,explicitLogout=false,unsubscribe=null,authWork=Promise.resolve(),runtimeScope=null,authRevision=0;
+let started=false,explicitLogout=false,unsubscribe=null,authWork=Promise.resolve(),membershipWork=null,runtimeScope=null,authRevision=0;
 function emit(){if(typeof root.dispatchEvent!=='function')return;const C=root.CustomEvent;if(C)root.dispatchEvent(new C('v2-auth-cloud-state',{detail:{...state}}));}
 function disconnectRuntime(){runtimeScope=null;root.MiCarteraV2SyncBridge?.reset?.();}
 function block(reason,extra={}){
@@ -48,7 +48,7 @@ function connectRuntime(){
     runtimeScope=scope;return true;
   }catch(error){block('V2_CLOUD_NOT_READY:'+String(error?.code||error?.message||error));return false;}
 }
-async function evaluateUser(user,revision=++authRevision){
+async function readUserMembership(user,revision){
   if(revision!==authRevision)return {...state};
   disconnectRuntime();
   if(!user){
@@ -81,6 +81,11 @@ async function evaluateUser(user,revision=++authRevision){
   connectRuntime();
   return {...state};
 }
+function evaluateUser(user,revision=++authRevision){
+  const work=readUserMembership(user,revision);
+  membershipWork=work;
+  return work.finally(()=>{if(membershipWork===work)membershipWork=null});
+}
 async function start(){
   if(started)return {...state};
   if(!versionReady())return block('VERSION_NOT_VERIFIED');
@@ -107,6 +112,23 @@ async function signIn(email,password){
   }catch(error){block(authReason(error),{preserveLocal:true});throw error;}
 }
 async function refreshMembership(){return evaluateUser(root.firebaseAuthV2?.auth?.currentUser||null)}
+function canRetryMembership(){
+  return started&&!state.ready&&versionReady()&&root.navigator?.onLine!==false&&
+    !!root.firebaseAuthV2?.auth?.currentUser?.uid&&
+    /^V2_MEMBERSHIP_READ_FAILED:(unavailable|deadline-exceeded|network-request-failed)$/.test(state.reason);
+}
+function retryMembershipAfterReconnect(){
+  if(!started||state.ready||!versionReady()||root.navigator?.onLine===false||!root.firebaseAuthV2?.auth?.currentUser?.uid)return;
+  // Keep a reconnect that arrives before the initial server read rejects.
+  // A newer Auth callback or reconnect replaces this queued attempt.
+  const pendingMembership=membershipWork;
+  const retry=authWork.then(async()=>{
+    if(pendingMembership)await pendingMembership;
+    return authWork===retry&&canRetryMembership()?refreshMembership():{...state};
+  });
+  authWork=retry;
+  return retry;
+}
 async function signOut(){
   const fb=root.firebaseAuthV2;
   if(!fb?.auth||typeof fb.signOut!=='function'){explicitLogout=false;return block('AUTH_REQUIRED',{preserveLocal:true});}
@@ -115,6 +137,7 @@ async function signOut(){
   try{await fb.signOut(fb.auth);return {...state};}catch(error){explicitLogout=false;throw error;}
 }
 root.addEventListener('mi-cartera-v2-firebase-ready',()=>{start()});
+root.addEventListener('online',retryMembershipAfterReconnect);
 root.addEventListener('v2-local-owner-ready',connectRuntime);
 // Same-owner pending recovery verifies its retained custody without a remote reread.
 root.addEventListener('mi-cartera-v2-sync',event=>{if(event.detail?.source==='verified-local-session')connectRuntime()});

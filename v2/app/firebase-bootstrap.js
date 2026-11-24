@@ -35,19 +35,24 @@ try{
   const db=fsSdk.getFirestore(app);
   const auth=authSdk.getAuth(app);
   root.firebaseSdkV2={appSdk,fsSdk,authSdk,app};
-  if(['functions','external'].includes(backendMode)){
+  if(['functions','external','b2-compatible'].includes(backendMode)){
     const functionsSdk=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-functions.js');
     root.firebaseSdkV2.functionsSdk=functionsSdk;
   const functions=functionsSdk.getFunctions(app,'us-central1');
   if(externalOrigin&&typeof functionsSdk.httpsCallableFromURL!=='function')throw Error('V2_EXTERNAL_CALLABLE_SDK_REQUIRED');
   const callable=name=>externalOrigin?functionsSdk.httpsCallableFromURL(functions,externalOrigin+'/'+name):functionsSdk.httpsCallable(functions,name);
   const recordInstallment=callable('recordV2Installment');
+  const recordInterestRenewal=backendMode==='b2-compatible'?callable('recordV2InterestRenewal'):null;
+  if(backendMode==='b2-compatible'){
+    root.firebaseFunctionsV2={recordInstallment:async input=>(await recordInstallment(input)).data,recordInterestRenewal:async input=>(await recordInterestRenewal(input)).data};
+  }else{
   const saveCommissionTerms=callable('recordV2CommissionTerms');
   const settleCommission=callable('settleV2Commission');
   const requestCreditReview=callable('requestV2CreditAdministrativeReview');
   const recordFinancialOperation=externalOrigin?callable('recordV2FinancialOperation'):null;
   root.firebaseSdkV2={appSdk,fsSdk,authSdk,functionsSdk,app};
   root.firebaseFunctionsV2={recordInstallment:async input=>(await recordInstallment(input)).data,saveCommissionTerms:async input=>(await saveCommissionTerms(input)).data,settleCommission:async input=>(await settleCommission(input)).data,requestCreditReview:async input=>(await requestCreditReview(input)).data,...(recordFinancialOperation?{recordFinancialOperation:async input=>(await recordFinancialOperation(input)).data}:{})};
+  }
   }
   root.firestoreV2={
     db,

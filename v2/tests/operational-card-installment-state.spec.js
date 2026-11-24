@@ -11,7 +11,7 @@ test('credit, collection and payment views share schedule balances and never off
     a.equal(cards.installmentState(d.credits[1]).collectible,false);a.equal(cards.installmentState(d.credits[2]).collectible,false);
     cards.render();a.equal(doc.querySelectorAll('#creditsList [data-credit-id]').length,1);
     const current=doc.querySelector('#creditsList [data-credit-id]');a.match(current.textContent,/PARCIAL · Capital S\/ 100.00 · Total S\/ 120.00 · Pagado S\/ 80.00 · Saldo S\/ 40.00/);a.match(current.textContent,/Cobrar/);
-    a.equal(doc.querySelectorAll('#collectionsList .v2-overdue-card').length,1);a.match(doc.querySelector('#collectionsList').textContent,/S\/ 40.00/);
+    a.equal(doc.querySelectorAll('#collectionsList .v2-overdue-card').length,0);a.match(doc.querySelector('#collectionsList').textContent,/HOY/);a.doesNotMatch(doc.querySelector('#collectionsList').textContent,/VENCIDO/);a.match(doc.querySelector('#collectionsList').textContent,/S\/ 40.00/);
     a.match(doc.querySelector('#paymentHistory').textContent,/Estado actual: PARCIAL · Saldo S\/ 40.00/);
     h.w.MiCarteraV2CreditOverdue={selectedFilter:()=> 'PREVIOUS'};cards.render();
     a.equal(doc.querySelectorAll('#creditsList [data-credit-id]').length,2);a.doesNotMatch(doc.querySelector('#creditsList').textContent,/Cobrar|Renovar/);a.match(doc.querySelector('#creditsList').textContent,/Ver detalle/);

@@ -20,7 +20,7 @@ async function fixture({readBarrier=null,membershipBarrier=null,locks=true,seed=
  w.firestoreV2={db:{},doc:(_db,...parts)=>({path:parts.join('/')}),getDoc:async ref=>{const captured=clone(currentMember);if(membershipBarrier)await membershipBarrier.promise;return snapshot(ref,captured)},collection:(_db,...parts)=>({path:parts.join('/')}),where:(field,op,value)=>({field,op,value}),query:(base,clause)=>({...base,clause}),getDocs:async ref=>{reads++;if(currentBarrier)await currentBarrier.promise;const rows=[...remote].filter(([key,value])=>key.startsWith(ref.path+'/')&&(!ref.clause||value[ref.clause.field]===ref.clause.value));return {forEach:callback=>rows.forEach(([key,value])=>callback(snapshot({path:key},value)))}} ,runTransaction:async(_db,callback)=>{
   const staged=new Map();const result=await callback({get:async ref=>snapshot(ref,remote.get(ref.path)),set:(ref,value)=>staged.set(ref.path,clone(value))});for(const [key,value] of staged){remote.set(key,value);writes++}return result;
  }};
- if(serverMembership)w.firestoreV2.getDocFromServer=async ref=>snapshot(ref,await serverMembership(ref));
+ if(serverMembership)w.firestoreV2.getDocFromServer=async ref=>{const result=await serverMembership(ref);return result?.exists?result:snapshot(ref,result)};
  const load=file=>vm.runInContext(fs.readFileSync(path.join(APP,file),'utf8'),context,{filename:file});
  for(const file of ['core/sync-errors.js','core/offline-operation-queue.js','core/transaction-store.js','cloud/firestore-atomic-adapter.js','cloud/operational-sync.js','cloud/runtime-cloud.js','operation-sync-bridge.js','operation-commit-gate.js','pilot-config.js','session-storage-v2.js','auth-cloud-gate.js','local-ownership-bootstrap-v2.js','cloud-rehydration-v2.js'])load(file);
  const drain=async()=>{for(let i=0;i<6;i++)await new Promise(resolve=>setImmediate(resolve))};
@@ -69,4 +69,138 @@ test('a cached membership cannot authorize a session when Firebase reports the u
   assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,false);
   assert.equal(h.reads(),0);assert.equal(h.writes(),0);
  }finally{await h.close();}
+});
+
+const activeMember={active:true,role:'admin',routeIds:[]};
+function unavailable(){return Object.assign(new Error('Fixture server unavailable'),{code:'unavailable'})}
+
+test('online recovers a server-verified membership after offline startup and hydrates without financial writes',async()=>{
+ let reachable=false;
+ const h=await fixture({serverMembership:async()=>{if(!reachable)throw unavailable();return activeMember}});
+ try{
+  h.remote.set('orgs/'+ORG+'/clients/fixture-online-client',{id:'fixture-online-client',name:'Cliente ficticio'});
+  await h.auth();await h.drain();
+  assert.equal(h.w.MiCarteraV2AuthCloudGate.state().reason,'V2_MEMBERSHIP_READ_FAILED:unavailable');
+  assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,false);assert.equal(h.reads(),0);
+  reachable=true;h.w.dispatchEvent(new h.w.Event('online'));await h.drain();
+  assert.equal(h.w.MiCarteraV2AuthCloudGate.state().ready,true,'reconnection must revalidate the server membership');
+  assert.equal(h.w.MiCarteraV2SessionStorage.state().ready,true);
+  assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,true);
+  assert.deepEqual(JSON.parse(h.w.localStorage.getItem(KEY)).clients.map(row=>row.id),['fixture-online-client']);
+  assert.equal(h.writes(),0);
+ }finally{await h.close()}
+});
+
+test('online leaves membership and transport blocked while the server remains unavailable',async()=>{
+ let attempts=0;
+ const h=await fixture({serverMembership:async()=>{attempts++;throw unavailable()}});
+ try{
+  await h.auth();h.w.dispatchEvent(new h.w.Event('online'));await h.drain();
+  assert.equal(attempts,2,'reconnection must retry the failed server read');
+  assert.equal(h.w.MiCarteraV2AuthCloudGate.state().reason,'V2_MEMBERSHIP_READ_FAILED:unavailable');
+  assert.equal(h.w.MiCarteraV2AuthCloudGate.state().ready,false);
+  assert.equal(h.w.MiCarteraV2SessionStorage.state().ready,false);
+  assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,false);
+  assert.equal(h.authEvents.some(state=>state.ready),false);assert.equal(h.reads(),0);assert.equal(h.writes(),0);
+ }finally{await h.close()}
+});
+
+test('online during the initial pending membership read is retained and recovers after its offline rejection',async()=>{
+ const first=deferred();let attempts=0;
+ const h=await fixture({serverMembership:async()=>{attempts++;if(attempts===1){await first.promise;throw unavailable()}return activeMember}});
+ try{
+  const login=h.auth();await h.drain();assert.equal(attempts,1);
+  h.w.dispatchEvent(new h.w.Event('online'));first.resolve();await login;await h.drain();
+  assert.equal(attempts,2,'the only reconnection event must survive the initial pending read');
+  assert.equal(h.w.MiCarteraV2AuthCloudGate.state().ready,true);
+  assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,true);assert.equal(h.writes(),0);
+ }finally{first.resolve();await h.close()}
+});
+
+for(const entry of ['version','refresh','sign-in'])test('online waits for a membership read started through '+entry,async()=>{
+ const offline=deferred();let attempts=0;
+ const h=await fixture({serverMembership:async()=>{attempts++;if(attempts===2){await offline.promise;throw unavailable()}return activeMember}});
+ try{
+  await h.auth();await h.drain();assert.equal(h.w.MiCarteraV2AuthCloudGate.state().ready,true);
+  let pending;
+  if(entry==='version'){h.version(false);h.version(true)}
+  else if(entry==='refresh')pending=h.w.MiCarteraV2AuthCloudGate.refreshMembership();
+  else{
+   h.w.firebaseAuthV2.signInWithEmailAndPassword=async()=>({user:h.w.firebaseAuthV2.auth.currentUser});
+   pending=h.w.MiCarteraV2AuthCloudGate.signIn('fixture@fixture.invalid','fictional-password');
+  }
+  await h.drain();assert.equal(attempts,2);
+  h.w.dispatchEvent(new h.w.Event('online'));await h.drain();offline.resolve();await pending;await h.drain();
+  assert.equal(attempts,3,'reconnect must wait for the pending '+entry+' read');
+  assert.equal(h.w.MiCarteraV2AuthCloudGate.state().ready,true);
+  assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,true);assert.equal(h.writes(),0);
+ }finally{offline.resolve();await h.close()}
+});
+
+for(const result of ['cached','inactive'])test('online never grants membership from a '+result+' retry response',async()=>{
+ let retry=false;
+ const h=await fixture({serverMembership:async()=>{
+  if(!retry)throw unavailable();
+  return result==='cached'?{exists:()=>true,data:()=>activeMember,metadata:{fromCache:true}}:{...activeMember,active:false};
+ }});
+ try{
+  await h.auth();retry=true;h.w.dispatchEvent(new h.w.Event('online'));await h.drain();
+  assert.equal(h.w.MiCarteraV2AuthCloudGate.state().reason,result==='cached'?'V2_MEMBERSHIP_UNVERIFIED':'V2_MEMBERSHIP_INACTIVE');
+  assert.equal(h.w.MiCarteraV2AuthCloudGate.state().ready,false);
+  assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,false);
+  assert.equal(h.authEvents.some(state=>state.ready),false);assert.equal(h.reads(),0);assert.equal(h.writes(),0);
+ }finally{await h.close()}
+});
+
+test('online serializes repeated events and preserves an already confirmed session',async()=>{
+ const membership=deferred();let retry=false,attempts=0;
+ const h=await fixture({serverMembership:async()=>{attempts++;if(!retry)throw unavailable();await membership.promise;return activeMember}});
+ try{
+  await h.auth();retry=true;
+  for(let i=0;i<3;i++)h.w.dispatchEvent(new h.w.Event('online'));
+  await h.drain();assert.equal(attempts,2,'only one server membership retry may run concurrently');
+  membership.resolve();await h.drain();
+  assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,true);
+  assert.equal(h.authEvents.filter(state=>state.ready).length,1);
+  const token=h.w.MiCarteraV2SessionStorage.capture(),reads=h.reads();
+  h.w.dispatchEvent(new h.w.Event('online'));await h.drain();
+  assert.equal(attempts,2,'ready sessions must not be disconnected or rehydrated on every online event');
+  assert.equal(h.reads(),reads);assert.equal(h.w.MiCarteraV2SessionStorage.assertCurrent(token),true);
+  assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,true);assert.equal(h.writes(),0);
+ }finally{membership.resolve();await h.close()}
+});
+
+for(const change of ['logout','identity','organization','version'])test('online retry cannot publish a stale grant after '+change,async()=>{
+ const membership=deferred();let retry=false,attempts=0;
+ const h=await fixture({serverMembership:async()=>{attempts++;if(!retry)throw unavailable();await membership.promise;return activeMember}});
+ try{
+  await h.auth();retry=true;h.w.dispatchEvent(new h.w.Event('online'));await h.drain();
+  assert.equal(attempts,2,'the retry must be in flight before changing its scope');
+  let changedAuth;
+  if(change==='logout')changedAuth=h.auth(null);
+  else if(change==='identity')changedAuth=h.auth('fixture-integration-B');
+  else if(change==='organization')h.w.MiCarteraV2PilotConfig.setTenant('v2-fictional-other');
+  else h.version(false);
+  membership.resolve();await changedAuth;await h.drain();
+  assert.equal(h.authEvents.some(state=>state.ready&&state.uid===UID),false,'the obsolete retry must never authorize A');
+  if(change==='identity'){
+   assert.equal(h.w.MiCarteraV2AuthCloudGate.state().uid,'fixture-integration-B');
+   assert.equal(h.w.MiCarteraV2SessionStorage.state().uid,'fixture-integration-B');
+  }else{
+   assert.equal(h.w.MiCarteraV2AuthCloudGate.state().ready,false);
+   assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,false);assert.equal(h.reads(),0);
+  }
+  assert.equal(h.writes(),0);
+ }finally{membership.resolve();await h.close()}
+});
+
+for(const reason of ['inactive','logged-out','permission-denied','version-blocked'])test('online does not automatically retry '+reason+' sessions',async()=>{
+ let attempts=0;
+ const h=await fixture({serverMembership:async()=>{attempts++;if(reason==='inactive')return {...activeMember,active:false};if(reason==='permission-denied')throw Object.assign(Error('Fixture denied'),{code:'permission-denied'});throw unavailable()}});
+ try{
+  await h.auth();if(reason==='logged-out')await h.auth(null);if(reason==='version-blocked')h.version(false);
+  h.w.dispatchEvent(new h.w.Event('online'));await h.drain();
+  assert.equal(attempts,1);assert.equal(h.w.MiCarteraV2AuthCloudGate.state().ready,false);
+  assert.equal(h.w.MiCarteraV2SyncBridge.status().configured,false);assert.equal(h.reads(),0);assert.equal(h.writes(),0);
+ }finally{await h.close()}
 });

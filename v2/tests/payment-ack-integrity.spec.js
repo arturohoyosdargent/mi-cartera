@@ -196,22 +196,12 @@ test('already rehydrated accepted payment entities are idempotent and preserve c
 test('a B2 payment ACK accepts the versioned audit after cloud hydration exactly once',async()=> {
   const h=await setup();
   try {
-    const {createStore}=require('../app/core/transaction-store.js');
-    const {createOperationalSync}=require('../app/cloud/operational-sync.js');
+    h.w.MI_CARTERA_V2_PILOT_CONFIG.backendMode='b2-compatible';
     const {release,pending}=await pendingPayment(h),op=h.commits[0],d=h.get();
-    const documents=new Map([[`credits/${d.credits[0].id}`,d.credits[0]]]);
-    const store=createStore({runAtomic:run=>run({
-      get:async path=>clone(documents.get(path)??null),
-      set:async (path,value)=>documents.set(path,clone(value))
-    })});
-    const sync=createOperationalSync({store,actorId:h.auth.uid});
-    const ack=await sync.submit(op);
+    const sync=paymentEndpointFixture(h),{documents}=sync,ack=await sync.submit(op);
     a.equal(ack.status,'APPLIED');
-    const row=(collection,id)=>documents.get(collection+'/'+id);
-    d.credits=[row('credits',op.entities[0].data.id)];
-    d.payments=[row('payments',op.entities[1].data.id)];
-    d.cashMovements=[row('entries',op.entities[2].data.id)];
-    d.audit=[row('audit',op.audit.id)];
+    d.credits=[ack.result.credit];d.payments=[ack.result.payment];
+    d.cashMovements=[ack.result.entry];d.audit=[ack.result.audit];
     a.equal(d.audit[0].version,1);
     a.equal(d.audit[0].actorId,h.auth.uid);
     a.equal(d.audit[0].operationId,ack.operation.id);
@@ -279,6 +269,15 @@ test('double taps create one pending payment and rejection releases the retry gu
   }finally{await h.close();}
 });
 
+
+// Only the callable boundary is fictional; calculation and idempotency use the real service.
+function paymentEndpointFixture(h){
+ const {createCollectorPaymentService}=require('../../functions/v2-collector-payment'),prefix='orgs/v2-mi-cartera-pilot/',documents=new Map([['members/'+h.auth.uid,{active:true,role:h.auth.role,routeIds:h.auth.routeIds}],...h.get().credits.map(c=>['credits/'+c.id,clone(c)])]);
+ const relative=key=>key.slice(prefix.length),service=createCollectorPaymentService({now:()=>h.w.MiCarteraV2Dates.today()+'T12:00:00.000Z',businessDate:()=>h.w.MiCarteraV2Dates.today(),runAtomic:async run=>{const draft=new Map([...documents].map(([key,value])=>[key,clone(value)])),result=await run({get:async key=>clone(draft.get(relative(key))??null),set:async(key,value)=>draft.set(relative(key),clone(value)),create:async(key,value)=>draft.set(relative(key),clone(value))});for(const [key,value] of draft)documents.set(key,value);return result;}});
+ const submit=op=>{const payment=op.entities.find(x=>x.collection==='payments'&&x.data.concept!=='MORA').data,credit=op.entities.find(x=>x.collection==='credits').data,mora=op.entities.find(x=>x.collection==='payments'&&x.data.concept==='MORA')?.data;return service.execute({uid:h.auth.uid},{creditId:credit.id,paymentId:payment.id,operationId:op.operationId,amount:payment.amount,expectedVersion:credit.version-1,...(mora?{moraAmount:mora.amount,moraPaymentId:mora.id}:{})});};
+ return {documents,submit};
+}
+
 function startManualMora(h, value) {
   h.w.MI_CARTERA_V2_PILOT_CONFIG.backendMode='b2-compatible';
   const pending=h.w.V2UI.collect('fictional-credit');
@@ -295,14 +294,7 @@ test('manual mora posts two linked payments and cash movements exactly once with
   const h=await setup();
   try {
     h.w.MiCarteraV2Dates.today=()=> '2026-11-11';
-    const {createStore}=require('../app/core/transaction-store.js');
-    const {createOperationalSync}=require('../app/cloud/operational-sync.js');
-    const documents=new Map([['credits/fictional-credit',h.get().credits[0]]]);
-    const store=createStore({runAtomic:run=>run({
-      get:async path=>clone(documents.get(path)??null),
-      set:async (path,value)=>documents.set(path,clone(value))
-    })});
-    const sync=createOperationalSync({store,actorId:h.auth.uid});
+    const sync=paymentEndpointFixture(h),{documents}=sync;
     h.w.MiCarteraV2SyncBridge.submit=op=>{h.commits.push(clone(op));return sync.submit(op)};
     const {pending,document}=startManualMora(h,'0.75');
     const review=document.getElementById('v2CollectionReviewPanel');
@@ -352,6 +344,7 @@ test('manual mora refuses invalid amounts and credits without an overdue install
 test('manual mora stays optional and an unconfirmed mixed payment leaves no local writes',async()=>{
   const h=await setup();
   try {
+    const endpoint=paymentEndpointFixture(h);h.w.MiCarteraV2SyncBridge.submit=op=>{h.commits.push(clone(op));return endpoint.submit(op)};
     const first=startManualMora(h,'');
     first.document.getElementById('v2CollectionConfirm').click();await first.pending;
     a.equal(h.get().payments.length,1);a.equal(h.get().cashMovements.length,1);

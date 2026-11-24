@@ -4,6 +4,11 @@ const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
 initializeApp();
 const db = getFirestore();
+const { createCollectorCallable } = require('./v2-collector-callable');
+const { createInterestRenewalService } = require('./v2-interest-renewal');
+
+exports.recordV2Installment = onCall({region:'us-central1'}, createCollectorCallable({db,HttpsError}));
+exports.recordV2InterestRenewal = onCall({region:'us-central1'}, createCollectorCallable({db,HttpsError,createService:createInterestRenewalService}));
 
 exports.createCarteraUser = onCall(async (request) => {
   if (!request.auth) throw new HttpsError('unauthenticated','Debe iniciar sesión.');

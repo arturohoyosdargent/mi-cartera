@@ -43,7 +43,7 @@ const path=require('path');
     const next=rules.indexOf('\n    match /',start+marker.length);
     const block=rules.slice(start,next<0?rules.length:next);
     assert.ok(block.includes('v2Org(orgId)'),`V2 ${collection} must enforce pilot namespace`);
-    assert.ok(block.includes('allow delete: if false;')||block.includes('allow update, delete: if false;'),`V2 ${collection} delete must be denied`);
+    assert.ok(/allow (?:create, )?(?:update, )?delete: if false;/.test(block),`V2 ${collection} delete must be denied`);
   }
 
   for(const collection of ['payments','audit']){
@@ -51,7 +51,7 @@ const path=require('path');
     const start=rules.indexOf(marker);
     const next=rules.indexOf('\n    match /',start+marker.length);
     const block=rules.slice(start,next<0?rules.length:next);
-    assert.ok(block.includes('allow update, delete: if false;'),`V2 ${collection} must be append-only`);
+    assert.ok(collection==='payments'?block.includes('allow create, update, delete: if false;'):block.includes('allow update, delete: if false;'),`V2 ${collection} must protect immutable financial records`);
   }
 
   assert.ok(!/match\s+\/\{document=\*\*\}[\s\S]*?allow\s+read\s*,\s*write\s*:\s*if\s+true/.test(rules),'global allow-all detected');

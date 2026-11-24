@@ -27,8 +27,7 @@
     return Number(installment?.balance ?? (Number(installment?.amount || 0) - Number(installment?.paid || 0)));
   }
 
-  function rows(){
-    const data = db();
+  function rows(data = db()){
     const clients = Array.isArray(data.clients) ? data.clients : [];
     const result = [];
     for (const credit of (Array.isArray(data.credits) ? data.credits : [])) {
@@ -93,7 +92,20 @@
     const to = $('agendaTo')?.value || today();
     const route = $('agendaRoute')?.value || '';
     const query = String($('agendaSearch')?.value || '').toLowerCase().trim();
-    const all = rows();
+    const data = db();
+    const all = rows(data);
+    const activeCreditsByClient = new Map();
+    for (const credit of (Array.isArray(data.credits) ? data.credits : [])) {
+      if (!credit.id || credit.deletedAt || credit.tombstone || credit.renewedTo ||
+          !['ACTIVE','ACTIVO'].includes(String(credit.status || '').toUpperCase())) continue;
+      const schedule = Array.isArray(credit.schedule) ? credit.schedule : [];
+      if (schedule.length && schedule.every(row => D.isPaid?.(row) ?? (balance(row) <= 0))) continue;
+      if (!schedule.length && credit.total != null && credit.total !== '' && Number.isFinite(Number(credit.total)) &&
+          root.MiCarteraV2ShareCard?.creditTotals?.(credit)?.balance === 0) continue;
+      const clientId = String(credit.clientId || '').trim();
+      if (!activeCreditsByClient.has(clientId)) activeCreditsByClient.set(clientId,new Set());
+      activeCreditsByClient.get(clientId).add(String(credit.id).trim());
+    }
     const routes = [...new Set(all.map(row => row.route).filter(Boolean))].sort();
     const routeSelect = $('agendaRoute');
     if (routeSelect) {
@@ -110,9 +122,13 @@
       const groupTotal = group.rows.reduce((sum, row) => sum + row.amount, 0);
       const detail = group.rows.map(row => {
         const late = overdue(row),commitment=promiseState(row);
-        return `<div class="v2-agenda-detail-row${late ? ' is-overdue' : ''}"><span>Cuota ${esc(row.number)} · ${esc(row.date || 'Sin fecha')} · ${money(row.amount)}${late ? ' · VENCIDA' : ''}${commitment?' · COMPROMISO '+esc(commitment.state)+' · '+money(commitment.amount)+' · '+esc(commitment.date):''}</span><button type="button" class="btn green" onclick="MiCarteraV2Agenda.remind('${esc(row.id)}')">📤 Recordar</button></div>`;
+        return `<div class="v2-agenda-detail-row${late ? ' is-overdue' : ''}"><span>Crédito ${esc(row.creditId)} · Cuota ${esc(row.number)} · ${esc(row.date || 'Sin fecha')} · ${money(row.amount)}${late ? ' · VENCIDA' : ''}${commitment?' · COMPROMISO '+esc(commitment.state)+' · '+money(commitment.amount)+' · '+esc(commitment.date):''}</span><button type="button" class="btn green" data-agenda-reminder="${esc(row.id)}">📤 Recordar</button></div>`;
       }).join('');
-      return `<div class="card v2-agenda-client-card${promise?' v2-agenda-promise-card':''}${hasOverdue?' v2-agenda-overdue-card':''}"><div class="v2-agenda-client-head"><div><b>${esc(group.client.name)}</b><br><span>${esc(group.route || 'Sin ruta')} · ${group.rows.length} cuota${group.rows.length === 1 ? '' : 's'}</span></div><div class="v2-agenda-client-total">${money(groupTotal)}${promise?' <span class="v2-agenda-promise-label">🟠 COMPROMISO '+promise.state+' · '+money(promise.amount)+' · '+esc(promise.date)+'</span>':''}${hasOverdue?' <span class="v2-agenda-overdue-label">🔴 VENCIDO</span>':''}</div></div><details class="v2-agenda-detail"><summary>Ver detalle de ${group.rows.length} cuota${group.rows.length===1?'':'s'}</summary>${detail}</details><div class="row"><button type="button" class="btn green" onclick="MiCarteraV2Agenda.remind('${esc(group.rows[0].id)}')">📤 Recordar próximo</button><button type="button" class="btn" onclick="show('credits');window.MiCarteraV2CreditOverdue?.focus?.('${esc(group.rows[0].creditId)}')">Ver crédito</button><button type="button" class="btn" data-account-statement="${esc(group.client.id)}">Estado de cuenta</button></div></div>`;
+      const activeCredits = activeCreditsByClient.get(String(group.client.id).trim())?.size || 0;
+      const reminder = activeCredits > 1
+        ? `<button type="button" class="btn green" data-account-statement="${esc(group.client.id)}">📤 Recordar cliente</button>`
+        : `<button type="button" class="btn green" data-agenda-reminder="${esc(group.rows[0].id)}">📤 Recordar próximo</button>`;
+      return `<div class="card v2-agenda-client-card${promise?' v2-agenda-promise-card':''}${hasOverdue?' v2-agenda-overdue-card':''}"><div class="v2-agenda-client-head"><div><b>${esc(group.client.name)}</b><br><span>${esc(group.route || 'Sin ruta')} · ${group.rows.length} cuota${group.rows.length === 1 ? '' : 's'}</span></div><div class="v2-agenda-client-total">${money(groupTotal)}${promise?' <span class="v2-agenda-promise-label">🟠 COMPROMISO '+promise.state+' · '+money(promise.amount)+' · '+esc(promise.date)+'</span>':''}${hasOverdue?' <span class="v2-agenda-overdue-label">🔴 VENCIDO</span>':''}</div></div><details class="v2-agenda-detail"><summary>Ver detalle de ${group.rows.length} cuota${group.rows.length===1?'':'s'}</summary>${detail}</details><div class="row">${reminder}<button type="button" class="btn" data-agenda-credit="${esc(group.rows[0].creditId)}">Ver crédito</button><button type="button" class="btn" data-account-statement="${esc(group.client.id)}">Estado de cuenta</button></div></div>`;
     }).join('') : '<div class="card">No hay cuotas pendientes en este periodo.</div>';
   }
 
@@ -131,5 +147,14 @@
   agenda.render = render;
   agenda.filter = filter;
   root.__v2GroupedAgendaInstalled = true;
+  document.addEventListener('click', event => {
+    const button = event.target.closest?.('[data-agenda-reminder],[data-agenda-credit]');
+    if (!button || !$('agendaList')?.contains(button)) return;
+    if (button.dataset.agendaReminder !== undefined) agenda.remind(button.dataset.agendaReminder);
+    else {
+      root.show?.('credits');
+      root.MiCarteraV2CreditOverdue?.focus?.(button.dataset.agendaCredit);
+    }
+  });
   document.addEventListener('DOMContentLoaded', render);
 })(window);
